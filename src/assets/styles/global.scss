@@ -1,0 +1,94 @@
+// 全局样式
+@use './variables.scss' as *;
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+#app {
+  width: 100%;
+  height: 100%;
+}
+
+// VueFlow 样式覆盖
+.vue-flow {
+  background-color: var(--bg-canvas);
+}
+
+// 网格背景
+.vue-flow__background {
+  background-color: var(--bg-canvas);
+}
+
+// 节点基础样式
+.vue-flow__node {
+  cursor: grab;
+
+  &:active {
+    cursor: grabbing;
+  }
+}
+
+// 选中状态
+.vue-flow__node.selected {
+  outline: none;
+}
+
+// 连接线样式
+.vue-flow__edge-path {
+  stroke: var(--border-color);
+  stroke-width: 2px;
+  transition: stroke 0.2s ease;
+
+  &:hover {
+    stroke: var(--border-color-hover);
+  }
+}
+
+.vue-flow__edge.selected .vue-flow__edge-path {
+  stroke: var(--color-primary);
+  stroke-width: 3px;
+}
+
+// 连接点样式
+.custom-handle {
+  width: 10px;
+  height: 10px;
+  background: var(--bg-secondary);
+  border: 2px solid var(--border-color);
+  border-radius: 50%;
+  transition: all 0.2s ease;
+
+  &:hover {
+    border-color: var(--border-color-hover);
+    background: #E6F7FF;
+    width: 12px;
+    height: 12px;
+  }
+
+  &.connecting {
+    border-color: var(--color-primary);
+    background: var(--color-primary);
+  }
+}
+
+// 滚动条样式
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 3px;
+
+  &:hover {
+    background: var(--text-secondary);
+  }
+}

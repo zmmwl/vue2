@@ -1,0 +1,118 @@
+import type { NodeTemplate } from '@/types/nodes'
+import { NodeCategory, ComputeTaskType, DataSourceType } from '@/types/nodes'
+
+// 数据源节点模板
+export const DATA_SOURCE_TEMPLATES: NodeTemplate[] = [
+  {
+    type: 'data_source',
+    label: 'MySQL 数据库',
+    category: NodeCategory.DATA_SOURCE,
+    sourceType: DataSourceType.DATABASE,
+    icon: '🗄️',
+    color: '#52C41A',
+    description: '关系型数据库'
+  },
+  {
+    type: 'data_source',
+    label: 'PostgreSQL',
+    category: NodeCategory.DATA_SOURCE,
+    sourceType: DataSourceType.DATABASE,
+    icon: '🐘',
+    color: '#52C41A',
+    description: '开源关系型数据库'
+  },
+  {
+    type: 'data_source',
+    label: 'CSV 文件',
+    category: NodeCategory.DATA_SOURCE,
+    sourceType: DataSourceType.FILE,
+    icon: '📄',
+    color: '#52C41A',
+    description: '逗号分隔值文件'
+  },
+  {
+    type: 'data_source',
+    label: 'Excel 文件',
+    category: NodeCategory.DATA_SOURCE,
+    sourceType: DataSourceType.FILE,
+    icon: '📊',
+    color: '#52C41A',
+    description: 'Excel 电子表格'
+  },
+  {
+    type: 'data_source',
+    label: 'REST API',
+    category: NodeCategory.DATA_SOURCE,
+    sourceType: DataSourceType.API,
+    icon: '🌐',
+    color: '#52C41A',
+    description: 'RESTful API 接口'
+  },
+  {
+    type: 'data_source',
+    label: 'GraphQL',
+    category: NodeCategory.DATA_SOURCE,
+    sourceType: DataSourceType.API,
+    icon: '◈',
+    color: '#52C41A',
+    description: 'GraphQL 查询接口'
+  }
+]
+
+// 计算任务节点模板
+export const COMPUTE_TASK_TEMPLATES: NodeTemplate[] = [
+  {
+    type: 'compute_task',
+    label: 'PSI 计算',
+    category: NodeCategory.COMPUTE_TASK,
+    taskType: ComputeTaskType.PSI,
+    icon: '🔐',
+    color: '#1890FF',
+    description: '隐私集合求交'
+  },
+  {
+    type: 'compute_task',
+    label: 'PIR 查询',
+    category: NodeCategory.COMPUTE_TASK,
+    taskType: ComputeTaskType.PIR,
+    icon: '🔍',
+    color: '#722ED1',
+    description: '隐私信息检索'
+  },
+  {
+    type: 'compute_task',
+    label: 'MPC 计算',
+    category: NodeCategory.COMPUTE_TASK,
+    taskType: ComputeTaskType.MPC,
+    icon: '🧮',
+    color: '#FA8C16',
+    description: '多方安全计算'
+  },
+  {
+    type: 'compute_task',
+    label: '联邦学习',
+    category: NodeCategory.COMPUTE_TASK,
+    taskType: ComputeTaskType.FL,
+    icon: '🤖',
+    color: '#EB2F96',
+    description: 'Federated Learning'
+  },
+  {
+    type: 'compute_task',
+    label: '同态加密',
+    category: NodeCategory.COMPUTE_TASK,
+    taskType: ComputeTaskType.MPC,
+    icon: '🔒',
+    color: '#13C2C2',
+    description: 'Homomorphic Encryption'
+  },
+  {
+    type: 'compute_task',
+    label: '差分隐私',
+    category: NodeCategory.COMPUTE_TASK,
+    taskType: ComputeTaskType.MPC,
+    icon: '🛡️',
+    color: '#F5222D',
+    description: 'Differential Privacy'
+  }
+]

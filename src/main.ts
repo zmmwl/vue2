@@ -1,0 +1,9 @@
+import { createApp } from 'vue'
+import App from './App.vue'
+
+// VueFlow 样式导入
+import '@vue-flow/core/dist/style.css'
+import '@vue-flow/core/dist/theme-default.css'
+import '@vue-flow/controls/dist/style.css'
+
+createApp(App).mount('#app')
