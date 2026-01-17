@@ -1,4 +1,4 @@
-import type { Node, Edge, Connection } from '@vue-flow/core'
+import type { Node, Edge } from '@vue-flow/core'
 import type { NodeData, NodeCategory } from './nodes'
 
 // 流程图数据接口

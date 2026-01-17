@@ -13,13 +13,14 @@
       />
     </div>
 
-    <!-- 顶部悬停区域 - 用于创建新的输入连接 -->
-    <div class="hover-input-zone" :class="{ 'has-connections': data.inputHandles && data.inputHandles.length > 0 }">
+    <!-- 顶部透明连接接收区域 -->
+    <div class="target-drop-zone">
       <Handle
+        id="auto-target"
         type="target"
         :position="Position.Top"
-        class="input-handle hover-handle"
         :style="{ left: '50%' }"
+        class="input-handle auto-target"
       />
     </div>
 
@@ -81,6 +82,22 @@ defineProps<NodeProps<NodeData>>()
     pointer-events: none;
   }
 
+  .target-drop-zone {
+    position: absolute;
+    top: 0;
+    left: -50%;
+    width: 200%;
+    height: 20px;
+    z-index: 5;
+    pointer-events: auto;
+
+    .auto-target {
+      opacity: 0;
+      pointer-events: auto;
+      cursor: crosshair;
+    }
+  }
+
   .output-handles-container {
     position: absolute;
     bottom: -6px;
@@ -90,10 +107,10 @@ defineProps<NodeProps<NodeData>>()
     pointer-events: none;
   }
 
-  // 悬停区域
-  .hover-input-zone,
+  // 悬停区域 - 只保留输出区域
   .hover-output-zone {
     position: absolute;
+    bottom: -8px;
     left: 0;
     right: 0;
     height: 16px;
@@ -101,8 +118,17 @@ defineProps<NodeProps<NodeData>>()
     transition: opacity 0.2s ease;
     z-index: 10;
 
+    .hover-handle {
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    }
+
     &:hover {
       opacity: 1;
+
+      .hover-handle {
+        opacity: 1;
+      }
     }
 
     &.has-connections {
@@ -110,42 +136,14 @@ defineProps<NodeProps<NodeData>>()
     }
   }
 
-  .hover-input-zone {
-    top: -8px;
-
-    .hover-handle {
-      opacity: 0;
-      transition: opacity 0.2s ease;
-    }
-
-    &:hover .hover-handle {
-      opacity: 1;
-    }
-  }
-
-  .hover-output-zone {
-    bottom: -8px;
-
-    .hover-handle {
-      opacity: 0;
-      transition: opacity 0.2s ease;
-    }
-
-    &:hover .hover-handle {
-      opacity: 1;
-    }
-  }
-
-  // 节点悬停时也显示悬停 handle
+  // 节点悬停时只显示下方输出 handle
   &:hover {
-    .hover-input-zone,
     .hover-output-zone {
       opacity: 1;
-    }
 
-    .hover-input-zone .hover-handle,
-    .hover-output-zone .hover-handle {
-      opacity: 1;
+      .hover-handle {
+        opacity: 1;
+      }
     }
   }
 

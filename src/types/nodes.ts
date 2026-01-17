@@ -1,4 +1,4 @@
-import type { Node, NodeProps } from '@vue-flow/core'
+import type { Node } from '@vue-flow/core'
 
 // 节点类别枚举
 export enum NodeCategory {

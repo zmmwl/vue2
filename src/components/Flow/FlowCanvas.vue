@@ -10,6 +10,8 @@
       :fit-view-on-init="false"
       :default-edge-options="{ type: 'smoothstep', style: { stroke: '#999999', strokeWidth: 1.5 } }"
       @connect="onConnect"
+      @connect-start="onConnectStart"
+      @connect-end="onConnectEnd"
       @edges-change="onEdgesChange"
     >
       <Background pattern="dots" :gap="20" :size="1.5" color="#d1d5db" />
@@ -41,7 +43,8 @@ const nodes = ref<Node[]>([])
 const edges = ref<Edge[]>([])
 
 /**
- * 为节点创建新的输出 handle
+ * 为节点创建新的输出 handle（圆形，底部）
+ * 规则：50% -> 85% -> 15% -> 30% -> 70% -> 自动扩展节点宽度
  */
 const createOutputHandle = (node: Node) => {
   if (!node.data.outputHandles) {
@@ -49,31 +52,35 @@ const createOutputHandle = (node: Node) => {
   }
 
   const currentCount = node.data.outputHandles.length
-  const newCount = currentCount + 1
-  const margin = 15
-  const availableWidth = 100 - (margin * 2)
-
   const handleId = `output_${node.id}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+
+  // 按照固定顺序分配位置：50% -> 85% -> 15% -> 30% -> 70% -> ...
+  const positionSequence = [50, 85, 15, 30, 70, 5, 95, 22, 78, 38, 62]
+  const position = currentCount < positionSequence.length
+    ? positionSequence[currentCount]
+    : 15 + (currentCount * 8) // 超出预设序列时动态计算
+
   node.data.outputHandles.push({
     id: handleId,
-    position: 0
+    position
   })
 
-  // 重新计算所有输出 handle 的位置
-  node.data.outputHandles.forEach((_, index) => {
-    if (newCount === 1) {
-      node.data.outputHandles![index].position = 50
-    } else {
-      const step = availableWidth / (newCount - 1)
-      node.data.outputHandles![index].position = Math.round(margin + (step * index))
+  // 如果超过3个handle，扩展节点宽度
+  if (currentCount >= 2) {
+    const baseWidth = 240
+    const extraWidth = (currentCount - 2) * 30
+    node.style = {
+      ...(node.style || {}),
+      width: `${baseWidth + extraWidth}px`
     }
-  })
+  }
 
   return handleId
 }
 
 /**
- * 为节点创建新的输入 handle
+ * 为节点创建新的输入 handle（长方形，顶部）
+ * 规则：50% -> 85% -> 15% -> 30% -> 70% -> 自动扩展节点宽度
  */
 const createInputHandle = (node: Node) => {
   if (!node.data.inputHandles) {
@@ -81,27 +88,44 @@ const createInputHandle = (node: Node) => {
   }
 
   const currentCount = node.data.inputHandles.length
-  const newCount = currentCount + 1
-  const margin = 15
-  const availableWidth = 100 - (margin * 2)
-
   const handleId = `input_${node.id}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+
+  // 按照固定顺序分配位置：50% -> 85% -> 15% -> 30% -> 70% -> ...
+  const positionSequence = [50, 85, 15, 30, 70, 5, 95, 22, 78, 38, 62]
+  const position = currentCount < positionSequence.length
+    ? positionSequence[currentCount]
+    : 15 + (currentCount * 8) // 超出预设序列时动态计算
+
   node.data.inputHandles.push({
     id: handleId,
-    position: 0
+    position
   })
 
-  // 重新计算所有输入 handle 的位置
-  node.data.inputHandles.forEach((_, index) => {
-    if (newCount === 1) {
-      node.data.inputHandles![index].position = 50
-    } else {
-      const step = availableWidth / (newCount - 1)
-      node.data.inputHandles![index].position = Math.round(margin + (step * index))
+  // 如果超过3个handle，扩展节点宽度
+  if (currentCount >= 2) {
+    const baseWidth = 240
+    const extraWidth = (currentCount - 2) * 30
+    node.style = {
+      ...(node.style || {}),
+      width: `${baseWidth + extraWidth}px`
     }
-  })
+  }
 
   return handleId
+}
+
+/**
+ * 处理连接开始事件
+ */
+const onConnectStart = () => {
+  // 连接开始时可以在这里添加逻辑
+}
+
+/**
+ * 处理连接结束事件
+ */
+const onConnectEnd = () => {
+  // 连接结束时可以在这里添加逻辑
 }
 
 /**
@@ -122,15 +146,13 @@ const onConnect = (connection: Connection) => {
   // 触发节点更新
   nodes.value = [...nodes.value]
 
-  // 创建连接
-  const newEdge = createUniqueEdge(
-    {
-      ...connection,
-      sourceHandle: sourceHandleId,
-      targetHandle: targetHandleId
-    },
-    edges.value
-  )
+  // 创建连接 - 使用新生成的 handle ID
+  const newEdge = createUniqueEdge({
+    source: connection.source,
+    target: connection.target,
+    sourceHandle: sourceHandleId,
+    targetHandle: targetHandleId
+  }, edges.value)
   edges.value.push(newEdge)
 }
 
@@ -149,15 +171,16 @@ const onEdgesChange = (changes: EdgeChange[]) => {
         const sourceNode = nodes.value.find(n => n.id === removedEdge.source)
         if (sourceNode?.data.outputHandles) {
           const handleIndex = sourceNode.data.outputHandles.findIndex(
-            h => h.id === removedEdge.sourceHandle
+            (h: InputHandle | OutputHandle) => h.id === removedEdge.sourceHandle
           )
           if (handleIndex !== -1) {
             sourceNode.data.outputHandles.splice(handleIndex, 1)
 
-            // 重新计算剩余 handle 的位置
-            if (sourceNode.data.outputHandles.length > 0) {
-              recalcHandlePositions(sourceNode.data.outputHandles)
-            }
+            // 重新计算剩余 handle 的位置（按顺序重新分配）
+            recalcHandlePositions(sourceNode.data.outputHandles)
+
+            // 调整节点宽度
+            adjustNodeWidth(sourceNode)
 
             nodes.value = [...nodes.value]
           }
@@ -169,15 +192,16 @@ const onEdgesChange = (changes: EdgeChange[]) => {
         const targetNode = nodes.value.find(n => n.id === removedEdge.target)
         if (targetNode?.data.inputHandles) {
           const handleIndex = targetNode.data.inputHandles.findIndex(
-            h => h.id === removedEdge.targetHandle
+            (h: InputHandle | OutputHandle) => h.id === removedEdge.targetHandle
           )
           if (handleIndex !== -1) {
             targetNode.data.inputHandles.splice(handleIndex, 1)
 
-            // 重新计算剩余 handle 的位置
-            if (targetNode.data.inputHandles.length > 0) {
-              recalcHandlePositions(targetNode.data.inputHandles)
-            }
+            // 重新计算剩余 handle 的位置（按顺序重新分配）
+            recalcHandlePositions(targetNode.data.inputHandles)
+
+            // 调整节点宽度
+            adjustNodeWidth(targetNode)
 
             nodes.value = [...nodes.value]
           }
@@ -188,21 +212,45 @@ const onEdgesChange = (changes: EdgeChange[]) => {
 }
 
 /**
- * 重新计算 handle 位置
+ * 重新计算 handle 位置（按固定顺序重新分配）
  */
 const recalcHandlePositions = (handles: InputHandle[] | OutputHandle[]) => {
-  const count = handles.length
-  const margin = 15
-  const availableWidth = 100 - (margin * 2)
+  const positionSequence = [50, 85, 15, 30, 70, 5, 95, 22, 78, 38, 62]
 
-  handles.forEach((_, index) => {
-    if (count === 1) {
-      handles[index].position = 50
+  handles.forEach((handle, index) => {
+    if (index < positionSequence.length) {
+      handle.position = positionSequence[index]!
     } else {
-      const step = availableWidth / (count - 1)
-      handles[index].position = Math.round(margin + (step * index))
+      handle.position = 15 + (index * 8)
     }
   })
+}
+
+/**
+ * 根据句柄数量调整节点宽度
+ */
+const adjustNodeWidth = (node: Node) => {
+  const handleCount = Math.max(
+    node.data.inputHandles?.length || 0,
+    node.data.outputHandles?.length || 0
+  )
+
+  if (handleCount > 3) {
+    const baseWidth = 240
+    const extraWidth = (handleCount - 3) * 30
+    const currentStyle = typeof node.style === 'object' ? node.style : {}
+    node.style = {
+      ...currentStyle,
+      width: `${baseWidth + extraWidth}px`
+    } as any
+  } else {
+    // 移除宽度设置，恢复默认
+    if (typeof node.style === 'object' && node.style && 'width' in node.style) {
+      const newStyle = { ...node.style }
+      delete (newStyle as any).width
+      node.style = newStyle as any
+    }
+  }
 }
 
 /**

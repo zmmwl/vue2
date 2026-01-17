@@ -7,6 +7,6 @@ export interface EdgeData {
 }
 
 // 自定义连接线类型
-export interface CustomEdge extends Edge {
+export interface CustomEdge extends Omit<Edge, 'data'> {
   data?: EdgeData
 }
