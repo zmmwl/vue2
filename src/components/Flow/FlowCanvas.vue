@@ -10,6 +10,7 @@
       :fit-view-on-init="false"
       :default-edge-options="{ type: 'smoothstep', style: { stroke: '#999999', strokeWidth: 1.5 } }"
       @connect="onConnect"
+      @edges-change="onEdgesChange"
     >
       <Background pattern="dots" :gap="20" :size="1.5" color="#d1d5db" />
       <Controls />
@@ -22,8 +23,9 @@ import { ref, markRaw } from 'vue'
 import { VueFlow } from '@vue-flow/core'
 import { Background } from '@vue-flow/background'
 import { Controls } from '@vue-flow/controls'
-import type { Node, Edge, Connection } from '@vue-flow/core'
+import type { Node, Edge, Connection, EdgeChange } from '@vue-flow/core'
 import type { DroppedNodeData } from '@/types/graph'
+import type { InputHandle, OutputHandle } from '@/types/nodes'
 import DataSourceNode from '@/components/Nodes/DataSourceNode.vue'
 import ComputeTaskNode from '@/components/Nodes/ComputeTaskNode.vue'
 import { createUniqueEdge } from '@/utils/edge-utils'
@@ -39,29 +41,168 @@ const nodes = ref<Node[]>([])
 const edges = ref<Edge[]>([])
 
 /**
+ * 为节点创建新的输出 handle
+ */
+const createOutputHandle = (node: Node) => {
+  if (!node.data.outputHandles) {
+    node.data.outputHandles = []
+  }
+
+  const currentCount = node.data.outputHandles.length
+  const newCount = currentCount + 1
+  const margin = 15
+  const availableWidth = 100 - (margin * 2)
+
+  const handleId = `output_${node.id}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+  node.data.outputHandles.push({
+    id: handleId,
+    position: 0
+  })
+
+  // 重新计算所有输出 handle 的位置
+  node.data.outputHandles.forEach((_, index) => {
+    if (newCount === 1) {
+      node.data.outputHandles![index].position = 50
+    } else {
+      const step = availableWidth / (newCount - 1)
+      node.data.outputHandles![index].position = Math.round(margin + (step * index))
+    }
+  })
+
+  return handleId
+}
+
+/**
+ * 为节点创建新的输入 handle
+ */
+const createInputHandle = (node: Node) => {
+  if (!node.data.inputHandles) {
+    node.data.inputHandles = []
+  }
+
+  const currentCount = node.data.inputHandles.length
+  const newCount = currentCount + 1
+  const margin = 15
+  const availableWidth = 100 - (margin * 2)
+
+  const handleId = `input_${node.id}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+  node.data.inputHandles.push({
+    id: handleId,
+    position: 0
+  })
+
+  // 重新计算所有输入 handle 的位置
+  node.data.inputHandles.forEach((_, index) => {
+    if (newCount === 1) {
+      node.data.inputHandles![index].position = 50
+    } else {
+      const step = availableWidth / (newCount - 1)
+      node.data.inputHandles![index].position = Math.round(margin + (step * index))
+    }
+  })
+
+  return handleId
+}
+
+/**
  * 处理连接事件
  */
 const onConnect = (connection: Connection) => {
-  const newEdge = createUniqueEdge(connection, edges.value)
-  edges.value.push(newEdge)
-
-  // 如果目标是任务节点，为其创建新的附着端点
+  const sourceNode = nodes.value.find(n => n.id === connection.source)
   const targetNode = nodes.value.find(n => n.id === connection.target)
-  if (targetNode?.type === 'compute_task') {
-    const endpointId = `endpoint_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
 
-    if (!targetNode.data.attachmentEndpoints) {
-      targetNode.data.attachmentEndpoints = []
+  if (!sourceNode || !targetNode) return
+
+  // 为源节点创建输出 handle
+  const sourceHandleId = createOutputHandle(sourceNode)
+
+  // 为目标节点创建输入 handle
+  const targetHandleId = createInputHandle(targetNode)
+
+  // 触发节点更新
+  nodes.value = [...nodes.value]
+
+  // 创建连接
+  const newEdge = createUniqueEdge(
+    {
+      ...connection,
+      sourceHandle: sourceHandleId,
+      targetHandle: targetHandleId
+    },
+    edges.value
+  )
+  edges.value.push(newEdge)
+}
+
+/**
+ * 处理连接线变化（删除等）
+ */
+const onEdgesChange = (changes: EdgeChange[]) => {
+  for (const change of changes) {
+    if (change.type === 'remove' && change.id) {
+      // 查找被删除的 edge
+      const removedEdge = edges.value.find(e => e.id === change.id)
+      if (!removedEdge) continue
+
+      // 处理源节点的输出 handle
+      if (removedEdge.sourceHandle) {
+        const sourceNode = nodes.value.find(n => n.id === removedEdge.source)
+        if (sourceNode?.data.outputHandles) {
+          const handleIndex = sourceNode.data.outputHandles.findIndex(
+            h => h.id === removedEdge.sourceHandle
+          )
+          if (handleIndex !== -1) {
+            sourceNode.data.outputHandles.splice(handleIndex, 1)
+
+            // 重新计算剩余 handle 的位置
+            if (sourceNode.data.outputHandles.length > 0) {
+              recalcHandlePositions(sourceNode.data.outputHandles)
+            }
+
+            nodes.value = [...nodes.value]
+          }
+        }
+      }
+
+      // 处理目标节点的输入 handle
+      if (removedEdge.targetHandle) {
+        const targetNode = nodes.value.find(n => n.id === removedEdge.target)
+        if (targetNode?.data.inputHandles) {
+          const handleIndex = targetNode.data.inputHandles.findIndex(
+            h => h.id === removedEdge.targetHandle
+          )
+          if (handleIndex !== -1) {
+            targetNode.data.inputHandles.splice(handleIndex, 1)
+
+            // 重新计算剩余 handle 的位置
+            if (targetNode.data.inputHandles.length > 0) {
+              recalcHandlePositions(targetNode.data.inputHandles)
+            }
+
+            nodes.value = [...nodes.value]
+          }
+        }
+      }
     }
-
-    targetNode.data.attachmentEndpoints.push({
-      id: endpointId,
-      label: `输入 ${targetNode.data.attachmentEndpoints.length + 1}`
-    })
-
-    // 触发节点更新
-    nodes.value = [...nodes.value]
   }
+}
+
+/**
+ * 重新计算 handle 位置
+ */
+const recalcHandlePositions = (handles: InputHandle[] | OutputHandle[]) => {
+  const count = handles.length
+  const margin = 15
+  const availableWidth = 100 - (margin * 2)
+
+  handles.forEach((_, index) => {
+    if (count === 1) {
+      handles[index].position = 50
+    } else {
+      const step = availableWidth / (count - 1)
+      handles[index].position = Math.round(margin + (step * index))
+    }
+  })
 }
 
 /**
@@ -148,18 +289,6 @@ const onDrop = (event: DragEvent) => {
 
 :deep(.vue-flow__edge.selected .vue-flow__edge-path) {
   stroke: #1890ff;
-}
-
-// n8n 风格连接点样式
-:deep(.vue-flow__handle) {
-  width: 10px;
-  height: 10px;
-  background-color: #999999;
-  border: 2px solid #ffffff;
-
-  &:hover {
-    background-color: #1890ff;
-  }
 }
 
 // n8n 风格选中节点样式

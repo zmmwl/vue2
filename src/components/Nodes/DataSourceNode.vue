@@ -1,12 +1,5 @@
 <template>
   <div class="data-source-node" :class="{ selected }">
-    <!-- 底部输出连接点 -->
-    <Handle
-      type="source"
-      :position="Position.Bottom"
-      class="node-handle"
-    />
-
     <div class="node-card">
       <div class="node-icon-wrapper">
         <div class="node-icon">{{ data.icon }}</div>
@@ -17,6 +10,29 @@
           {{ data.description }}
         </div>
       </div>
+    </div>
+
+    <!-- 底部动态输出连接点（圆形） -->
+    <div class="output-handles-container">
+      <Handle
+        v-for="handle in data.outputHandles"
+        :key="handle.id"
+        :id="handle.id"
+        type="source"
+        :position="Position.Bottom"
+        :style="{ left: handle.position + '%' }"
+        class="output-handle connected"
+      />
+    </div>
+
+    <!-- 底部悬停区域 - 用于创建新的输出连接 -->
+    <div class="hover-output-zone" :class="{ 'has-connections': data.outputHandles && data.outputHandles.length > 0 }">
+      <Handle
+        type="source"
+        :position="Position.Bottom"
+        class="output-handle hover-handle"
+        :style="{ left: '50%' }"
+      />
     </div>
   </div>
 </template>
@@ -32,6 +48,79 @@ defineProps<NodeProps<NodeData>>()
 <style scoped lang="scss">
 .data-source-node {
   position: relative;
+
+  .output-handles-container {
+    position: absolute;
+    bottom: -6px;
+    left: 0;
+    right: 0;
+    height: 12px;
+    pointer-events: none;
+  }
+
+  // 悬停区域
+  .hover-output-zone {
+    position: absolute;
+    bottom: -8px;
+    left: 0;
+    right: 0;
+    height: 16px;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    z-index: 10;
+
+    .hover-handle {
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    }
+
+    &:hover {
+      opacity: 1;
+
+      .hover-handle {
+        opacity: 1;
+      }
+    }
+
+    &.has-connections {
+      // 已有连接时也显示
+    }
+  }
+
+  // 节点悬停时也显示悬停 handle
+  &:hover {
+    .hover-output-zone {
+      opacity: 1;
+
+      .hover-handle {
+        opacity: 1;
+      }
+    }
+  }
+
+  // 输出 handle - 圆形（连出）
+  .output-handle {
+    width: 12px;
+    height: 12px;
+    background-color: #999999;
+    border: 2px solid #ffffff;
+    border-radius: 50%;
+    transform: translateX(-50%);
+
+    &.connected {
+      pointer-events: auto;
+    }
+
+    &.hover-handle {
+      background-color: #999999;
+      opacity: 0.3;
+    }
+
+    &:hover {
+      background-color: #1890ff;
+      transform: translateX(-50%) scale(1.2);
+    }
+  }
 
   .node-card {
     background-color: #ffffff;
@@ -92,17 +181,6 @@ defineProps<NodeProps<NodeData>>()
 
   &:hover .node-card {
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.12);
-  }
-}
-
-.node-handle {
-  width: 10px;
-  height: 10px;
-  background-color: #999999;
-  border: 2px solid #ffffff;
-
-  &:hover {
-    background-color: #1890ff;
   }
 }
 </style>

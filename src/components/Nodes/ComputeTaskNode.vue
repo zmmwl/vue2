@@ -1,27 +1,26 @@
 <template>
   <div class="compute-task-node" :class="{ selected }">
-    <!-- 顶部输入连接点 -->
-    <Handle
-      type="target"
-      :position="Position.Top"
-      class="node-handle"
-    />
+    <!-- 顶部动态输入连接点（长方形） -->
+    <div class="input-handles-container">
+      <Handle
+        v-for="handle in data.inputHandles"
+        :key="handle.id"
+        :id="handle.id"
+        type="target"
+        :position="Position.Top"
+        :style="{ left: handle.position + '%' }"
+        class="input-handle connected"
+      />
+    </div>
 
-    <!-- 动态附着端点（左侧） -->
-    <div v-if="data.attachmentEndpoints && data.attachmentEndpoints.length > 0" class="attachment-endpoints">
-      <div
-        v-for="endpoint in data.attachmentEndpoints"
-        :key="endpoint.id"
-        class="attachment-endpoint"
-      >
-        <Handle
-          :id="endpoint.id"
-          type="target"
-          :position="Position.Left"
-          class="attachment-handle"
-        />
-        <span class="endpoint-label">{{ endpoint.label }}</span>
-      </div>
+    <!-- 顶部悬停区域 - 用于创建新的输入连接 -->
+    <div class="hover-input-zone" :class="{ 'has-connections': data.inputHandles && data.inputHandles.length > 0 }">
+      <Handle
+        type="target"
+        :position="Position.Top"
+        class="input-handle hover-handle"
+        :style="{ left: '50%' }"
+      />
     </div>
 
     <div class="node-card">
@@ -36,12 +35,28 @@
       </div>
     </div>
 
-    <!-- 底部输出连接点 -->
-    <Handle
-      type="source"
-      :position="Position.Bottom"
-      class="node-handle"
-    />
+    <!-- 底部动态输出连接点（圆形） -->
+    <div class="output-handles-container">
+      <Handle
+        v-for="handle in data.outputHandles"
+        :key="handle.id"
+        :id="handle.id"
+        type="source"
+        :position="Position.Bottom"
+        :style="{ left: handle.position + '%' }"
+        class="output-handle connected"
+      />
+    </div>
+
+    <!-- 底部悬停区域 - 用于创建新的输出连接 -->
+    <div class="hover-output-zone" :class="{ 'has-connections': data.outputHandles && data.outputHandles.length > 0 }">
+      <Handle
+        type="source"
+        :position="Position.Bottom"
+        class="output-handle hover-handle"
+        :style="{ left: '50%' }"
+      />
+    </div>
   </div>
 </template>
 
@@ -56,6 +71,132 @@ defineProps<NodeProps<NodeData>>()
 <style scoped lang="scss">
 .compute-task-node {
   position: relative;
+
+  .input-handles-container {
+    position: absolute;
+    top: -6px;
+    left: 0;
+    right: 0;
+    height: 12px;
+    pointer-events: none;
+  }
+
+  .output-handles-container {
+    position: absolute;
+    bottom: -6px;
+    left: 0;
+    right: 0;
+    height: 12px;
+    pointer-events: none;
+  }
+
+  // 悬停区域
+  .hover-input-zone,
+  .hover-output-zone {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 16px;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    z-index: 10;
+
+    &:hover {
+      opacity: 1;
+    }
+
+    &.has-connections {
+      // 已有连接时也显示
+    }
+  }
+
+  .hover-input-zone {
+    top: -8px;
+
+    .hover-handle {
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    }
+
+    &:hover .hover-handle {
+      opacity: 1;
+    }
+  }
+
+  .hover-output-zone {
+    bottom: -8px;
+
+    .hover-handle {
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    }
+
+    &:hover .hover-handle {
+      opacity: 1;
+    }
+  }
+
+  // 节点悬停时也显示悬停 handle
+  &:hover {
+    .hover-input-zone,
+    .hover-output-zone {
+      opacity: 1;
+    }
+
+    .hover-input-zone .hover-handle,
+    .hover-output-zone .hover-handle {
+      opacity: 1;
+    }
+  }
+
+  // 输入 handle - 长方形（连入）
+  .input-handle {
+    width: 24px;
+    height: 8px;
+    background-color: #52c41a;
+    border: 2px solid #ffffff;
+    border-radius: 2px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+    transform: translateX(-50%);
+
+    &.connected {
+      pointer-events: auto;
+    }
+
+    &.hover-handle {
+      background-color: #52c41a;
+      opacity: 0.3;
+    }
+
+    &:hover {
+      background-color: #1890ff;
+      transform: translateX(-50%) scale(1.1);
+    }
+  }
+
+  // 输出 handle - 圆形（连出）
+  .output-handle {
+    width: 12px;
+    height: 12px;
+    background-color: #999999;
+    border: 2px solid #ffffff;
+    border-radius: 50%;
+    transform: translateX(-50%);
+
+    &.connected {
+      pointer-events: auto;
+    }
+
+    &.hover-handle {
+      background-color: #999999;
+      opacity: 0.3;
+    }
+
+    &:hover {
+      background-color: #1890ff;
+      transform: translateX(-50%) scale(1.2);
+    }
+  }
 
   .node-card {
     background-color: #ffffff;
@@ -107,57 +248,6 @@ defineProps<NodeProps<NodeData>>()
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-  }
-
-  // 附着端点容器
-  .attachment-endpoints {
-    position: absolute;
-    left: -60px;
-    top: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  // 单个附着端点
-  .attachment-endpoint {
-    position: relative;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-
-    .attachment-handle {
-      width: 10px;
-      height: 10px;
-      background-color: #52c41a;
-      border: 2px solid #ffffff;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
-
-      &:hover {
-        background-color: #1890ff;
-        transform: scale(1.2);
-      }
-    }
-
-    .endpoint-label {
-      font-size: 11px;
-      color: #666666;
-      white-space: nowrap;
-      background-color: #f5f5f5;
-      padding: 2px 6px;
-      border-radius: 4px;
-    }
-  }
-
-  .node-handle {
-    width: 10px;
-    height: 10px;
-    background-color: #999999;
-    border: 2px solid #ffffff;
-
-    &:hover {
-      background-color: #1890ff;
-    }
   }
 
   &.selected .node-card {

@@ -21,7 +21,19 @@ export enum DataSourceType {
   API = 'api'             // API 接口
 }
 
-// 附着端点接口
+// 输入连接点接口
+export interface InputHandle {
+  id: string
+  position: number  // 百分比位置 (0-100)
+}
+
+// 输出连接点接口
+export interface OutputHandle {
+  id: string
+  position: number  // 百分比位置 (0-100)
+}
+
+// 附着端点接口（保留兼容性）
 export interface AttachmentEndpoint {
   id: string
   label?: string
@@ -38,7 +50,11 @@ export interface NodeData {
   description?: string
   status?: 'idle' | 'running' | 'success' | 'error'
   config?: Record<string, any>
-  // 任务节点的附着端点列表（用于连接数据源）
+  // 节点的输入连接点列表（动态生成，顶部）
+  inputHandles?: InputHandle[]
+  // 节点的输出连接点列表（动态生成，底部）
+  outputHandles?: OutputHandle[]
+  // 任务节点的附着端点列表（用于连接数据源，已弃用）
   attachmentEndpoints?: AttachmentEndpoint[]
 }
 
