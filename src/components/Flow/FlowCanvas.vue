@@ -110,12 +110,18 @@ const onDrop = (event: DragEvent) => {
   try {
     const data: DroppedNodeData = JSON.parse(rawData)
 
-    // 计算节点位置（基于鼠标位置）
+    // 计算节点位置（基于鼠标位置，将鼠标点作为节点中心）
     // 需要考虑画布的缩放和平移，将屏幕坐标转换为画布坐标
-    const position = project({
+    const projected = project({
       x: event.offsetX,
       y: event.offsetY
     })
+
+    // 减去节点宽高的一半使鼠标点成为节点中心
+    const position = {
+      x: projected.x - 100,  // 节点宽度约 200px
+      y: projected.y - 30    // 节点高度约 60px
+    }
 
     // 创建新节点
     const newNode: Node = {
