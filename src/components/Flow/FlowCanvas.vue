@@ -22,7 +22,7 @@
 
 <script setup lang="ts">
 import { ref, markRaw } from 'vue'
-import { VueFlow } from '@vue-flow/core'
+import { VueFlow, useVueFlow } from '@vue-flow/core'
 import { Background } from '@vue-flow/background'
 import { Controls } from '@vue-flow/controls'
 import type { Node, Edge, Connection, EdgeChange, NodeChange } from '@vue-flow/core'
@@ -30,6 +30,9 @@ import type { DroppedNodeData } from '@/types/graph'
 import DataSourceNode from '@/components/Nodes/DataSourceNode.vue'
 import ComputeTaskNode from '@/components/Nodes/ComputeTaskNode.vue'
 import { createUniqueEdge } from '@/utils/edge-utils'
+
+// 获取坐标投影函数（将屏幕坐标转换为画布坐标）
+const { project } = useVueFlow()
 
 // 注册自定义节点类型
 const nodeTypes = {
@@ -101,10 +104,11 @@ const onDrop = (event: DragEvent) => {
     const data: DroppedNodeData = JSON.parse(rawData)
 
     // 计算节点位置（基于鼠标位置）
-    const position = {
+    // 需要考虑画布的缩放和平移，将屏幕坐标转换为画布坐标
+    const position = project({
       x: event.offsetX,
       y: event.offsetY
-    }
+    })
 
     // 创建新节点
     const newNode: Node = {
