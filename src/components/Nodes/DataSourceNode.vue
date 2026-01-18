@@ -18,17 +18,26 @@
       type="source"
       :position="Position.Bottom"
       :style="{ left: '50%' }"
-      class="output-handle"
+      :class="['output-handle', { 'is-visible': isOutputVisible }]"
     />
   </div>
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import { Handle, Position } from '@vue-flow/core'
 import type { NodeProps } from '@vue-flow/core'
 import type { NodeData } from '@/types/nodes'
+import { useVueFlow } from '@vue-flow/core'
 
-defineProps<NodeProps<NodeData>>()
+const props = defineProps<NodeProps<NodeData>>()
+
+const { edges } = useVueFlow()
+
+// 检查是否有输出连接
+const isOutputVisible = computed(() => {
+  return edges.value.some(edge => edge.source === props.id && edge.sourceHandle === 'output')
+})
 </script>
 
 <style scoped lang="scss">
@@ -43,10 +52,24 @@ defineProps<NodeProps<NodeData>>()
     border: 2px solid #ffffff;
     border-radius: 50%;
     transform: translateX(-50%);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+
+    &.is-visible {
+      opacity: 1;
+    }
 
     &:hover {
+      opacity: 1;
       background-color: #1890ff;
       transform: translateX(-50%) scale(1.2);
+    }
+  }
+
+  // 鼠标悬停节点时显示 handle
+  &:hover {
+    .output-handle {
+      opacity: 1;
     }
   }
 

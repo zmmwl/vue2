@@ -6,7 +6,7 @@
       type="target"
       :position="Position.Top"
       :style="{ left: '50%' }"
-      class="input-handle"
+      :class="['input-handle', { 'is-visible': isInputVisible }]"
     />
 
     <div class="node-card">
@@ -27,17 +27,31 @@
       type="source"
       :position="Position.Bottom"
       :style="{ left: '50%' }"
-      class="output-handle"
+      :class="['output-handle', { 'is-visible': isOutputVisible }]"
     />
   </div>
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import { Handle, Position } from '@vue-flow/core'
 import type { NodeProps } from '@vue-flow/core'
 import type { NodeData } from '@/types/nodes'
+import { useVueFlow } from '@vue-flow/core'
 
-defineProps<NodeProps<NodeData>>()
+const props = defineProps<NodeProps<NodeData>>()
+
+const { edges } = useVueFlow()
+
+// 检查是否有输入连接
+const isInputVisible = computed(() => {
+  return edges.value.some(edge => edge.target === props.id && edge.targetHandle === 'input')
+})
+
+// 检查是否有输出连接
+const isOutputVisible = computed(() => {
+  return edges.value.some(edge => edge.source === props.id && edge.sourceHandle === 'output')
+})
 </script>
 
 <style scoped lang="scss">
@@ -53,8 +67,15 @@ defineProps<NodeProps<NodeData>>()
     border-radius: 2px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
     transform: translateX(-50%);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+
+    &.is-visible {
+      opacity: 1;
+    }
 
     &:hover {
+      opacity: 1;
       background-color: #1890ff;
       transform: translateX(-50%) scale(1.1);
     }
@@ -68,10 +89,25 @@ defineProps<NodeProps<NodeData>>()
     border: 2px solid #ffffff;
     border-radius: 50%;
     transform: translateX(-50%);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+
+    &.is-visible {
+      opacity: 1;
+    }
 
     &:hover {
+      opacity: 1;
       background-color: #1890ff;
       transform: translateX(-50%) scale(1.2);
+    }
+  }
+
+  // 鼠标悬停节点时显示所有 handle
+  &:hover {
+    .input-handle,
+    .output-handle {
+      opacity: 1;
     }
   }
 
