@@ -9,10 +9,12 @@
       :max-zoom="2"
       :fit-view-on-init="false"
       :default-edge-options="{ type: 'smoothstep', style: { stroke: '#999999', strokeWidth: 1.5 } }"
+      :delete-key-code="'Delete'"
       @connect="onConnect"
       @connect-start="onConnectStart"
       @connect-end="onConnectEnd"
       @edges-change="onEdgesChange"
+      @nodes-change="onNodesChange"
     >
       <Background pattern="dots" :gap="20" :size="1.5" color="#d1d5db" />
       <Controls />
@@ -25,7 +27,7 @@ import { ref, markRaw } from 'vue'
 import { VueFlow } from '@vue-flow/core'
 import { Background } from '@vue-flow/background'
 import { Controls } from '@vue-flow/controls'
-import type { Node, Edge, Connection, EdgeChange } from '@vue-flow/core'
+import type { Node, Edge, Connection, EdgeChange, NodeChange } from '@vue-flow/core'
 import type { DroppedNodeData } from '@/types/graph'
 import type { InputHandle, OutputHandle } from '@/types/nodes'
 import DataSourceNode from '@/components/Nodes/DataSourceNode.vue'
@@ -154,6 +156,21 @@ const onConnect = (connection: Connection) => {
     targetHandle: targetHandleId
   }, edges.value)
   edges.value.push(newEdge)
+}
+
+/**
+ * 处理节点变化（删除等）
+ * 删除节点时，自动删除所有连接到该节点的连接线
+ */
+const onNodesChange = (changes: NodeChange[]) => {
+  for (const change of changes) {
+    if (change.type === 'remove' && change.id) {
+      // 删除所有与该节点相关的连接线
+      edges.value = edges.value.filter(
+        edge => edge.source !== change.id && edge.target !== change.id
+      )
+    }
+  }
 }
 
 /**
