@@ -17,6 +17,7 @@
     >
       <Background pattern="dots" :gap="20" :size="1.5" color="#d1d5db" />
       <Controls />
+      <MiniMap />
     </VueFlow>
   </div>
 </template>
@@ -26,6 +27,7 @@ import { ref, markRaw } from 'vue'
 import { VueFlow, useVueFlow } from '@vue-flow/core'
 import { Background } from '@vue-flow/background'
 import { Controls } from '@vue-flow/controls'
+import { MiniMap } from '@vue-flow/minimap'
 import type { Node, Edge, Connection, EdgeChange, NodeChange } from '@vue-flow/core'
 import type { DroppedNodeData } from '@/types/graph'
 import DataSourceNode from '@/components/Nodes/DataSourceNode.vue'
@@ -187,5 +189,24 @@ const onDrop = (event: DragEvent) => {
 :deep(.vue-flow__node.selected) {
   outline: 2px solid #1890ff;
   outline-offset: 2px;
+}
+
+// n8n 风格 Minimap 样式
+:deep(.vue-flow__minimap) {
+  background-color: #ffffff;
+  border: 1px solid #e0e0e0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+
+  .vue-flow__minimap-mask {
+    fill: rgba(24, 144, 255, 0.1);
+    stroke: #1890ff;
+    stroke-width: 2;
+  }
+
+  .vue-flow__minimap-node {
+    fill: #52C41A;
+    stroke: #389e0d;
+    stroke-width: 1;
+  }
 }
 </style>
