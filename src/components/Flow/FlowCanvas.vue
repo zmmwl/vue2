@@ -4,6 +4,7 @@
       v-model:nodes="nodes"
       v-model:edges="edges"
       :node-types="nodeTypes"
+      :edge-types="edgeTypes"
       :default-viewport="{ zoom: 1, x: 0, y: 0 }"
       :min-zoom="0.3"
       :max-zoom="2"
@@ -29,6 +30,7 @@ import type { Node, Edge, Connection, EdgeChange, NodeChange } from '@vue-flow/c
 import type { DroppedNodeData } from '@/types/graph'
 import DataSourceNode from '@/components/Nodes/DataSourceNode.vue'
 import ComputeTaskNode from '@/components/Nodes/ComputeTaskNode.vue'
+import FlowEdge from '@/components/Edges/FlowEdge.vue'
 import { createUniqueEdge } from '@/utils/edge-utils'
 
 // 获取坐标投影函数（将屏幕坐标转换为画布坐标）
@@ -38,6 +40,11 @@ const { project } = useVueFlow()
 const nodeTypes = {
   data_source: markRaw(DataSourceNode),
   compute_task: markRaw(ComputeTaskNode)
+}
+
+// 注册自定义连接线类型
+const edgeTypes = {
+  default: markRaw(FlowEdge)
 }
 
 // 节点和连接线数据
