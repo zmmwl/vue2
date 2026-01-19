@@ -1,5 +1,5 @@
 <template>
-  <div class="flow-canvas" @drop="onDrop" @dragover="onDragOver">
+  <div class="flow-canvas" data-testid="flow-canvas" @drop="onDrop" @dragover="onDragOver">
     <VueFlow
       v-model:nodes="nodes"
       v-model:edges="edges"

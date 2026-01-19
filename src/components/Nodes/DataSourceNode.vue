@@ -1,5 +1,5 @@
 <template>
-  <div class="data-source-node" :class="{ selected }">
+  <div class="data-source-node" :class="{ selected }" :data-testid="`node-${data.sourceType || data.label}`">
     <div class="node-card">
       <div class="node-icon-wrapper">
         <div class="node-icon">{{ data.icon }}</div>

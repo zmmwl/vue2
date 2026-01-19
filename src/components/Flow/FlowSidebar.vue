@@ -9,6 +9,7 @@
           :key="template.label"
           class="palette-node"
           draggable="true"
+          :data-testid="`palette-node-${template.label.replace(/\s+/g, '-').toLowerCase()}`"
           @dragstart="onDragStart($event, template)"
         >
           <div class="palette-node-icon" :style="{ color: template.color }">
@@ -33,6 +34,7 @@
           :key="template.label"
           class="palette-node"
           draggable="true"
+          :data-testid="`palette-node-${template.label.replace(/\s+/g, '-').toLowerCase()}`"
           @dragstart="onDragStart($event, template)"
         >
           <div class="palette-node-icon" :style="{ color: template.color }">

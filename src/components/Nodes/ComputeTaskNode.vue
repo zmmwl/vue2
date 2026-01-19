@@ -1,5 +1,5 @@
 <template>
-  <div class="compute-task-node" :class="{ selected }">
+  <div class="compute-task-node" :class="{ selected }" :data-testid="`node-${data.taskType || data.label}`">
     <!-- 固定的顶部输入连接点 -->
     <Handle
       id="input"
