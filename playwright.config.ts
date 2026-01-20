@@ -7,8 +7,9 @@ import { defineConfig, devices } from '@playwright/test';
 export default defineConfig({
   testDir: './e2e',
 
-  /* 并行运行测试，加快执行速度 */
-  fullyParallel: true,
+  /* 使用单个 worker，方便观察测试过程 */
+  fullyParallel: false,
+  workers: 1,
 
   /* 在 CI 中禁止使用 test.only */
   forbidOnly: !!process.env.CI,
@@ -16,8 +17,8 @@ export default defineConfig({
   /* CI 环境下失败重试 2 次 */
   retries: process.env.CI ? 2 : 0,
 
-  /* CI 环境下使用单 worker */
-  workers: process.env.CI ? 1 : undefined,
+  /* 全局超时配置（支持观察时间） */
+  timeout: process.env.OBSERVE_TIME ? parseInt(process.env.OBSERVE_TIME) * 1000 + 30000 : 30000,
 
   /* 测试报告 */
   reporter: [
@@ -29,6 +30,9 @@ export default defineConfig({
   use: {
     /* 基础 URL 对应 Vite 开发服务器 */
     baseURL: 'http://localhost:5172',
+
+    /* 有头模式 - 可以看到浏览器窗口 */
+    headless: false,
 
     /* 失败时自动捕获 trace */
     trace: 'on-first-retry',
