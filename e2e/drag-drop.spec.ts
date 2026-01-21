@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { dragNodeToCanvas } from './test-utils';
 
 /**
  * Vue Flow 拖拽节点 E2E 测试
@@ -25,9 +26,7 @@ test.describe('节点拖拽测试', () => {
     const initialNodeCount = await page.locator('.vue-flow__node').count();
 
     // 执行拖拽操作
-    await mysqlNode.dragTo(canvas, {
-      targetPosition: { x: 400, y: 200 }
-    });
+    await dragNodeToCanvas(page, 'palette-node-mysql-数据库', 400, 200);
 
     // 等待节点出现
     await page.waitForTimeout(500);
@@ -42,25 +41,16 @@ test.describe('节点拖拽测试', () => {
   });
 
   test('应该能够从侧边栏拖拽多个不同类型的节点', async ({ page }) => {
-    // 拖拽 PostgreSQL 节点
-    const postgresNode = page.locator('[data-testid="palette-node-postgresql"]');
-    await postgresNode.dragTo(page.locator('[data-testid="flow-canvas"]'), {
-      targetPosition: { x: 300, y: 150 }
-    });
+    // 拖拽 PostgreSQL 节点 - 使用与通过的测试类似的坐标
+    await dragNodeToCanvas(page, 'palette-node-postgresql', 400, 200);
     await page.waitForTimeout(300);
 
     // 拖拽 PSI 计算任务节点
-    const psiNode = page.locator('[data-testid="palette-node-psi-计算"]');
-    await psiNode.dragTo(page.locator('[data-testid="flow-canvas"]'), {
-      targetPosition: { x: 300, y: 350 }
-    });
+    await dragNodeToCanvas(page, 'palette-node-psi-计算', 400, 400);
     await page.waitForTimeout(300);
 
     // 拖拽 CSV 节点
-    const csvNode = page.locator('[data-testid="palette-node-csv-文件"]');
-    await csvNode.dragTo(page.locator('[data-testid="flow-canvas"]'), {
-      targetPosition: { x: 500, y: 150 }
-    });
+    await dragNodeToCanvas(page, 'palette-node-csv-文件', 600, 200);
     await page.waitForTimeout(300);
 
     // 验证所有节点都已添加
@@ -83,11 +73,12 @@ test.describe('节点拖拽测试', () => {
     ];
 
     for (let i = 0; i < dataSources.length; i++) {
-      const node = page.locator(`[data-testid="${dataSources[i].testid}"]`);
-
-      await node.dragTo(page.locator('[data-testid="flow-canvas"]'), {
-        targetPosition: { x: 200 + (i % 2) * 250, y: 150 + Math.floor(i / 2) * 100 }
-      });
+      await dragNodeToCanvas(
+        page,
+        dataSources[i].testid,
+        200 + (i % 2) * 250,
+        150 + Math.floor(i / 2) * 100
+      );
       await page.waitForTimeout(200);
     }
 
@@ -106,11 +97,12 @@ test.describe('节点拖拽测试', () => {
     ];
 
     for (let i = 0; i < computeTasks.length; i++) {
-      const node = page.locator(`[data-testid="${computeTasks[i].testid}"]`);
-
-      await node.dragTo(page.locator('[data-testid="flow-canvas"]'), {
-        targetPosition: { x: 200 + (i % 2) * 250, y: 150 + Math.floor(i / 2) * 100 }
-      });
+      await dragNodeToCanvas(
+        page,
+        computeTasks[i].testid,
+        200 + (i % 2) * 250,
+        150 + Math.floor(i / 2) * 100
+      );
       await page.waitForTimeout(200);
     }
 
@@ -120,13 +112,10 @@ test.describe('节点拖拽测试', () => {
 
   test('拖拽后的节点应该在正确的位置', async ({ page }) => {
     // 拖拽一个节点到特定位置
-    const csvNode = page.locator('[data-testid="palette-node-csv-文件"]');
     const targetX = 400;
     const targetY = 250;
 
-    await csvNode.dragTo(page.locator('[data-testid="flow-canvas"]'), {
-      targetPosition: { x: targetX, y: targetY }
-    });
+    await dragNodeToCanvas(page, 'palette-node-csv-文件', targetX, targetY);
     await page.waitForTimeout(500);
 
     // 获取节点的实际位置
@@ -151,16 +140,14 @@ test.describe('节点拖拽测试', () => {
     ];
 
     const nodes = [
-      page.locator('[data-testid="palette-node-mysql-数据库"]'),
-      page.locator('[data-testid="palette-node-postgresql"]'),
-      page.locator('[data-testid="palette-node-psi-计算"]'),
-      page.locator('[data-testid="palette-node-mpc-计算"]')
+      'palette-node-mysql-数据库',
+      'palette-node-postgresql',
+      'palette-node-psi-计算',
+      'palette-node-mpc-计算'
     ];
 
     for (let i = 0; i < nodes.length; i++) {
-      await nodes[i].dragTo(page.locator('[data-testid="flow-canvas"]'), {
-        targetPosition: positions[i]
-      });
+      await dragNodeToCanvas(page, nodes[i], positions[i].x, positions[i].y);
       await page.waitForTimeout(200);
     }
 

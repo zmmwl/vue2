@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { dragNodeToCanvas } from './test-utils';
 
 test.describe('调试 UI 元素', () => {
   test('检查控制按钮 class 名称', async ({ page }) => {
@@ -6,10 +7,7 @@ test.describe('调试 UI 元素', () => {
     await page.waitForSelector('.flow-sidebar', { timeout: 10000 });
 
     // 创建一个节点
-    const mysqlNode = page.locator('[data-testid="palette-node-mysql-数据库"]');
-    await mysqlNode.dragTo(page.locator('[data-testid="flow-canvas"]'), {
-      targetPosition: { x: 300, y: 200 }
-    });
+    await dragNodeToCanvas(page, 'palette-node-mysql-数据库', 300, 200);
     await page.waitForTimeout(500);
 
     // 查找控制按钮
@@ -34,10 +32,7 @@ test.describe('调试 UI 元素', () => {
     await page.waitForSelector('.flow-sidebar', { timeout: 10000 });
 
     // 创建一个节点
-    const mysqlNode = page.locator('[data-testid="palette-node-mysql-数据库"]');
-    await mysqlNode.dragTo(page.locator('[data-testid="flow-canvas"]'), {
-      targetPosition: { x: 300, y: 200 }
-    });
+    await dragNodeToCanvas(page, 'palette-node-mysql-数据库', 300, 200);
     await page.waitForTimeout(500);
 
     const node = page.locator('.vue-flow__node').first();

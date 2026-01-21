@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { dragNodeToCanvas } from './test-utils';
 
 /**
  * Vue Flow 节点操作 E2E 测试
@@ -15,10 +16,7 @@ test.describe('节点操作测试', () => {
    * 辅助函数：创建一个测试节点
    */
   async function createTestNode(page: any, x: number = 300, y: number = 200) {
-    const mysqlNode = page.locator('[data-testid="palette-node-mysql-数据库"]');
-    await mysqlNode.dragTo(page.locator('[data-testid="flow-canvas"]'), {
-      targetPosition: { x, y }
-    });
+    await dragNodeToCanvas(page, 'palette-node-mysql-数据库', x, y);
     await page.waitForTimeout(500);
     return page.locator('.vue-flow__node').first();
   }
@@ -91,10 +89,10 @@ test.describe('节点操作测试', () => {
   });
 
   test('应该能够删除多个节点', async ({ page }) => {
-    // 创建三个节点
-    await createTestNode(page, 200, 150);
-    await createTestNode(page, 400, 150);
-    await createTestNode(page, 300, 300);
+    // 创建三个节点（x 坐标大于 260 避免与侧边栏重叠）
+    await createTestNode(page, 350, 150);
+    await createTestNode(page, 550, 150);
+    await createTestNode(page, 450, 300);
 
     await expect(page.locator('.vue-flow__node')).toHaveCount(3);
 
@@ -123,16 +121,10 @@ test.describe('节点操作测试', () => {
 
   test('应该能够操作多个节点', async ({ page }) => {
     // 创建两个节点
-    const mysqlNode = page.locator('[data-testid="palette-node-mysql-数据库"]');
-    await mysqlNode.dragTo(page.locator('[data-testid="flow-canvas"]'), {
-      targetPosition: { x: 300, y: 150 }
-    });
+    await dragNodeToCanvas(page, 'palette-node-mysql-数据库', 300, 150);
     await page.waitForTimeout(500);
 
-    const psiNode = page.locator('[data-testid="palette-node-psi-计算"]');
-    await psiNode.dragTo(page.locator('[data-testid="flow-canvas"]'), {
-      targetPosition: { x: 300, y: 350 }
-    });
+    await dragNodeToCanvas(page, 'palette-node-psi-计算', 300, 350);
     await page.waitForTimeout(500);
 
     // 验证两个节点都存在
@@ -207,10 +199,10 @@ test.describe('节点操作测试', () => {
   });
 
   test('应该能够选择单个节点', async ({ page }) => {
-    // 创建三个节点
-    await createTestNode(page, 200, 150);
-    await createTestNode(page, 400, 150);
-    await createTestNode(page, 300, 300);
+    // 创建三个节点（x 坐标大于 260 避免与侧边栏重叠）
+    await createTestNode(page, 350, 150);
+    await createTestNode(page, 550, 150);
+    await createTestNode(page, 450, 300);
 
     const nodes = page.locator('.vue-flow__node');
 

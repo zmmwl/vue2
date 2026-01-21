@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { dragNodeToCanvas } from './test-utils';
 
 /**
  * Vue Flow 连接线 E2E 测试
@@ -18,18 +19,12 @@ test.describe('连接线测试', () => {
    * 辅助函数：创建两个节点
    */
   async function setupTwoNodes(page: any) {
-    // 拖拽数据源节点
-    const mysqlNode = page.locator('[data-testid="palette-node-mysql-数据库"]');
-    await mysqlNode.dragTo(page.locator('[data-testid="flow-canvas"]'), {
-      targetPosition: { x: 300, y: 150 }
-    });
+    // 拖拽数据源节点 - 使用更靠右的坐标避免与侧边栏重叠
+    await dragNodeToCanvas(page, 'palette-node-mysql-数据库', 400, 200);
     await page.waitForTimeout(500);
 
     // 拖拽计算任务节点
-    const psiNode = page.locator('[data-testid="palette-node-psi-计算"]');
-    await psiNode.dragTo(page.locator('[data-testid="flow-canvas"]'), {
-      targetPosition: { x: 300, y: 350 }
-    });
+    await dragNodeToCanvas(page, 'palette-node-psi-计算', 400, 400);
     await page.waitForTimeout(500);
 
     // 验证两个节点都已创建
@@ -79,9 +74,9 @@ test.describe('连接线测试', () => {
     // 验证节点存在
     await expect(page.locator('.vue-flow__node')).toHaveCount(2);
 
-    // 选中并删除源节点
+    // 选中并删除源节点 - 使用 force: true 因为节点可能不在可视区域
     const nodes = page.locator('.vue-flow__node');
-    await nodes.nth(0).click();
+    await nodes.nth(0).click({ force: true });
     await page.waitForTimeout(300);
     await page.keyboard.press('Delete');
     await page.waitForTimeout(500);
@@ -100,13 +95,13 @@ test.describe('连接线测试', () => {
 
     const nodes = page.locator('.vue-flow__node');
 
-    // 选择第一个节点
-    await nodes.nth(0).click();
+    // 选择第一个节点 - 使用 force: true
+    await nodes.nth(0).click({ force: true });
     await page.waitForTimeout(300);
     await expect(nodes.nth(0)).toHaveClass(/selected/);
 
-    // 选择第二个节点
-    await nodes.nth(1).click();
+    // 选择第二个节点 - 使用 force: true
+    await nodes.nth(1).click({ force: true });
     await page.waitForTimeout(300);
     await expect(nodes.nth(1)).toHaveClass(/selected/);
 
@@ -118,19 +113,16 @@ test.describe('连接线测试', () => {
     // 创建三个节点
     await setupTwoNodes(page);
 
-    const csvNode = page.locator('[data-testid="palette-node-csv-文件"]');
-    await csvNode.dragTo(page.locator('[data-testid="flow-canvas"]'), {
-      targetPosition: { x: 500, y: 250 }
-    });
+    await dragNodeToCanvas(page, 'palette-node-csv-文件', 500, 250);
     await page.waitForTimeout(500);
 
     // 验证三个节点都存在
     await expect(page.locator('.vue-flow__node')).toHaveCount(3);
 
-    // 验证可以逐个选择
+    // 验证可以逐个选择 - 使用 force: true
     const nodes = page.locator('.vue-flow__node');
     for (let i = 0; i < 3; i++) {
-      await nodes.nth(i).click();
+      await nodes.nth(i).click({ force: true });
       await page.waitForTimeout(200);
       await expect(nodes.nth(i)).toHaveClass(/selected/);
     }

@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { dragNodeToCanvas } from './test-utils';
 
 /**
  * 演示测试：创建两个节点并连接它们
@@ -16,18 +17,12 @@ test('演示：数据源节点连接到计算任务节点', async ({ page }) => 
   await page.waitForSelector('.flow-sidebar', { timeout: 10000 });
 
   console.log('📍 步骤 1: 拖拽数据源节点（MySQL）到画布');
-  const mysqlNode = page.locator('[data-testid="palette-node-mysql-数据库"]');
-  await mysqlNode.dragTo(page.locator('[data-testid="flow-canvas"]'), {
-    targetPosition: { x: 300, y: 150 }
-  });
+  await dragNodeToCanvas(page, 'palette-node-mysql-数据库', 300, 150);
   await page.waitForTimeout(1000);
   console.log('✅ MySQL 节点已创建');
 
   console.log('📍 步骤 2: 拖拽计算任务节点（PSI）到画布');
-  const psiNode = page.locator('[data-testid="palette-node-psi-计算"]');
-  await psiNode.dragTo(page.locator('[data-testid="flow-canvas"]'), {
-    targetPosition: { x: 300, y: 350 }
-  });
+  await dragNodeToCanvas(page, 'palette-node-psi-计算', 300, 350);
   await page.waitForTimeout(1000);
   console.log('✅ PSI 节点已创建');
 

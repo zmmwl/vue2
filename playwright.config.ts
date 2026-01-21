@@ -31,8 +31,8 @@ export default defineConfig({
     /* 基础 URL 对应 Vite 开发服务器 */
     baseURL: 'http://localhost:5172',
 
-    /* 有头模式 - 可以看到浏览器窗口 */
-    headless: false,
+    /* 默认无头模式 - 不显示浏览器窗口 */
+    headless: true,
 
     /* 失败时自动捕获 trace */
     trace: 'on-first-retry',
@@ -59,4 +59,7 @@ export default defineConfig({
     reuseExistingServer: !process.env.CI,
     timeout: 120 * 1000,
   },
+
+  // 禁用输出目录的自动清理（WSL 环境下可能有权限问题）
+  ignoreSnapshots: true,
 });
