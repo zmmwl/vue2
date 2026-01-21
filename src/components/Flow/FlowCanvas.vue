@@ -11,6 +11,7 @@
       :fit-view-on-init="false"
       :default-edge-options="{ type: 'smoothstep', style: { stroke: '#999999', strokeWidth: 1.5 } }"
       :delete-key-code="'Delete'"
+      :is-valid-connection="isValidConnection"
       @connect="onConnect"
       @edges-change="onEdgesChange"
       @nodes-change="onNodesChange"
@@ -28,8 +29,9 @@ import { VueFlow, useVueFlow } from '@vue-flow/core'
 import { Background } from '@vue-flow/background'
 import { Controls } from '@vue-flow/controls'
 import { MiniMap } from '@vue-flow/minimap'
-import type { Node, Edge, Connection, EdgeChange, NodeChange } from '@vue-flow/core'
+import type { Node, Edge, Connection, EdgeChange, NodeChange, GraphNode } from '@vue-flow/core'
 import type { DroppedNodeData } from '@/types/graph'
+import type { NodeData, NodeCategory } from '@/types/nodes'
 import DataSourceNode from '@/components/Nodes/DataSourceNode.vue'
 import ComputeTaskNode from '@/components/Nodes/ComputeTaskNode.vue'
 import FlowEdge from '@/components/Edges/FlowEdge.vue'
@@ -52,6 +54,50 @@ const edgeTypes = {
 // 节点和连接线数据
 const nodes = ref<Node[]>([])
 const edges = ref<Edge[]>([])
+
+/**
+ * 验证连接是否有效
+ * 业务规则：
+ * 1. 两个数据源节点不能直接连接
+ * 2. 连接必须从输出 handle 连接到输入 handle
+ * 3. 不能连接到同一个节点
+ */
+const isValidConnection = (
+  connection: Connection,
+  { sourceNode, targetNode }: { sourceNode: GraphNode; targetNode: GraphNode }
+): boolean => {
+  // 不允许连接到同一个节点
+  if (connection.source === connection.target) {
+    return false
+  }
+
+  const sourceData = sourceNode.data as NodeData
+  const targetData = targetNode.data as NodeData
+
+  // 规则 1: 两个数据源节点不能直接连接
+  if (sourceData.category === NodeCategory.DATA_SOURCE && targetData.category === NodeCategory.DATA_SOURCE) {
+    console.warn('⚠️ 连接被拒绝：两个数据源节点不能直接连接')
+    return false
+  }
+
+  // 规则 2: 数据源节点只能从输出 handle 连出，计算任务节点只能从输入 handle 连入
+  // 在我们的实现中：
+  // - 数据源节点只有输出 handle (id="output", type="source")
+  // - 计算任务节点有输入 handle (id="input", type="target") 和输出 handle (id="output", type="source")
+  // 所以我们需要验证：targetHandle 必须是 "input"（表示连接到目标节点的输入端）
+  if (connection.targetHandle !== 'input') {
+    console.warn('⚠️ 连接被拒绝：必须连接到目标节点的输入 handle (input)')
+    return false
+  }
+
+  // 规则 3: 连接必须从源节点的输出 handle 开始
+  if (connection.sourceHandle !== 'output') {
+    console.warn('⚠️ 连接被拒绝：必须从源节点的输出 handle (output) 开始')
+    return false
+  }
+
+  return true
+}
 
 /**
  * 处理连接事件
