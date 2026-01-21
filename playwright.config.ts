@@ -7,6 +7,9 @@ import { defineConfig, devices } from '@playwright/test';
 export default defineConfig({
   testDir: './e2e',
 
+  /* 输出目录 - 使用新目录避免权限问题 */
+  outputDir: 'test-results-output',
+
   /* 使用单个 worker，方便观察测试过程 */
   fullyParallel: false,
   workers: 1,
