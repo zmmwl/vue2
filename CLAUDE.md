@@ -90,3 +90,10 @@ src/
 
 1. 在 `src/utils/node-templates.ts` 中添加节点模板到 `DATA_SOURCE_TEMPLATES` 或 `COMPUTE_TASK_TEMPLATES`
 2. 如需新类型枚举，在 `src/types/nodes.ts` 中添加对应的 `Enum`
+
+## Active Technologies
+- TypeScript 5.9.3, Vue 3.5.24 + @vue-flow/core 1.48.1, Vite 7.2.4, Sass 1.97.2, Playwright 1.57.0 (001-data-asset-select)
+- 内存存储（Map 缓存） + JSON 文件导入导出 (001-data-asset-select)
+
+## Recent Changes
+- 001-data-asset-select: Added TypeScript 5.9.3, Vue 3.5.24 + @vue-flow/core 1.48.1, Vite 7.2.4, Sass 1.97.2, Playwright 1.57.0
