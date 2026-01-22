@@ -100,221 +100,280 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 ---
 
-### 2. 获取企业数据资产列表
+### 2. 获取数据资产列表
 
-获取指定企业的数据资产列表，用于用户选择具体的数据资产。
+获取数据资产列表，支持按资产所有者（企业）过滤和分页查询。
 
-**Endpoint**: `GET /asset/GetAssetListByEnterprise`
+**Endpoint**: `POST /asset/GetAssetList`
 
 **Authentication**: Bearer Token (required)
 
 **Request**:
 ```typescript
-interface GetAssetListByEnterpriseRequest {
-  participantId: string  // 企业平台 ID
-  pageNumber?: number    // 页码（可选，默认 1）
-  pageSize?: number      // 每页数量（可选，默认 50，最大 100）
+interface GetAssetListRequest {
+  pageNumber?: number    // 分页编码，默认 1
+  pageSize?: number      // 分页大小，每页条数，默认 10
+  filters?: Filter[]     // 过滤参数（按 holderCompany 过滤企业资产）
 }
 
-// Query 参数
-GET /asset/GetAssetListByEnterprise?participantId=ent_001&pageNumber=1&pageSize=50
+interface Filter {
+  key: string            // 过滤字段（如 "holderCompany"）
+  values: string[]       // 过滤值
+}
+
+// POST 请求体
+POST /asset/GetAssetList
+Content-Type: application/json
 headers: {
   'Authorization': `Bearer ${token}`
+}
+body: {
+  "pageNumber": 1,
+  "pageSize": 50,
+  "filters": [
+    { "key": "holderCompany", "values": ["某某企业"] }
+  ]
 }
 ```
 
 **Response (200 OK)**:
 ```typescript
-interface GetAssetListByEnterpriseResponse {
-  code: number                    // 状态码，0 表示成功
-  message: string                 // 响应消息
+interface GetAssetListResponse {
+  code: number                    // 状态码，200 表示成功
+  status: string                 // 状态，"success" 或 "failed"
+  msg: string | null             // 消息
   data: {
-    total: number                 // 总数量
-    pageNumber: number            // 当前页码
-    pageSize: number              // 每页数量
-    totalPages: number            // 总页数
-    list: AssetListItem[]         // 数据资产列表
+    pagination: Pagination
+    list: AssetItem[]            // 数据资产列表
   }
 }
 
-interface AssetListItem {
-  assetId: string                 // 数据资产唯一标识
-  assetNumber: string             // 数据资产编号
-  assetName: string               // 数据资产名称
-  assetEnName?: string            // 数据资产英文简称（可选）
-  intro?: string                  // 资产描述（可选）
-  holderCompany: string           // 资产所有者（企业名称）
-  scale?: string                  // 数据规模（可选）
-  cycle?: string                  // 更新周期（可选）
+interface Pagination {
+  total: number                  // 总数量
+  pageSize: number               // 分页大小
+  pageNumber: number             // 分页页码
+}
+
+interface AssetItem {
+  assetId: string                // 主键 ID
+  assetNumber: string            // 数据资产编号
+  assetName: string              // 数据资产名称
+  assetEnName?: string           // 资产英文名（可选）
+  holderCompany: string          // 资产所有者
+  intro?: string                 // 资产描述（可选）
+  participantId: string           // 平台 ID
+  entityName: string              // 实体名称
+  dataProductType: number         // 数据资产类型：1 数据集
+  enterpriseName: string          // 企业名称
 }
 ```
 
 **Error Responses**:
 | HTTP Status | Error Scenario | Response Body |
 |-------------|----------------|---------------|
-| 400 | 请求参数错误 | `{ code: 400, message: "participantId 参数不能为空" }` |
-| 401 | Token 无效或过期 | `{ code: 401, message: "登录已过期，请重新登录" }` |
-| 403 | 无权限访问该企业资产 | `{ code: 403, message: "无权限访问该企业的数据资产" }` |
-| 404 | 企业不存在 | `{ code: 404, message: "企业不存在" }` |
-| 500 | 服务器内部错误 | `{ code: 500, message: "服务器内部错误" }` |
+| 501 | 查询失败 | `{ code: 501, status: "failed", msg: "查询失败", data: null }` |
 
 **Example**:
 ```typescript
 // Request
-GET /asset/GetAssetListByEnterprise?participantId=ent_001&pageNumber=1&pageSize=50
+POST /asset/GetAssetList
+Content-Type: application/json
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+
+body: {
+  "pageNumber": 1,
+  "pageSize": 50,
+  "filters": [
+    { "key": "holderCompany", "values": ["某某企业"] }
+  ]
+}
 
 // Response
 {
-  "code": 0,
-  "message": "success",
+  "code": 200,
+  "status": "success",
+  "msg": null,
   "data": {
-    "total": 150,
-    "pageNumber": 1,
-    "pageSize": 50,
-    "totalPages": 3,
+    "pagination": {
+      "total": 150,
+      "pageSize": 50,
+      "pageNumber": 1
+    },
     "list": [
       {
         "assetId": "asset_001",
         "assetNumber": "AST-2024-001",
         "assetName": "用户行为数据",
         "assetEnName": "user_behavior",
-        "intro": "用户点击流数据",
         "holderCompany": "某某企业",
-        "scale": "1000万条",
-        "cycle": "每日"
+        "intro": "用户点击流数据",
+        "participantId": "ent_001",
+        "entityName": "某某企业",
+        "dataProductType": 1,
+        "enterpriseName": "某某企业"
       },
       {
         "assetId": "asset_002",
         "assetNumber": "AST-2024-002",
         "assetName": "交易数据",
         "assetEnName": "transaction",
-        "intro": "用户交易记录",
         "holderCompany": "某某企业",
-        "scale": "500万条",
-        "cycle": "每周"
+        "intro": "用户交易记录",
+        "participantId": "ent_001",
+        "entityName": "某某企业",
+        "dataProductType": 1,
+        "enterpriseName": "某某企业"
       }
     ]
   }
 }
 ```
 
-**Note**: 此接口支持分页，当企业下的数据资产数量较多时，可以分批加载。
+**Note**:
+1. 此接口使用 POST 请求，参数在请求体中
+2. 支持按 `holderCompany` 过滤来获取特定企业的数据资产
+3. 也可以直接使用企业列表接口返回的 `enterpriseAssetList`（适用于资产数量较少的情况）
 
 ---
 
 ### 3. 获取数据资产详情
 
-获取指定数据资产的完整信息，包括字段列表。
+根据数据资产 ID，获取数据资产详情（包括字段列表）。
 
-**Endpoint**: `GET /asset/GetAsset`
+**Endpoint**: `POST /asset/GetAsset`
 
 **Authentication**: Bearer Token (required)
 
 **Request**:
 ```typescript
 interface GetAssetRequest {
-  assetId: string  // 数据资产唯一标识
+  assetId?: string               // 数据资产 ID
+  assetEnName?: string            // 数据资产英文名字
+  assetOwnerParticipantId?: string // 数据资产的所属方的参与方的 ID
 }
+// assetId 和 (assetEnName + assetOwnerParticipantId) 不能同时为空
 
-// Query 参数
-GET /asset/GetAsset?assetId=asset_001
+// POST 请求体
+POST /asset/GetAsset
+Content-Type: application/json
 headers: {
   'Authorization': `Bearer ${token}`
+}
+body: {
+  "assetId": "asset_001"
 }
 ```
 
 **Response (200 OK)**:
 ```typescript
 interface GetAssetResponse {
-  code: number           // 状态码，0 表示成功
-  message: string        // 响应消息
-  data: AssetInfo        // 数据资产完整信息
+  code: number           // 状态码，200 表示成功
+  status: string         // 状态，"success" 或 "failed"
+  msg: string | null     // 消息
+  data: {
+    assetInfo: AssetInfo
+  }
 }
 
 interface AssetInfo {
-  assetId: string
-  assetNumber: string
-  assetName: string
-  assetEnName?: string
-  holderCompany: string
-  participantId: string
-  entityName: string
-  intro?: string
-  scale?: string
-  cycle?: string
-  timeSpan?: string
-  dataInfo: {
-    databaseName: string
-    tableName: string
-    fieldList: {
-      name: string
-      dataType: string
-      dataLength?: number
-      description?: string
-      isPrimaryKey?: boolean
-      privacyQuery?: boolean
-    }[]
-  }
+  assetId: string                // 主键 ID
+  assetNumber: string            // 数据产品编号
+  holderCompany: string          // 数据产品所有者
+  assetName: string              // 数据产品名称
+  assetEnName: string            // 资产英文简称
+  scale: string                  // 数据规模
+  cycle: string                  // 更新周期
+  timeSpan: string               // 时间跨度
+  txId: string                   // 交易 ID
+  intro: string                  // 数据产品简介
+  assetType: number              // 数据类型：1-个人数据，2-企业数据，3-公共数据
+  dataInfo: DataInfo             // 数据集信息
+  participantId: string           // 平台 ID
+  entityName: string              // 实体名称
+  dataProductType: number        // 数据资产类型：1 数据集
+  scaleUnit: number              // 数据规模单位：1-MB,2-GB,3-TB,4-PB,5-EB,6-ZB
+}
+
+interface DataInfo {
+  dbName: string                 // 数据库名称
+  tableName: string              // 数据表名称
+  itemList: SaveTableColumnItem[] // 字段信息
+}
+
+interface SaveTableColumnItem {
+  name: string                   // 字段名称
+  dataType: string               // 字段类型
+  dataLength: string             // 字段长度
+  description: string            // 字段描述
+  isPrimaryKey: number           // 是否为主键：1=否，2=是
+  privacyQuery: number           // 是否隐私查询：1=是，0=否
 }
 ```
 
 **Error Responses**:
 | HTTP Status | Error Scenario | Response Body |
 |-------------|----------------|---------------|
-| 400 | 请求参数错误 | `{ code: 400, message: "assetId 参数不能为空" }` |
-| 401 | Token 无效或过期 | `{ code: 401, message: "登录已过期，请重新登录" }` |
-| 403 | 无权限访问该资产 | `{ code: 403, message: "无权限访问该数据资产" }` |
-| 404 | 资产不存在 | `{ code: 404, message: "数据资产不存在" }` |
-| 500 | 服务器内部错误 | `{ code: 500, message: "服务器内部错误" }` |
+| 501 | 获取详情失败 | `{ code: 501, status: "failed", msg: "获取详情失败", data: null }` |
 
 **Example**:
 ```typescript
 // Request
-GET /asset/GetAsset?assetId=asset_001
+POST /asset/GetAsset
+Content-Type: application/json
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+
+body: {
+  "assetId": "asset_001"
+}
 
 // Response
 {
-  "code": 0,
-  "message": "success",
+  "code": 200,
+  "status": "success",
+  "msg": null,
   "data": {
-    "assetId": "asset_001",
-    "assetNumber": "AST-2024-001",
-    "assetName": "用户行为数据",
-    "assetEnName": "user_behavior",
-    "holderCompany": "某某企业",
-    "participantId": "ent_001",
-    "entityName": "某某企业",
-    "intro": "用户点击流数据",
-    "scale": "1000万条",
-    "cycle": "每日",
-    "timeSpan": "2024-01-01 至今",
-    "dataInfo": {
-      "databaseName": "user_db",
-      "tableName": "user_behavior",
-      "fieldList": [
-        {
-          "name": "user_id",
-          "dataType": "VARCHAR",
-          "dataLength": 64,
-          "description": "用户 ID",
-          "isPrimaryKey": true,
-          "privacyQuery": false
-        },
-        {
-          "name": "action_time",
-          "dataType": "DATETIME",
-          "dataLength": null,
-          "description": "操作时间",
-          "isPrimaryKey": false,
-          "privacyQuery": false
-        }
-      ]
+    "assetInfo": {
+      "assetId": "1001",
+      "assetNumber": "100012",
+      "holderCompany": "组织1",
+      "assetName": "Asset Name",
+      "assetEnName": "Asset En Name",
+      "scale": "100M",
+      "cycle": "7天",
+      "timeSpan": "2022年1月1日-2022年12月1日",
+      "txId": "0x122121212",
+      "intro": "数据产品简介",
+      "dataInfo": {
+        "dbName": "数据库名称",
+        "tableName": "数据表名称",
+        "itemList": [
+          {
+            "name": "字段名称",
+            "dataType": "字段类型",
+            "dataLength": "字段长度",
+            "description": "字段描述",
+            "isPrimaryKey": 2,
+            "privacyQuery": 1
+          },
+          {
+            "name": "action_time",
+            "dataType": "DATETIME",
+            "dataLength": "",
+            "description": "操作时间",
+            "isPrimaryKey": 1,
+            "privacyQuery": 0
+          }
+        ]
+      },
+      "participantId": "ent_001",
+      "entityName": "某某企业",
+      "dataProductType": 1
     }
   }
 }
 ```
+
+**Note**: 字段信息在 `dataInfo.itemList` 中，`isPrimaryKey` 值为 1=否，2=是
 
 ---
 
@@ -322,14 +381,11 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 ### Error Categories
 
-| 错误类型 | HTTP 状态码 | Axios Code | 处理策略 |
-|---------|------------|-----------|---------|
+| 错误类型 | HTTP 状态码 | Response Code | 处理策略 |
+|---------|------------|--------------|---------|
 | 网络错误 | - | ERR_NETWORK | 自动重试 2-3 次，指数退避 |
 | 超时错误 | - | ECONNABORTED | 自动重试 2-3 次，指数退避 |
-| 认证错误 | 401 | - | 不重试，显示"登录已过期" |
-| 权限错误 | 403 | - | 不重试，显示"无权限访问" |
-| 资源不存在 | 404 | - | 不重试，显示"资源不存在" |
-| 业务错误 | 400 | - | 不重试，显示后端错误信息 |
+| 业务错误 | 501 | - | 不重试，显示 `msg` 字段错误信息 |
 | 服务器错误 | 500, 502, 503 | - | 自动重试 2-3 次，指数退避 |
 
 ### Retry Strategy
@@ -347,13 +403,14 @@ interface RetryConfig {
 
 ### Error Response Format
 
-所有错误响应遵循统一格式：
+所有错误响应遵循统一格式（基于实际 API 返回）：
 
 ```typescript
 interface ErrorResponse {
-  code: number           // HTTP 状态码或业务错误码
-  message: string        // 用户友好的错误消息
-  details?: string       // 详细错误信息（可选，用于调试）
+  code: number           // 业务错误码（如 501）
+  status: string         // "success" 或 "failed"
+  msg: string            // 错误消息
+  data: null             // 错误时为 null
 }
 ```
 
@@ -365,115 +422,132 @@ interface ErrorResponse {
 // ========== API 请求类型 ==========
 
 interface GetEnterpriseListRequest {
-  // 无参数
+  assetName?: string
+  assetEnName?: string
+  dataProductTypes?: Array<string>
 }
 
-interface GetAssetListByEnterpriseRequest {
-  participantId: string
+interface GetAssetListRequest {
   pageNumber?: number
   pageSize?: number
+  filters?: Array<{
+    key: string
+    values: string[]
+  }>
 }
 
 interface GetAssetRequest {
-  assetId: string
+  assetId?: string
+  assetEnName?: string
+  assetOwnerParticipantId?: string
 }
 
 // ========== API 响应类型 ==========
 
-interface ApiResponse<T> {
-  code: number
-  message: string
-  data: T
-}
-
 interface GetEnterpriseListResponse {
   code: number
-  message: string
-  data: Enterprise[]
+  status: string
+  msg: string | null
+  data: {
+    enterpriseList: Enterprise[]
+  }
 }
 
-interface GetAssetListByEnterpriseResponse {
+interface GetAssetListResponse {
   code: number
-  message: string
+  status: string
+  msg: string | null
   data: {
-    total: number
-    pageNumber: number
-    pageSize: number
-    totalPages: number
-    list: AssetListItem[]
+    pagination: Pagination
+    list: AssetItem[]
   }
 }
 
 interface GetAssetResponse {
   code: number
-  message: string
-  data: AssetInfo
+  status: string
+  msg: string | null
+  data: {
+    assetInfo: AssetInfo
+  }
 }
 
 // ========== 错误响应类型 ==========
 
 interface ErrorResponse {
-  code: number
-  message: string
-  details?: string
+  code: number           // 如 501
+  status: string         // "failed"
+  msg: string            // 错误消息
+  data: null
 }
 
-// ========== 实体类型（与 data-model.md 一致） ==========
+// ========== 实体类型（与实际 API 一致） ==========
 
 interface Enterprise {
   participantId: string
   entityName: string
-  enterpriseAssetList: AssetSummary[]
+  enterpriseAssetList: EnterpriseAsset[]
 }
 
-interface AssetSummary {
+interface EnterpriseAsset {
+  assetId: string
+  assetNumber: string
+  assetEnName?: string
+  assetName: string
+  dataProductType: number
+}
+
+interface AssetItem {
   assetId: string
   assetNumber: string
   assetName: string
   assetEnName?: string
-  intro?: string
   holderCompany: string
+  intro?: string
+  participantId: string
+  entityName: string
+  dataProductType: number
+  enterpriseName: string
 }
 
-interface AssetListItem {
-  assetId: string
-  assetNumber: string
-  assetName: string
-  assetEnName?: string
-  intro?: string
-  holderCompany: string
-  scale?: string
-  cycle?: string
+interface Pagination {
+  total: number
+  pageSize: number
+  pageNumber: number
 }
 
 interface AssetInfo {
   assetId: string
   assetNumber: string
-  assetName: string
-  assetEnName?: string
   holderCompany: string
+  assetName: string
+  assetEnName: string
+  scale: string
+  cycle: string
+  timeSpan: string
+  txId: string
+  intro: string
+  assetType: number
+  dataInfo: DataInfo
   participantId: string
   entityName: string
-  intro?: string
-  scale?: string
-  cycle?: string
-  timeSpan?: string
-  dataInfo: DataInfo
+  dataProductType: number
+  scaleUnit: number
 }
 
 interface DataInfo {
-  databaseName: string
+  dbName: string
   tableName: string
-  fieldList: FieldInfo[]
+  itemList: SaveTableColumnItem[]
 }
 
-interface FieldInfo {
+interface SaveTableColumnItem {
   name: string
   dataType: string
-  dataLength?: number
-  description?: string
-  isPrimaryKey?: boolean
-  privacyQuery?: boolean
+  dataLength: string
+  description: string
+  isPrimaryKey: number      // 1=否，2=是
+  privacyQuery: number      // 1=是，0=否
 }
 ```
 
