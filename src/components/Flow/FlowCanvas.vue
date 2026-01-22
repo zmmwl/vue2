@@ -15,11 +15,22 @@
       @connect="onConnect"
       @edges-change="onEdgesChange"
       @nodes-change="onNodesChange"
+      @node-click="onNodeClick"
     >
       <Background pattern="dots" :gap="20" :size="1.5" color="#d1d5db" />
       <Controls />
       <MiniMap />
     </VueFlow>
+
+    <!-- 数据资产选择对话框 -->
+    <AssetSelectorDialog
+      v-model="showAssetDialog"
+      :node-id="editingNodeId"
+      :initial-asset-info="editingNodeAssetInfo"
+      :initial-selected-fields="editingNodeSelectedFields"
+      @confirm="handleAssetSelected"
+      @cancel="handleDialogCancel"
+    />
   </div>
 </template>
 
@@ -32,11 +43,22 @@ import { MiniMap } from '@vue-flow/minimap'
 import type { Node, Edge, Connection, EdgeChange, NodeChange, GraphNode } from '@vue-flow/core'
 import type { DroppedNodeData } from '@/types/graph'
 import { NodeCategory } from '@/types/nodes'
-import type { NodeData } from '@/types/nodes'
+import type { NodeData, AssetInfo, FieldInfo } from '@/types/nodes'
 import DataSourceNode from '@/components/Nodes/DataSourceNode.vue'
 import ComputeTaskNode from '@/components/Nodes/ComputeTaskNode.vue'
 import FlowEdge from '@/components/Edges/FlowEdge.vue'
+import AssetSelectorDialog from '@/components/Dialogs/AssetSelectorDialog.vue'
 import { createUniqueEdge } from '@/utils/edge-utils'
+import { logger } from '@/utils/logger'
+import { exportGraph, downloadJson, importGraph, restoreNodes } from '@/utils/exportUtils'
+import { assetCache } from '@/services/assetCache'
+
+interface Emits {
+  (e: 'node-selected', node: Node<NodeData> | null): void
+  (e: 'edit-asset', nodeId: string): void
+}
+
+const emit = defineEmits<Emits>()
 
 // 获取坐标投影函数（将屏幕坐标转换为画布坐标）
 const { project } = useVueFlow()
@@ -55,6 +77,13 @@ const edgeTypes = {
 // 节点和连接线数据
 const nodes = ref<Node[]>([])
 const edges = ref<Edge[]>([])
+
+// 数据资产选择对话框状态
+const showAssetDialog = ref(false)
+const editingNodeId = ref<string>()
+const editingNodeAssetInfo = ref<AssetInfo>()
+const editingNodeSelectedFields = ref<string[]>()
+const pendingNodePosition = ref<{ x: number; y: number } | null>(null)
 
 /**
  * 验证连接是否有效
@@ -159,40 +188,202 @@ const onDrop = (event: DragEvent) => {
   try {
     const data: DroppedNodeData = JSON.parse(rawData)
 
-    // 计算节点位置（基于鼠标位置，将鼠标点作为节点中心）
-    // 需要考虑画布的缩放和平移，将屏幕坐标转换为画布坐标
+    // 只对数据源节点弹出选择对话框
+    if (data.category !== NodeCategory.DATA_SOURCE) {
+      // 非数据源节点直接创建
+      createNode(data, event)
+      return
+    }
+
+    // 数据源节点：保存位置信息，弹出对话框
     const projected = project({
       x: event.offsetX,
       y: event.offsetY
     })
 
-    // 减去节点宽高的一半使鼠标点成为节点中心
-    const position = {
-      x: projected.x - 100,  // 节点宽度约 200px
-      y: projected.y - 30    // 节点高度约 60px
+    pendingNodePosition.value = {
+      x: projected.x - 100,
+      y: projected.y - 30
     }
 
-    // 创建新节点
-    const newNode: Node = {
-      id: `node_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      type: data.type,
-      position,
-      data: {
-        label: data.label,
-        category: data.category,
-        taskType: data.taskType,
-        sourceType: data.sourceType,
-        icon: data.icon,
-        color: data.color,
-        description: data.description
-      }
-    }
-
-    nodes.value.push(newNode)
+    // 打开选择对话框
+    showAssetDialog.value = true
+    logger.info('[FlowCanvas] Opening asset selector dialog for new node')
   } catch (error) {
-    console.error('Failed to parse dropped data:', error)
+    logger.error('[FlowCanvas] Failed to parse dropped data', error)
   }
 }
+
+/**
+ * 创建节点
+ */
+function createNode(data: DroppedNodeData, event: DragEvent | { x: number; y: number }) {
+  const position = 'offsetX' in event
+    ? (() => {
+        const projected = project({ x: event.offsetX, y: event.offsetY })
+        return {
+          x: projected.x - 100,
+          y: projected.y - 30
+        }
+      })()
+    : pendingNodePosition.value || { x: 100, y: 100 }
+
+  const newNode: Node = {
+    id: `node_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    type: data.type,
+    position,
+    data: {
+      label: data.label,
+      category: data.category,
+      taskType: data.taskType,
+      sourceType: data.sourceType,
+      icon: data.icon,
+      color: data.color,
+      description: data.description
+    }
+  }
+
+  nodes.value.push(newNode)
+  logger.info('[FlowCanvas] Node created', { nodeId: newNode.id, type: newNode.type })
+}
+
+/**
+ * 处理资产选择确认
+ */
+function handleAssetSelected(selection: { assetInfo: AssetInfo; selectedFields: FieldInfo[] }) {
+  // 如果有编辑中的节点 ID，更新该节点
+  // 否则创建新节点
+  if (editingNodeId.value) {
+    const node = nodes.value.find(n => n.id === editingNodeId.value)
+    if (node) {
+      ;(node.data as NodeData).assetInfo = selection.assetInfo
+      ;(node.data as NodeData).selectedFields = selection.selectedFields.map(f => f.name)
+      logger.info('[FlowCanvas] Node asset updated', { nodeId: editingNodeId.value })
+    }
+    editingNodeId.value = undefined
+  } else {
+    // 创建新节点
+    const nodeData: DroppedNodeData = {
+      type: 'data_source',
+      label: selection.assetInfo.assetName,
+      category: NodeCategory.DATA_SOURCE,
+      sourceType: 'database' as any,
+      icon: 'database',
+      color: '#52C41A',
+      description: selection.assetInfo.intro
+    }
+
+    // 临时事件对象用于 createNode
+    const tempEvent = { offsetX: pendingNodePosition.value!.x + 100, offsetY: pendingNodePosition.value!.y + 30 } as any
+    createNode(nodeData, tempEvent)
+
+    // 将资产信息保存到新创建的节点
+    const newNode = nodes.value[nodes.value.length - 1]
+    if (newNode) {
+      ;(newNode.data as NodeData).assetInfo = selection.assetInfo
+      ;(newNode.data as NodeData).selectedFields = selection.selectedFields.map(f => f.name)
+      logger.info('[FlowCanvas] New node asset saved', { nodeId: newNode.id })
+    }
+  }
+
+  // 清理状态
+  pendingNodePosition.value = null
+  showAssetDialog.value = false
+}
+
+/**
+ * 处理对话框取消
+ */
+function handleDialogCancel() {
+  logger.info('[FlowCanvas] Asset selector dialog cancelled')
+
+  // 如果是编辑模式，只关闭对话框，保持原有配置不变
+  // 如果是新建模式，删除节点（已在对话框中处理，这里只需关闭）
+  showAssetDialog.value = false
+  editingNodeId.value = undefined
+  editingNodeAssetInfo.value = undefined
+  editingNodeSelectedFields.value = undefined
+  pendingNodePosition.value = null
+}
+
+/**
+ * 处理节点点击事件
+ */
+function onNodeClick(event: any) {
+  const node = event.node as Node<NodeData>
+  emit('node-selected', node)
+  logger.info('[FlowCanvas] Node clicked', { nodeId: node.id })
+}
+
+/**
+ * 打开编辑对话框
+ */
+function openEditDialog(nodeId: string) {
+  const node = nodes.value.find(n => n.id === nodeId)
+  if (!node) {
+    logger.warn('[FlowCanvas] Node not found for editing', { nodeId })
+    return
+  }
+
+  const nodeData = node.data as NodeData
+
+  // 设置编辑状态
+  editingNodeId.value = nodeId
+  editingNodeAssetInfo.value = nodeData.assetInfo
+  editingNodeSelectedFields.value = nodeData.selectedFields
+
+  showAssetDialog.value = true
+  logger.info('[FlowCanvas] Opening edit dialog', {
+    nodeId,
+    hasAssetInfo: !!nodeData.assetInfo
+  })
+}
+
+/**
+ * 导出任务图
+ */
+function handleExport() {
+  try {
+    const json = exportGraph(nodes.value, edges.value)
+    downloadJson(json)
+    logger.info('[FlowCanvas] Export successful')
+  } catch (error) {
+    logger.error('[FlowCanvas] Export failed', error)
+    // TODO: 显示错误提示
+  }
+}
+
+/**
+ * 导入任务图
+ */
+async function handleImport(file: File) {
+  try {
+    const data = await importGraph(file)
+
+    // 恢复节点和边
+    nodes.value = restoreNodes(data.nodes)
+    edges.value = data.edges || []
+
+    // 重建缓存
+    assetCache.rebuildFromNodes(nodes.value)
+
+    logger.info('[FlowCanvas] Import successful', {
+      nodeCount: nodes.value.length,
+      edgeCount: edges.value.length
+    })
+  } catch (error) {
+    logger.error('[FlowCanvas] Import failed', error)
+    // TODO: 显示错误提示
+    throw error
+  }
+}
+
+// 暴露方法供父组件调用
+defineExpose({
+  openEditDialog,
+  handleExport,
+  handleImport
+})
 </script>
 
 <style scoped lang="scss">

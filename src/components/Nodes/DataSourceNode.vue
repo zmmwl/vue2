@@ -1,12 +1,20 @@
 <template>
   <div class="data-source-node" :class="{ selected }" :data-testid="`node-${data.sourceType || data.label}`">
-    <div class="node-card">
+    <div class="node-card" :class="{ 'is-configured': isConfigured, 'is-unconfigured': !isConfigured }">
       <div class="node-icon-wrapper">
         <div class="node-icon">{{ data.icon }}</div>
       </div>
       <div class="node-info">
-        <div class="node-title">{{ data.label }}</div>
-        <div v-if="data.description" class="node-description">
+        <div class="node-title">
+          {{ data.label }}
+          <!-- 资产名称显示 -->
+          <span v-if="isConfigured && data.assetInfo?.assetName" class="asset-name">
+            • {{ data.assetInfo.assetName }}
+          </span>
+          <!-- 未配置标签 -->
+          <span v-else class="unconfigured-label">未配置</span>
+        </div>
+        <div v-if="data.description && !isConfigured" class="node-description">
           {{ data.description }}
         </div>
       </div>
@@ -33,6 +41,11 @@ import { useVueFlow } from '@vue-flow/core'
 const props = defineProps<NodeProps<NodeData>>()
 
 const { edges } = useVueFlow()
+
+// 检查是否已配置数据资产
+const isConfigured = computed(() => {
+  return !!(props.data as NodeData).assetInfo
+})
 
 // 检查是否有输出连接
 const isOutputVisible = computed(() => {
@@ -114,6 +127,30 @@ const isOutputVisible = computed(() => {
     color: #000000;
     line-height: 1.3;
     margin-bottom: 2px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  // 资产名称显示
+  .asset-name {
+    font-size: 12px;
+    font-weight: 400;
+    color: $node-configured-color;
+    max-width: $node-asset-name-max-width;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  // 未配置标签
+  .unconfigured-label {
+    font-size: 11px;
+    font-weight: 500;
+    color: $node-unconfigured-color;
+    padding: 2px 6px;
+    background: $node-unconfigured-bg;
+    border-radius: 4px;
   }
 
   .node-description {
@@ -123,6 +160,18 @@ const isOutputVisible = computed(() => {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  // 已配置状态样式
+  .is-configured {
+    border-color: $node-configured-border;
+    background-color: $node-configured-bg;
+  }
+
+  // 未配置状态样式
+  .is-unconfigured {
+    border-color: $node-unconfigured-border;
+    background-color: $node-unconfigured-bg;
   }
 
   &.selected .node-card {

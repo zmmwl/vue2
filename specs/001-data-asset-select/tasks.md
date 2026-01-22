@@ -21,11 +21,11 @@
 
 此功能基于现有 Vue 3 项目，项目结构已存在。本阶段主要添加必要的目录结构。
 
-- [ ] T001 [P] 创建 Dialogs 组件目录 src/components/Dialogs/
-- [ ] T002 [P] 创建 Common 组件目录 src/components/Common/
-- [ ] T003 [P] 创建 services 目录 src/services/
-- [ ] T004 [P] 创建测试 mocks 目录 src/tests/mocks/
-- [ ] T005 [P] 创建 E2E 测试目录 tests/e2e/
+- [x] T001 [P] 创建 Dialogs 组件目录 src/components/Dialogs/
+- [x] T002 [P] 创建 Common 组件目录 src/components/Common/
+- [x] T003 [P] 创建 services 目录 src/services/
+- [x] T004 [P] 创建测试 mocks 目录 src/tests/mocks/
+- [x] T005 [P] 创建 E2E 测试目录 tests/e2e/
 
 **Checkpoint**: 目录结构就绪，可以开始基础实施
 
@@ -37,17 +37,17 @@
 
 **⚠️ CRITICAL**: 在此阶段完成之前，无法开始任何用户故事的实施
 
-- [ ] T006 扩展类型定义 src/types/nodes.ts 添加 AssetInfo、Enterprise、AssetSummary、AssetListItem、FieldInfo、DataInfo、SelectedField 接口
-- [ ] T007 [P] 创建 API 响应类型定义 src/types/api.ts 包含 ApiResponse、GetEnterpriseListResponse、GetAssetListResponse、GetAssetResponse、ErrorResponse
-- [ ] T008 [P] 扩展 NodeData 接口在 src/types/nodes.ts 中添加 assetInfo 和 selectedFields 可选字段
-- [ ] T009 [P] 创建 SCSS 样式变量在 src/assets/styles/variables.scss 添加对话框、详情面板、节点状态相关变量
-- [ ] T010 [P] 创建日志工具 src/utils/logger.ts 提供 error、warn、info 方法
-- [ ] T011 [P] 创建数据资产缓存服务 src/services/assetCache.ts 实现 Map 缓存和 rebuildFromNodes 方法
-- [ ] T012 创建数据资产 API 服务 src/services/assetApi.ts 实现 getEnterpriseList、getAssetList、getAsset 方法，包含错误分类和重试逻辑（使用 POST 请求，参数格式参考 .myprompt/specs/interfaces）
-- [ ] T012-A [P] 集成日志到 API 服务在 src/services/assetApi.ts 中为所有 API 调用添加 logger 记录（请求、响应、错误）（依赖 T010, T012）
-- [ ] T012-B [P] 集成日志到缓存服务在 src/services/assetCache.ts 中为缓存操作添加 logger 记录（命中、未命中、重建）（依赖 T010, T011）
-- [ ] T013 [P] 创建 API Mock 实现 src/tests/mocks/assetApiMock.ts 实现 mockGetEnterpriseList、mockGetAssetList、mockGetAsset
-- [ ] T014 [P] 创建测试数据 src/tests/mocks/assetTestData.ts 包含 mockEnterpriseList、mockAssetInfoMap、generateMockFields 函数
+- [x] T006 扩展类型定义 src/types/nodes.ts 添加 AssetInfo、Enterprise、AssetSummary、AssetListItem、FieldInfo、DataInfo、SelectedField 接口
+- [x] T007 [P] 创建 API 响应类型定义 src/types/api.ts 包含 ApiResponse、GetEnterpriseListResponse、GetAssetListResponse、GetAssetResponse、ErrorResponse
+- [x] T008 [P] 扩展 NodeData 接口在 src/types/nodes.ts 中添加 assetInfo 和 selectedFields 可选字段
+- [x] T009 [P] 创建 SCSS 样式变量在 src/assets/styles/variables.scss 添加对话框、详情面板、节点状态相关变量
+- [x] T010 [P] 创建日志工具 src/utils/logger.ts 提供 error、warn、info 方法
+- [x] T011 [P] 创建数据资产缓存服务 src/services/assetCache.ts 实现 Map 缓存和 rebuildFromNodes 方法
+- [x] T012 创建数据资产 API 服务 src/services/assetApi.ts 实现 getEnterpriseList、getAssetList、getAsset 方法，包含错误分类和重试逻辑（使用 POST 请求，参数格式参考 .myprompt/specs/interfaces）
+- [x] T012-A [P] 集成日志到 API 服务在 src/services/assetApi.ts 中为所有 API 调用添加 logger 记录（请求、响应、错误）（依赖 T010, T012）
+- [x] T012-B [P] 集成日志到缓存服务在 src/services/assetCache.ts 中为缓存操作添加 logger 记录（命中、未命中、重建）（依赖 T010, T011）
+- [x] T013 [P] 创建 API Mock 实现 src/tests/mocks/assetApiMock.ts 实现 mockGetEnterpriseList、mockGetAssetList、mockGetAsset
+- [x] T014 [P] 创建测试数据 src/tests/mocks/assetTestData.ts 包含 mockEnterpriseList、mockAssetInfoMap、generateMockFields 函数
 
 **Checkpoint**: 基础设施就绪 - 用户故事实施现在可以并行开始
 

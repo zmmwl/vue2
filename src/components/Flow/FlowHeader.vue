@@ -7,13 +7,28 @@
     <div class="header-right">
       <button class="header-btn primary">运行</button>
       <button class="header-btn">保存</button>
-      <button class="header-btn">导出</button>
+      <button class="header-btn" @click="handleExport">导出</button>
+      <button class="header-btn" @click="handleImport">导入</button>
       <button class="header-btn">设置</button>
     </div>
   </header>
 </template>
 
 <script setup lang="ts">
+interface Emits {
+  (e: 'export'): void
+  (e: 'import'): void
+}
+
+const emit = defineEmits<Emits>()
+
+function handleExport() {
+  emit('export')
+}
+
+function handleImport() {
+  emit('import')
+}
 </script>
 
 <style scoped lang="scss">

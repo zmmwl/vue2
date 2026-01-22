@@ -3,6 +3,7 @@
   // 背景色
   --bg-primary: #F8F9FA;
   --bg-secondary: #FFFFFF;
+  --bg-tertiary: #F5F5F5;
   --bg-hover: #FAFAFA;
   --bg-canvas: #F5F5F5;
 
@@ -56,3 +57,89 @@ body {
   color: var(--text-primary);
   background-color: var(--bg-primary);
 }
+
+// ========== 数据资产选择对话框样式 ==========
+
+// 对话框尺寸
+$asset-dialog-width: 600px;
+$asset-dialog-max-height: 80vh;
+
+// 步骤指示器
+$step-indicator-size: 32px;
+$step-indicator-active-color: #1890ff;
+$step-indicator-inactive-color: #d9d9d9;
+$step-indicator-current-bg: #1890ff;
+$step-indicator-current-text: #ffffff;
+$step-indicator-pending-bg: #f0f0f0;
+$step-indicator-pending-text: #8c8c8c;
+$step-indicator-completed-bg: #52c41a;
+$step-indicator-completed-text: #ffffff;
+
+// 列表项
+$list-item-height: 48px;
+$list-item-hover-bg: #f5f5f5;
+$list-item-selected-bg: #e6f7ff;
+$list-item-selected-border: #1890ff;
+
+// 字段列表
+$field-item-height: 40px;
+$field-item-hover-bg: #f5f5f5;
+$field-item-selected-bg: #e6f7ff;
+$field-item-checkbox-size: 16px;
+
+// 搜索框
+$search-box-height: 32px;
+$search-box-border: #d9d9d9;
+$search-box-focus-border: #1890ff;
+$search-box-placeholder: #8c8c8c;
+
+// 按钮样式
+$button-primary-bg: #1890ff;
+$button-primary-hover: #40a9ff;
+$button-default-border: #d9d9d9;
+$button-default-hover: #40a9ff;
+$button-disabled-bg: #f5f5f5;
+$button-disabled-text: #d9d9d9;
+
+// ========== 详情面板样式 ==========
+
+// 详情面板尺寸
+$detail-panel-width: 360px;
+$detail-panel-bg: #fafafa;
+$detail-panel-border: #e8e8e8;
+
+// 详情面板区域
+$detail-section-spacing: 16px;
+$detail-label-color: #8c8c8c;
+$detail-value-color: #262626;
+$detail-divider: #e8e8e8;
+
+// 空状态
+$empty-state-icon-size: 48px;
+$empty-state-text: #8c8c8c;
+
+// ========== 节点状态样式 ==========
+
+// 节点配置状态
+$node-unconfigured-color: #8c8c8c;
+$node-configured-color: #52c41a;
+$node-unconfigured-bg: #fafafa;
+$node-configured-bg: #f6ffed;
+$node-unconfigured-border: #d9d9d9;
+$node-configured-border: #52c41a;
+$node-asset-name-max-width: 120px;
+
+// ========== 虚拟滚动样式 ==========
+
+// 虚拟滚动容器
+$virtual-scroll-buffer: 100px;  // 上下缓冲区
+$virtual-scroll-item-height: 40px;
+$virtual-scroll-max-height: 400px;
+
+// ========== 标签样式 ==========
+
+// 标签颜色
+$tag-primary-key-bg: #e6f7ff;
+$tag-primary-key-text: #1890ff;
+$tag-privacy-bg: #fff1f0;
+$tag-privacy-text: #f5222d;
