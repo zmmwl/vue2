@@ -5,21 +5,12 @@ import { NodeCategory, ComputeTaskType, DataSourceType } from '@/types/nodes'
 export const DATA_SOURCE_TEMPLATES: NodeTemplate[] = [
   {
     type: 'data_source',
-    label: 'MySQL 数据库',
+    label: '数据库表',
     category: NodeCategory.DATA_SOURCE,
     sourceType: DataSourceType.DATABASE,
     icon: '🗄️',
     color: '#52C41A',
     description: '关系型数据库'
-  },
-  {
-    type: 'data_source',
-    label: 'PostgreSQL',
-    category: NodeCategory.DATA_SOURCE,
-    sourceType: DataSourceType.DATABASE,
-    icon: '🐘',
-    color: '#52C41A',
-    description: '开源关系型数据库'
   },
   {
     type: 'data_source',
@@ -29,33 +20,6 @@ export const DATA_SOURCE_TEMPLATES: NodeTemplate[] = [
     icon: '📄',
     color: '#52C41A',
     description: '逗号分隔值文件'
-  },
-  {
-    type: 'data_source',
-    label: 'Excel 文件',
-    category: NodeCategory.DATA_SOURCE,
-    sourceType: DataSourceType.FILE,
-    icon: '📊',
-    color: '#52C41A',
-    description: 'Excel 电子表格'
-  },
-  {
-    type: 'data_source',
-    label: 'REST API',
-    category: NodeCategory.DATA_SOURCE,
-    sourceType: DataSourceType.API,
-    icon: '🌐',
-    color: '#52C41A',
-    description: 'RESTful API 接口'
-  },
-  {
-    type: 'data_source',
-    label: 'GraphQL',
-    category: NodeCategory.DATA_SOURCE,
-    sourceType: DataSourceType.API,
-    icon: '◈',
-    color: '#52C41A',
-    description: 'GraphQL 查询接口'
   }
 ]
 
