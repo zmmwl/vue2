@@ -68,60 +68,145 @@ const onDragStart = (event: DragEvent, template: NodeTemplate) => {
 </script>
 
 <style scoped lang="scss">
+@use '@/assets/styles/variables.scss' as *;
+
 .flow-sidebar {
-  width: 260px;
+  width: 280px;
   height: 100%;
-  background: #f8f9fa;
-  border-right: 1px solid #e0e0e0;
+  background: var(--panel-bg);
+  backdrop-filter: var(--panel-blur);
+  -webkit-backdrop-filter: var(--panel-blur);
+  border-right: 1px solid var(--glass-border);
   display: flex;
   flex-direction: column;
   overflow-y: auto;
+  box-shadow: 4px 0 16px rgba(0, 0, 0, 0.05);
+
+  &::-webkit-scrollbar {
+    width: 5px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.08);
+    border-radius: 3px;
+
+    &:hover {
+      background: rgba(0, 0, 0, 0.12);
+    }
+  }
 }
 
 .sidebar-section {
-  padding: 16px;
-  border-bottom: 1px solid #e0e0e0;
+  padding: 20px 16px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  position: relative;
+
+  &::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 16px;
+    right: 16px;
+    height: 1px;
+    background: linear-gradient(90deg,
+      transparent 0%,
+      var(--datasource-blue) 50%,
+      transparent 100%
+    );
+    opacity: 0.15;
+  }
 
   &:last-child {
     border-bottom: none;
+
+    &::after {
+      display: none;
+    }
   }
 }
 
 .section-title {
-  font-size: 12px;
-  font-weight: 600;
-  color: #666666;
-  margin-bottom: 12px;
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 16px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  background: linear-gradient(135deg, var(--datasource-blue), #0284C7);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  &::before {
+    content: '';
+    width: 4px;
+    height: 16px;
+    background: linear-gradient(180deg, var(--datasource-blue), #38BDF8);
+    border-radius: 2px;
+  }
 }
 
 .node-palette {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
 .palette-node {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  border-radius: 6px;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: var(--list-item-radius);
   cursor: grab;
-  transition: all 0.2s ease;
-  border: 1px solid transparent;
-  background: #ffffff;
+  transition: var(--button-transition);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  background: var(--info-card-bg);
+  backdrop-filter: blur(8px);
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background: var(--datasource-blue);
+    transform: scaleY(0);
+    transition: transform var(--transition-base) var(--easing-smooth);
+  }
 
   &:hover {
-    background: #f5f5f5;
-    border-color: #1890ff;
-    transform: translateX(2px);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    background: var(--list-item-hover-bg);
+    border-color: var(--list-item-selected-border);
+    transform: translateX(4px);
+    box-shadow: 0 2px 8px rgba(14, 165, 233, 0.1);
+
+    &::before {
+      transform: scaleY(1);
+    }
+
+    .palette-node-icon {
+      background: linear-gradient(135deg, rgba(14, 165, 233, 0.15), rgba(14, 165, 233, 0.05));
+      transform: scale(1.05);
+    }
+
+    .palette-node-label {
+      color: var(--datasource-blue);
+    }
   }
 
   &:active {
     cursor: grabbing;
+    transform: translateX(2px) scale(0.98);
   }
 }
 
@@ -129,13 +214,15 @@ const onDragStart = (event: DragEvent, template: NodeTemplate) => {
   font-size: 20px;
   line-height: 1;
   flex-shrink: 0;
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #f0f0f0;
-  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.04);
+  border-radius: var(--button-sm-radius);
+  transition: var(--button-transition);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .palette-node-content {
@@ -145,15 +232,16 @@ const onDragStart = (event: DragEvent, template: NodeTemplate) => {
 
 .palette-node-label {
   font-size: 13px;
-  font-weight: 500;
-  color: #000000;
-  margin-bottom: 2px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 3px;
+  transition: color var(--transition-base) var(--easing-smooth);
 }
 
 .palette-node-desc {
   font-size: 11px;
-  color: #666666;
-  line-height: 1.3;
+  color: var(--text-secondary);
+  line-height: 1.4;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
