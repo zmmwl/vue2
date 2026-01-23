@@ -60,23 +60,5 @@ export const COMPUTE_TASK_TEMPLATES: NodeTemplate[] = [
     icon: '🤖',
     color: '#EB2F96',
     description: 'Federated Learning'
-  },
-  {
-    type: 'compute_task',
-    label: '同态加密',
-    category: NodeCategory.COMPUTE_TASK,
-    taskType: ComputeTaskType.MPC,
-    icon: '🔒',
-    color: '#13C2C2',
-    description: 'Homomorphic Encryption'
-  },
-  {
-    type: 'compute_task',
-    label: '差分隐私',
-    category: NodeCategory.COMPUTE_TASK,
-    taskType: ComputeTaskType.MPC,
-    icon: '🛡️',
-    color: '#F5222D',
-    description: 'Differential Privacy'
   }
 ]
