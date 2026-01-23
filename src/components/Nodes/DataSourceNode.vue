@@ -483,24 +483,24 @@ const isOutputVisible = computed(() => {
   }
 
   &.selected .node-card {
-    border-color: var(--datasource-indigo);
+    border-color: var(--datasource-selected);
     box-shadow:
-      0 4px 12px rgba(79, 70, 229, 0.15),
-      0 0 0 3px rgba(79, 70, 229, 0.08),
+      0 4px 12px rgba(24, 144, 255, 0.15),
+      0 0 0 3px rgba(24, 144, 255, 0.08),
       0 0 0 1px rgba(255, 255, 255, 0.9) inset;
 
     .type-badge {
-      background: var(--datasource-indigo-bg);
-      border-color: rgba(79, 70, 229, 0.15);
+      background: var(--datasource-selected-bg);
+      border-color: rgba(24, 144, 255, 0.15);
 
       .type-name {
-        color: var(--datasource-indigo);
+        color: var(--datasource-selected);
       }
     }
 
     .status-dot.is-configured {
-      background-color: var(--datasource-indigo);
-      box-shadow: 0 0 12px rgba(79, 70, 229, 0.5);
+      background-color: var(--datasource-selected);
+      box-shadow: 0 0 12px rgba(24, 144, 255, 0.5);
     }
   }
 }

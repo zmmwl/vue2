@@ -13,7 +13,7 @@
   --text-disabled: #BFBFBF;
 
   // 强调色
-  --color-primary: #4F46E5;      // 靛蓝 - 选中状态
+  --color-primary: #1890ff;      // 蓝色 - 选中状态
   --color-success: #0EA5E9;      // 天蓝色 - 数据源节点主色（高级浅色）
   --color-warning: #F59E0B;      // 琥珀色
   --color-error: #EF4444;        // 红色
@@ -26,8 +26,8 @@
   --datasource-blue-light: #38BDF8;      // 浅天蓝色
   --datasource-blue-bg: rgba(14, 165, 233, 0.08);     // 极浅背景
   --datasource-blue-bg-hover: rgba(14, 165, 233, 0.12);
-  --datasource-indigo: #4F46E5;          // 靛蓝 - 选中状态
-  --datasource-indigo-bg: rgba(79, 70, 229, 0.08);
+  --datasource-selected: #1890ff;        // 蓝色 - 选中状态（与计算任务节点一致）
+  --datasource-selected-bg: rgba(24, 144, 255, 0.08);
   --datasource-slate: #94A3B8;           // 蓝灰 - 未配置状态
   --datasource-slate-bg: rgba(148, 163, 184, 0.08);
 
