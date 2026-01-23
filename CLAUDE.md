@@ -97,3 +97,7 @@ src/
 
 ## Recent Changes
 - 001-data-asset-select: Added TypeScript 5.9.3, Vue 3.5.24 + @vue-flow/core 1.48.1, Vite 7.2.4, Sass 1.97.2, Playwright 1.57.0
+
+## 重要准则
+- coding、building完成后，不要主动启动服务
+- 如果启动服务，使用原来的端口，不要随意修改端口，如果旧的服务仍在运行，就停掉
