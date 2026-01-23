@@ -449,7 +449,7 @@ watch(() => props.modelValue, async (isOpen) => {
 </script>
 
 <style scoped lang="scss">
-@import '@/assets/styles/variables.scss';
+@use '@/assets/styles/variables.scss' as *;
 
 .asset-selector-dialog-overlay {
   position: fixed;

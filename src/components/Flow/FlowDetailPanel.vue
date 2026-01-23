@@ -168,7 +168,7 @@ watch(() => props.selectedNode, (node) => {
 </script>
 
 <style scoped lang="scss">
-@import '@/assets/styles/variables.scss';
+@use '@/assets/styles/variables.scss' as *;
 
 .flow-detail-panel {
   width: $detail-panel-width;
