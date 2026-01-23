@@ -209,8 +209,10 @@ const isOutputVisible = computed(() => {
     align-items: center;
     gap: 6px;
     padding: 4px 10px;
-    background: linear-gradient(135deg, rgba(82, 196, 26, 0.12) 0%, rgba(82, 196, 26, 0.06) 100%);
+    background: var(--datasource-blue-bg);
+    border: 1px solid rgba(14, 165, 233, 0.15);
     border-radius: 8px;
+    transition: all 0.2s ease;
 
     .type-icon {
       font-size: 14px;
@@ -220,7 +222,7 @@ const isOutputVisible = computed(() => {
     .type-name {
       font-size: 11px;
       font-weight: 600;
-      color: #52C41A;
+      color: var(--datasource-blue);
       letter-spacing: 0.3px;
       text-transform: uppercase;
     }
@@ -232,12 +234,12 @@ const isOutputVisible = computed(() => {
     border-radius: 50%;
 
     &.is-configured {
-      background-color: #52C41A;
-      box-shadow: 0 0 8px rgba(82, 196, 26, 0.5);
+      background-color: var(--datasource-blue);
+      box-shadow: 0 0 8px rgba(14, 165, 233, 0.4);
     }
 
     &.is-unconfigured {
-      background-color: #D9D9D9;
+      background-color: var(--datasource-slate);
     }
   }
 
@@ -315,7 +317,7 @@ const isOutputVisible = computed(() => {
       }
 
       &.is-field-count {
-        color: #1890FF;
+        color: var(--datasource-blue);
         font-weight: 600;
       }
     }
@@ -355,7 +357,7 @@ const isOutputVisible = computed(() => {
 
       .toggle-text,
       .toggle-icon {
-        color: #1890FF;
+        color: var(--datasource-blue);
       }
     }
   }
@@ -451,16 +453,23 @@ const isOutputVisible = computed(() => {
 
   // ==================== 状态样式 ====================
   .node-card.is-unconfigured {
-    background: linear-gradient(135deg, rgba(250, 250, 250, 0.9) 0%, rgba(245, 245, 245, 0.85) 100%);
+    background: linear-gradient(135deg, #F8FAFC 0%, #F1F5F9 100%);
+    border-color: #E2E8F0;
 
     .type-badge {
-      opacity: 0.6;
+      opacity: 0.7;
+      background: var(--datasource-slate-bg);
+      border-color: rgba(148, 163, 184, 0.15);
+
+      .type-name {
+        color: var(--datasource-slate);
+      }
     }
   }
 
   .node-card.is-configured {
-    background: linear-gradient(135deg, rgba(246, 255, 237, 0.9) 0%, rgba(255, 255, 255, 0.85) 100%);
-    border-color: rgba(82, 196, 26, 0.2);
+    background: linear-gradient(135deg, var(--datasource-blue-bg) 0%, rgba(255, 255, 255, 0.9) 100%);
+    border-color: rgba(14, 165, 233, 0.2);
   }
 
   // ==================== 交互状态 ====================
@@ -474,23 +483,24 @@ const isOutputVisible = computed(() => {
   }
 
   &.selected .node-card {
-    border-color: rgba(24, 144, 255, 0.5);
+    border-color: var(--datasource-indigo);
     box-shadow:
-      0 4px 12px rgba(24, 144, 255, 0.15),
-      0 0 0 3px rgba(24, 144, 255, 0.1),
-      0 0 0 1px rgba(255, 255, 255, 0.8) inset;
+      0 4px 12px rgba(79, 70, 229, 0.15),
+      0 0 0 3px rgba(79, 70, 229, 0.08),
+      0 0 0 1px rgba(255, 255, 255, 0.9) inset;
 
     .type-badge {
-      background: linear-gradient(135deg, rgba(24, 144, 255, 0.12) 0%, rgba(24, 144, 255, 0.06) 100%);
+      background: var(--datasource-indigo-bg);
+      border-color: rgba(79, 70, 229, 0.15);
 
       .type-name {
-        color: #1890FF;
+        color: var(--datasource-indigo);
       }
     }
 
     .status-dot.is-configured {
-      background-color: #1890FF;
-      box-shadow: 0 0 12px rgba(24, 144, 255, 0.6);
+      background-color: var(--datasource-indigo);
+      box-shadow: 0 0 12px rgba(79, 70, 229, 0.5);
     }
   }
 }

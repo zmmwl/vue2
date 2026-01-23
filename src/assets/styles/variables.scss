@@ -13,13 +13,23 @@
   --text-disabled: #BFBFBF;
 
   // 强调色
-  --color-primary: #1890FF;
-  --color-success: #52C41A;
-  --color-warning: #FA8C16;
-  --color-error: #F5222D;
-  --color-info: #13C2C2;
-  --color-purple: #722ED1;
-  --color-pink: #EB2F96;
+  --color-primary: #4F46E5;      // 靛蓝 - 选中状态
+  --color-success: #0EA5E9;      // 天蓝色 - 数据源节点主色（高级浅色）
+  --color-warning: #F59E0B;      // 琥珀色
+  --color-error: #EF4444;        // 红色
+  --color-info: #06B6D4;         // 青色
+  --color-purple: #8B5CF6;       // 紫色
+  --color-pink: #EC4899;         // 粉色
+
+  // 数据源节点专用颜色（高级浅蓝色系）
+  --datasource-blue: #0EA5E9;            // 天蓝色 - 主色
+  --datasource-blue-light: #38BDF8;      // 浅天蓝色
+  --datasource-blue-bg: rgba(14, 165, 233, 0.08);     // 极浅背景
+  --datasource-blue-bg-hover: rgba(14, 165, 233, 0.12);
+  --datasource-indigo: #4F46E5;          // 靛蓝 - 选中状态
+  --datasource-indigo-bg: rgba(79, 70, 229, 0.08);
+  --datasource-slate: #94A3B8;           // 蓝灰 - 未配置状态
+  --datasource-slate-bg: rgba(148, 163, 184, 0.08);
 
   // 边框颜色
   --border-color: #D9D9D9;
@@ -120,13 +130,13 @@ $empty-state-text: #8c8c8c;
 
 // ========== 节点状态样式 ==========
 
-// 节点配置状态
-$node-unconfigured-color: #8c8c8c;
-$node-configured-color: #52c41a;
-$node-unconfigured-bg: #fafafa;
-$node-configured-bg: #f6ffed;
-$node-unconfigured-border: #d9d9d9;
-$node-configured-border: #52c41a;
+// 节点配置状态（高级浅蓝色系）
+$node-unconfigured-color: #94A3B8;       // 蓝灰
+$node-configured-color: #0EA5E9;        // 天蓝色
+$node-unconfigured-bg: #F8FAFC;         // 极浅蓝灰
+$node-configured-bg: rgba(14, 165, 233, 0.08);  // 极浅天蓝色
+$node-unconfigured-border: #E2E8F0;     // 浅灰边框
+$node-configured-border: rgba(14, 165, 233, 0.25);  // 天蓝色边框
 $node-asset-name-max-width: 120px;
 
 // ========== 虚拟滚动样式 ==========
