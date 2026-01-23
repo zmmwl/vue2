@@ -153,3 +153,102 @@ $tag-primary-key-bg: #e6f7ff;
 $tag-primary-key-text: #1890ff;
 $tag-privacy-bg: #fff1f0;
 $tag-privacy-text: #f5222d;
+
+// ========== 高级设计系统变量 ==========
+
+// 毛玻璃效果系统
+:root {
+  --glass-bg: rgba(255, 255, 255, 0.85);
+  --glass-bg-dark: rgba(255, 255, 255, 0.95);
+  --glass-bg-light: rgba(255, 255, 255, 0.65);
+  --glass-blur: blur(12px);
+  --glass-blur-strong: blur(20px);
+  --glass-border: rgba(255, 255, 255, 0.5);
+  --glass-border-strong: rgba(255, 255, 255, 0.8);
+
+  // 多层阴影系统
+  --shadow-card-sm:
+    0 1px 3px rgba(0, 0, 0, 0.04),
+    0 4px 12px rgba(0, 0, 0, 0.08),
+    0 0 0 1px rgba(255, 255, 255, 0.4) inset;
+  --shadow-card-md:
+    0 4px 8px rgba(0, 0, 0, 0.06),
+    0 12px 24px rgba(0, 0, 0, 0.12),
+    0 0 0 1px rgba(255, 255, 255, 0.5) inset;
+  --shadow-card-lg:
+    0 8px 16px rgba(0, 0, 0, 0.08),
+    0 24px 48px rgba(0, 0, 0, 0.16),
+    0 0 0 1px rgba(255, 255, 255, 0.6) inset;
+  --shadow-card-hover:
+    0 4px 8px rgba(0, 0, 0, 0.06),
+    0 12px 24px rgba(0, 0, 0, 0.12),
+    0 0 0 1px rgba(255, 255, 255, 0.6) inset;
+  --shadow-dialog-overlay:
+    0 0 0 1px rgba(0, 0, 0, 0.05) inset,
+    0 20px 60px rgba(0, 0, 0, 0.25);
+
+  // 对话框专用样式
+  --dialog-width: 680px;
+  --dialog-max-width: 90vw;
+  --dialog-border-radius: 16px;
+  --dialog-header-padding: 20px 24px;
+  --dialog-body-padding: 24px;
+  --dialog-footer-padding: 16px 24px;
+
+  // 步骤指示器高级样式
+  --step-indicator-size: 36px;
+  --step-indicator-spacing: 48px;
+  --step-line-height: 2px;
+  --step-line-color: rgba(0, 0, 0, 0.08);
+  --step-line-active: var(--datasource-blue);
+
+  // 列表项高级样式
+  --list-item-radius: 10px;
+  --list-item-padding: 14px 16px;
+  --list-item-gap: 8px;
+  --list-item-hover-bg: rgba(14, 165, 233, 0.06);
+  --list-item-selected-bg: rgba(14, 165, 233, 0.12);
+  --list-item-selected-border: rgba(14, 165, 233, 0.3);
+
+  // 输入框高级样式
+  --input-height: 40px;
+  --input-radius: 8px;
+  --input-padding: 0 14px;
+  --input-bg: rgba(255, 255, 255, 0.9);
+  --input-border: rgba(0, 0, 0, 0.1);
+  --input-border-focus: var(--datasource-blue);
+  --input-shadow-focus: 0 0 0 3px rgba(14, 165, 233, 0.1);
+
+  // 按钮高级样式
+  --button-sm-padding: 8px 14px;
+  --button-sm-radius: 6px;
+  --button-md-padding: 10px 18px;
+  --button-md-radius: 8px;
+  --button-transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+
+  // 详情面板专用样式
+  --panel-width: 400px;
+  --panel-bg: rgba(255, 255, 255, 0.85);
+  --panel-blur: blur(12px);
+  --panel-border-radius: 0;
+  --panel-padding: 20px;
+
+  // 信息卡片样式
+  --info-card-radius: 10px;
+  --info-card-padding: 14px;
+  --info-card-bg: rgba(255, 255, 255, 0.6);
+  --info-card-border: rgba(0, 0, 0, 0.06);
+
+  // 字段标签样式
+  --field-tag-radius: 6px;
+  --field-tag-padding: 4px 10px;
+  --field-tag-bg: rgba(14, 165, 233, 0.1);
+  --field-tag-text: var(--datasource-blue);
+
+  // 动画时长
+  --transition-fast: 0.15s;
+  --transition-base: 0.25s;
+  --transition-slow: 0.35s;
+  --easing-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+  --easing-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+}

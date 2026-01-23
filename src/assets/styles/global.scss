@@ -92,3 +92,255 @@ html, body {
     background: var(--text-secondary);
   }
 }
+
+// ========== 动画系统 ==========
+
+// 关键帧动画
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInFromLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideInFromRight {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes bounce {
+  0%, 100% {
+    transform: translateY(0);
+    animation-timing-function: cubic-bezier(0.8, 0, 1, 1);
+  }
+  50% {
+    transform: translateY(-10px);
+    animation-timing-function: cubic-bezier(0, 0, 0.2, 1);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+// Vue 过渡动画类
+// 淡入淡出
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity var(--transition-base) var(--easing-smooth);
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+// 滑动进入/退出（向上）
+.slide-up-enter-active,
+.slide-up-leave-active {
+  transition: all var(--transition-base) var(--easing-smooth);
+}
+
+.slide-up-enter-from,
+.slide-up-leave-to {
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+// 滑动进入/退出（向下）
+.slide-down-enter-active,
+.slide-down-leave-active {
+  transition: all var(--transition-base) var(--easing-smooth);
+}
+
+.slide-down-enter-from,
+.slide-down-leave-to {
+  opacity: 0;
+  transform: translateY(-20px);
+}
+
+// 从左侧滑入
+.slide-left-enter-active,
+.slide-left-leave-active {
+  transition: all var(--transition-base) var(--easing-smooth);
+}
+
+.slide-left-enter-from,
+.slide-left-leave-to {
+  opacity: 0;
+  transform: translateX(20px);
+}
+
+// 从右侧滑入
+.slide-right-enter-active,
+.slide-right-leave-active {
+  transition: all var(--transition-base) var(--easing-smooth);
+}
+
+.slide-right-enter-from,
+.slide-right-leave-to {
+  opacity: 0;
+  transform: translateX(-20px);
+}
+
+// 缩放过渡
+.zoom-enter-active,
+.zoom-leave-active {
+  transition: all var(--transition-base) var(--easing-smooth);
+}
+
+.zoom-enter-from,
+.zoom-leave-to {
+  opacity: 0;
+  transform: scale(0.9);
+}
+
+// 列表项过渡
+.list-enter-active,
+.list-leave-active {
+  transition: all var(--transition-base) var(--easing-smooth);
+}
+
+.list-enter-from,
+.list-leave-to {
+  opacity: 0;
+  transform: translateX(-30px);
+}
+
+.list-move {
+  transition: transform var(--transition-base) var(--easing-smooth);
+}
+
+// 步骤切换过渡
+.step-transition-enter-active {
+  transition: all 0.3s var(--easing-smooth);
+}
+
+.step-transition-leave-active {
+  transition: all 0.2s var(--easing-smooth);
+}
+
+.step-transition-enter-from {
+  opacity: 0;
+  transform: translateX(20px);
+}
+
+.step-transition-leave-to {
+  opacity: 0;
+  transform: translateX(-20px);
+}
+
+// 对话框过渡
+.dialog-enter-active {
+  transition: all var(--transition-slow) var(--easing-bounce);
+}
+
+.dialog-leave-active {
+  transition: all var(--transition-base) var(--easing-smooth);
+}
+
+.dialog-enter-from {
+  opacity: 0;
+  transform: scale(0.9) translateY(20px);
+}
+
+.dialog-leave-to {
+  opacity: 0;
+  transform: scale(0.95);
+}
+
+// 展开过渡
+.expand-enter-active,
+.expand-leave-active {
+  transition: all var(--transition-base) var(--easing-smooth);
+  overflow: hidden;
+}
+
+.expand-enter-from,
+.expand-leave-to {
+  max-height: 0;
+  opacity: 0;
+}
+
+.expand-enter-to,
+.expand-leave-from {
+  max-height: 500px;
+  opacity: 1;
+}
+
+// 工具类
+.animate-fade-in {
+  animation: fadeIn var(--transition-base) var(--easing-smooth);
+}
+
+.animate-slide-up {
+  animation: slideUp var(--transition-slow) var(--easing-bounce);
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.animate-pulse {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
