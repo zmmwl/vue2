@@ -162,3 +162,38 @@ export interface NodeTemplate {
   color: string
   description?: string
 }
+
+// ========== DAG 任务编排系统类型 ============
+// 导入契约类型以保持兼容性
+export type {
+  // 节点类型
+  NodeType,
+  BaseNode,
+  NodeData as DAGNodeData,
+  DataSourceNodeData,
+  ComputeTaskNodeData,
+  LocalTaskNodeData,
+  ModelNodeData,
+  ComputeResourceNodeData,
+  OutputDataNodeData,
+  // 计算类型
+  ComputeType,
+  TechPath,
+  ModelType,
+  // 配置结构
+  Field,
+  InputProvider,
+  FieldMapping,
+  JoinCondition,
+  JoinOperand,
+  ComputeModelConfig,
+  ModelParameter,
+  ComputeResourceConfig,
+  OutputDataConfig,
+  OutputField,
+  // 辅助类型
+  ResourceTypePriority,
+  EnterpriseOption,
+  ValidationResult,
+  TechPathSelection
+} from './contracts/nodes'
