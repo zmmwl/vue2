@@ -462,6 +462,18 @@ import type { InputProvider, JoinCondition } from '@/types/contracts'
 import { logger } from '@/utils/logger'
 import { useVueFlow } from '@vue-flow/core'
 
+// Props 和 Emits 必须在 watch 之前定义
+interface Props {
+  selectedNode: Node<NodeData> | null
+}
+
+interface Emits {
+  (e: 'edit', nodeId: string): void
+}
+
+const props = defineProps<Props>()
+const emit = defineEmits<Emits>()
+
 // T089: 可折叠 section 状态管理
 interface CollapsibleState {
   taskInfo: boolean
@@ -502,17 +514,6 @@ watch(() => props.selectedNode, () => {
     outputs: false
   }
 })
-
-interface Props {
-  selectedNode: Node<NodeData> | null
-}
-
-interface Emits {
-  (e: 'edit', nodeId: string): void
-}
-
-const props = defineProps<Props>()
-const emit = defineEmits<Emits>()
 
 // Get edges and nodes to find connected resource nodes
 const { edges, findNode } = useVueFlow()

@@ -34,8 +34,9 @@
 
     <!-- 技术路径选择对话框 (DAG 任务编排) -->
     <TechPathSelector
+      v-if="pendingTaskType"
       v-model:visible="showTechPathDialog"
-      :task-type="pendingTaskType!"
+      :task-type="pendingTaskType"
       @confirm="handleTechPathSelected"
       @cancel="handleTechPathCancel"
     />
