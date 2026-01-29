@@ -1,0 +1,4 @@
+- **PSI计算**：若选择"软件密码学"技术路径，则computeType为"PSI"，节点json样例参考`.myprompt/specs/models/830PSI+MPC.json`中的tasklist里的PSI任务元素；若选择"硬件TEE"技术路径，则computeType为"TEE_PSI"，节点json样例参考`.myprompt/specs/models/830PSI+MPC-TEE.json`中的tasklist里的TEE_PSI任务元素
+- **PIR查询**：若选择"软件密码学"技术路径，则computeType为"PIR"，节点json样例参考`.myprompt/specs/models/830PIR.json`中的tasklist里的PIR任务元素；若选择"硬件TEE"技术路径，则computeType为"TEE_PRI"，节点json样例参考`.myprompt/specs/models/830PIR-TEE.json`中的tasklist里的TEE_PIR任务元素
+- **MPC计算**：若选择"软件密码学"技术路径，则computeType为"MPC"，节点json样例参考`.myprompt/specs/models/830PSI+MPC.json`中的tasklist里的MPC任务元素；若选择"硬件TEE"技术路径，则computeType为"TEE_MPC"，节点json样例参考`.myprompt/specs/models/830PSI+MPC-TEE.json`中的tasklist里的TEE_MPC任务元素
+- **联邦学习**：暂缓实现

@@ -1,0 +1,144 @@
+{
+    "jobId": "51be7117_835c_4d22_907f_131e386c63db",
+    "description": "1",
+    "name": "pirtest01271400",
+    "status": 0,
+    "serviceType": 1,
+    "createParticipantId": "org2",
+    "modelType": 1,
+    "tlsEnable": false,
+    "assetDetailList": [
+        {
+            "assetId": "5",
+            "participantId": "org1",
+            "entityName": "租户一",
+            "assetName": "bank10",
+            "dbName": "stress_test_bank",
+            "tableName": "bank_account_10_1",
+            "columnName": "zjhm",
+            "type": "varchar",
+            "length": "100",
+            "comments": "",
+            "holderCompany": "租户一",
+            "visibleType": 2
+        },
+        {
+            "assetId": "5",
+            "participantId": "org1",
+            "entityName": "租户一",
+            "assetName": "bank10",
+            "dbName": "stress_test_bank",
+            "tableName": "bank_account_10_1",
+            "columnName": "eacId",
+            "type": "varchar",
+            "length": "2000",
+            "comments": "",
+            "holderCompany": "租户一",
+            "visibleType": 2
+        }
+    ],
+    "participantList": [
+        {
+            "participantId": "org1",
+            "entityName": "租户一"
+        },
+        {
+            "participantId": "org2",
+            "entityName": "租户二"
+        }
+    ],
+    "taskList": [
+        {
+            "kind": "Task",
+            "taskId": "1",
+            "name": "1",
+            "isFinalTask": true,
+            "serviceType": 1,
+            "computeType": "PIR",
+            "implementation": "软件隐匿查询 (3.2.0)",
+            "queryConditionList": [
+                {
+                    "participantId": "org1",
+                    "entityName": "租户一",
+                    "dataset": "bank10",
+                    "columnNameList": [
+                        "zjhm"
+                    ],
+                    "columnAliasList": [],
+                    "customParam": ""
+                },
+                {
+                    "participantId": "org2",
+                    "entityName": "租户二",
+                    "dataset": "",
+                    "columnNameList": [],
+                    "columnAliasList": [
+                        "param1"
+                    ],
+                    "customParam": "{\"param1\":[0]}"
+                }
+            ],
+            "dataProviderList": [
+                {
+                    "participantId": "org1",
+                    "entityName": "租户一",
+                    "datasetList": [
+                        {
+                            "singleRow": false,
+                            "dataset": "bank10",
+                            "columnNameList": [
+                                "zjhm",
+                                "eacId"
+                            ],
+                            "columnAliasList": [
+                                "zjhm",
+                                "eacId"
+                            ],
+                            "columnTypeList": [
+                                "varchar",
+                                "varchar"
+                            ],
+                            "customParam": {}
+                        }
+                    ]
+                }
+            ],
+            "resultConsumerList": [
+                {
+                    "participantId": "org2",
+                    "entityName": "租户二",
+                    "isEncrypted": false,
+                    "encType": "",
+                    "encKey": "",
+                    "encKeyName": "",
+                    "datasetList": [
+                        {
+                            "singleRow": false,
+                            "dataset": "mira_mid_000_1462",
+                            "columnNameList": [
+                                "eacId"
+                            ],
+                            "columnAliasList": [
+                                "eacId"
+                            ],
+                            "columnTypeList": [
+                                "varchar"
+                            ],
+                            "customParam": {}
+                        }
+                    ]
+                }
+            ],
+            "participantList": [
+                {
+                    "participantId": "org1",
+                    "entityName": "租户一"
+                },
+                {
+                    "participantId": "org2",
+                    "entityName": "租户二"
+                }
+            ]
+        }
+    ]
+}

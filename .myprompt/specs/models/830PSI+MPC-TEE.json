@@ -1,0 +1,549 @@
+{
+    "id": 154,
+    "jobId": "6985c2da_b498_48d6_9453_090787d25c8d",
+    "description": "1",
+    "name": "mpctest01241217",
+    "status": 0,
+    "serviceType": 0,
+    "createParticipantId": "org2",
+    "modelType": 2,
+    "tlsEnable": false,
+    "assetDetailList": [
+        {
+            "assetId": "6",
+            "participantId": "org2",
+            "entityName": "租户二",
+            "assetName": "tax10",
+            "dbName": "stress_test_tax",
+            "tableName": "tax_account_10_1",
+            "columnName": "id",
+            "type": "bigint",
+            "length": "0",
+            "comments": "",
+            "holderCompany": "租户二",
+            "visibleType": 2
+        },
+        {
+            "assetId": "6",
+            "participantId": "org2",
+            "entityName": "租户二",
+            "assetName": "tax10",
+            "dbName": "stress_test_tax",
+            "tableName": "tax_account_10_1",
+            "columnName": "shxydm",
+            "type": "varchar",
+            "length": "20",
+            "comments": "",
+            "holderCompany": "租户二",
+            "visibleType": 2
+        },
+        {
+            "assetId": "6",
+            "participantId": "org2",
+            "entityName": "租户二",
+            "assetName": "tax10",
+            "dbName": "stress_test_tax",
+            "tableName": "tax_account_10_1",
+            "columnName": "col_int",
+            "type": "int",
+            "length": "0",
+            "comments": "",
+            "holderCompany": "租户二",
+            "visibleType": 2
+        },
+        {
+            "assetId": "5",
+            "participantId": "org1",
+            "entityName": "租户一",
+            "assetName": "bank10",
+            "dbName": "stress_test_bank",
+            "tableName": "bank_account_10_1",
+            "columnName": "id",
+            "type": "bigint",
+            "length": "0",
+            "comments": "",
+            "holderCompany": "租户一",
+            "visibleType": 2
+        },
+        {
+            "assetId": "5",
+            "participantId": "org1",
+            "entityName": "租户一",
+            "assetName": "bank10",
+            "dbName": "stress_test_bank",
+            "tableName": "bank_account_10_1",
+            "columnName": "zjhm",
+            "type": "varchar",
+            "length": "100",
+            "comments": "",
+            "holderCompany": "租户一",
+            "visibleType": 2
+        },
+        {
+            "assetId": "5",
+            "participantId": "org1",
+            "entityName": "租户一",
+            "assetName": "bank10",
+            "dbName": "stress_test_bank",
+            "tableName": "bank_account_10_1",
+            "columnName": "col_int",
+            "type": "int",
+            "length": "0",
+            "comments": "",
+            "holderCompany": "租户一",
+            "visibleType": 2
+        }
+    ],
+    "participantList": [
+        {
+            "participantId": "org1",
+            "entityName": "租户一"
+        },
+        {
+            "participantId": "org2",
+            "entityName": "租户二"
+        }
+    ],
+    "taskList": [
+        {
+            "kind": "Task",
+            "taskId": "3",
+            "name": "3",
+            "isFinalTask": false,
+            "serviceType": 0,
+            "computeType": "TEE_PSI",
+            "implementation": "硬件隐私求交 (3.2.0)",
+            "joinConditionList": [
+                {
+                    "joinType": "INNER",
+                    "joinOperands": [
+                        {
+                            "participantId": "org2",
+                            "entityName": "租户二",
+                            "dataset": "tax10",
+                            "columnNameList": [
+                                "shxydm"
+                            ]
+                        },
+                        {
+                            "participantId": "org1",
+                            "entityName": "租户一",
+                            "dataset": "bank10",
+                            "columnNameList": [
+                                "zjhm"
+                            ]
+                        }
+                    ]
+                }
+            ],
+            "dataProviderList": [
+                {
+                    "participantId": "org1",
+                    "entityName": "租户一",
+                    "datasetList": [
+                        {
+                            "dataset": "bank10",
+                            "columnNameList": [
+                                "id",
+                                "zjhm",
+                                "col_int"
+                            ],
+                            "columnAliasList": [
+                                "id",
+                                "zjhm",
+                                "col_int"
+                            ],
+                            "columnTypeList": [
+                                "bigint",
+                                "varchar",
+                                "int"
+                            ],
+                            "customParam": {}
+                        }
+                    ]
+                },
+                {
+                    "participantId": "org2",
+                    "entityName": "租户二",
+                    "datasetList": [
+                        {
+                            "dataset": "tax10",
+                            "columnNameList": [
+                                "id",
+                                "shxydm",
+                                "col_int"
+                            ],
+                            "columnAliasList": [
+                                "id",
+                                "shxydm",
+                                "col_int"
+                            ],
+                            "columnTypeList": [
+                                "bigint",
+                                "varchar",
+                                "int"
+                            ],
+                            "customParam": {}
+                        }
+                    ]
+                }
+            ],
+            "resultConsumerList": [
+                {
+                    "participantId": "org1",
+                    "entityName": "租户一",
+                    "datasetList": [
+                        {
+                            "dataset": "mira_mid_000_1012",
+                            "columnNameList": [
+                                "id",
+                                "zjhm",
+                                "col_int"
+                            ],
+                            "columnAliasList": [
+                                "id",
+                                "zjhm",
+                                "col_int"
+                            ],
+                            "columnTypeList": [
+                                "bigint",
+                                "varchar",
+                                "int"
+                            ],
+                            "customParam": {}
+                        }
+                    ]
+                },
+                {
+                    "participantId": "org2",
+                    "entityName": "租户二",
+                    "datasetList": [
+                        {
+                            "dataset": "mira_mid_000_1013",
+                            "columnNameList": [
+                                "id",
+                                "shxydm",
+                                "col_int"
+                            ],
+                            "columnAliasList": [
+                                "id",
+                                "shxydm",
+                                "col_int"
+                            ],
+                            "columnTypeList": [
+                                "bigint",
+                                "varchar",
+                                "int"
+                            ]
+                        }
+                    ]
+                }
+            ],
+            "participantList": [
+                {
+                    "participantId": "org1",
+                    "entityName": "租户一",
+                    "role": 0
+                },
+                {
+                    "participantId": "org2",
+                    "entityName": "租户二",
+                    "role": 0
+                }
+            ],
+            "computeProviderList": [
+                {
+                    "entityName": "租户一",
+                    "groupId": "9c21b54a-7dc6-4edb-93b6-8d4504f8af12",
+                    "participantId": "org1",
+                    "groupName": "org1",
+                    "groupType": 0,
+                    "computeNodeList": [
+                        {
+                            "nodeId": "b092c675-26fb-4b1e-8ae2-e8a8bbbfe6bd",
+                            "nodeName": "org1",
+                            "nodeAddress": "",
+                            "nodeType": 0,
+                            "computeCardList": [
+                                {
+                                    "cardSerial": "BCA253010012",
+                                    "cardModel": "ChainMaker 510",
+                                    "cardSpec": "BCA253010012",
+                                    "cardVersion": "BCA253010012",
+                                    "cardType": 0
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "kind": "Task",
+            "taskId": "4",
+            "name": "4",
+            "isFinalTask": false,
+            "serviceType": 0,
+            "computeType": "TEE_MPC",
+            "implementation": "硬件联合统计 (3.2.0)",
+            "joinConditionList": [
+                {
+                    "joinType": "INNER",
+                    "joinOperands": [
+                        {
+                            "participantId": "org1",
+                            "entityName": "租户一",
+                            "dataset": "mira_mid_000_1012",
+                            "columnNameList": [
+                                "zjhm"
+                            ]
+                        },
+                        {
+                            "participantId": "org2",
+                            "entityName": "租户二",
+                            "dataset": "mira_mid_000_1013",
+                            "columnNameList": [
+                                "shxydm"
+                            ]
+                        }
+                    ]
+                }
+            ],
+            "dataProviderList": [
+                {
+                    "participantId": "org1",
+                    "entityName": "租户一",
+                    "datasetList": [
+                        {
+                            "dataset": "mira_mid_000_1012",
+                            "columnNameList": [
+                                "id",
+                                "zjhm",
+                                "col_int"
+                            ],
+                            "columnAliasList": [
+                                "id",
+                                "zjhm",
+                                "col_int"
+                            ],
+                            "columnTypeList": [
+                                "bigint",
+                                "varchar",
+                                "int"
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "participantId": "org2",
+                    "entityName": "租户二",
+                    "datasetList": [
+                        {
+                            "dataset": "mira_mid_000_1013",
+                            "columnNameList": [
+                                "id",
+                                "shxydm",
+                                "col_int"
+                            ],
+                            "columnAliasList": [
+                                "id",
+                                "shxydm",
+                                "col_int"
+                            ],
+                            "columnTypeList": [
+                                "bigint",
+                                "varchar",
+                                "int"
+                            ]
+                        }
+                    ]
+                }
+            ],
+            "resultConsumerList": [
+                {
+                    "participantId": "org2",
+                    "entityName": "租户二",
+                    "datasetList": [
+                        {
+                            "dataset": "mira_mid_000_1014",
+                            "columnNameList": [
+                                "mul(key = org2.tax10.id,a = o...l_int, b=org1.bank10.col_int)"
+                            ],
+                            "columnAliasList": [
+                                "srv_alias0"
+                            ],
+                            "columnTypeList": [
+                                "char"
+                            ]
+                        }
+                    ]
+                }
+            ],
+            "participantList": [
+                {
+                    "participantId": "org1",
+                    "entityName": "租户一",
+                    "role": 0
+                },
+                {
+                    "participantId": "org2",
+                    "entityName": "租户二",
+                    "role": 0
+                }
+            ],
+            "aggregation": null,
+            "expressionList": [
+                {
+                    "expressionParamList": null,
+                    "expression": "[\"==\",\"mira_mid_000_1013.id\",\"\",\"==\",\"mira_mid_000_1013.col_int\",\"\",\"==\",\"mira_mid_000_1012.col_int\"]"
+                }
+            ],
+            "computeProviderList": [
+                {
+                    "entityName": "租户一",
+                    "groupId": "9c21b54a-7dc6-4edb-93b6-8d4504f8af12",
+                    "participantId": "org1",
+                    "groupName": "org1",
+                    "groupType": 0,
+                    "computeNodeList": [
+                        {
+                            "nodeId": "b092c675-26fb-4b1e-8ae2-e8a8bbbfe6bd",
+                            "nodeName": "org1",
+                            "nodeAddress": "",
+                            "nodeType": 0,
+                            "computeCardList": [
+                                {
+                                    "cardSerial": "BCA253010012",
+                                    "cardModel": "ChainMaker 510",
+                                    "cardSpec": "BCA253010012",
+                                    "cardVersion": "BCA253010012",
+                                    "cardType": 0
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ],
+            "modelProviderList": [
+                {
+                    "modelId": "41c87a03-c228-41c4-b7fd-14dbcad700bc",
+                    "participantId": "org2",
+                    "entityName": "租户二",
+                    "name": "mul",
+                    "type": "RISC-V",
+                    "version": "",
+                    "description": "",
+                    "modelFileName": "MUL.bin",
+                    "methodName": "mul",
+                    "methodDescription": "",
+                    "programmingLanguage": "C",
+                    "onChainContent": "original",
+                    "modelParameterList": [
+                        {
+                            "participantId": "org2",
+                            "entityName": "租户二",
+                            "dataset": "tax10",
+                            "columnNameList": [
+                                "org2.tax10.id",
+                                "org2.tax10.col_int"
+                            ],
+                            "columnAliasList": [
+                                "key",
+                                "a"
+                            ],
+                            "customParam": "{\"primary\":\"id\",\"packagesize\":\"3500\"}"
+                        },
+                        {
+                            "participantId": "org1",
+                            "dataset": "bank10",
+                            "columnNameList": [
+                                "org1.bank10.col_int"
+                            ],
+                            "columnAliasList": [
+                                "b"
+                            ],
+                            "customParam": "{\"packagesize\":\"3500\",\"primary\":\"id\"}"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "kind": "Task",
+            "taskId": "5",
+            "name": "5",
+            "taskSrcIdList": [
+                "4"
+            ],
+            "isFinalTask": true,
+            "serviceType": 0,
+            "computeType": "CONCAT",
+            "implementation": "",
+            "joinConditionList": [
+                {
+                    "joinType": "INNER",
+                    "joinOperands": [
+                        {
+                            "participantId": "org2",
+                            "entityName": "租户二",
+                            "dataset": "mira_mid_000_1014",
+                            "columnNameList": [
+                                "shxydm"
+                            ]
+                        }
+                    ]
+                }
+            ],
+            "queryConditionList": [],
+            "dataProviderList": [
+                {
+                    "participantId": "org2",
+                    "entityName": "租户二",
+                    "datasetList": [
+                        {
+                            "dataset": "mira_mid_000_1014",
+                            "columnNameList": [
+                                "mul(key = org2.tax10.id,a = o...l_int, b=org1.bank10.col_int)"
+                            ],
+                            "columnAliasList": [
+                                "srv_alias0"
+                            ],
+                            "columnTypeList": [
+                                "char"
+                            ]
+                        }
+                    ]
+                }
+            ],
+            "resultConsumerList": [
+                {
+                    "participantId": "org2",
+                    "entityName": "租户二",
+                    "encType": "",
+                    "encKey": "",
+                    "encKeyName": "",
+                    "datasetList": [
+                        {
+                            "dataset": "mira_mid_000_1017",
+                            "columnNameList": [
+                                "mul(key = org2.tax10.id,a = o...l_int, b=org1.bank10.col_int)"
+                            ],
+                            "columnAliasList": [
+                                "srv_alias0"
+                            ],
+                            "columnTypeList": [
+                                "char"
+                            ]
+                        }
+                    ]
+                }
+            ],
+            "participantList": [
+                {
+                    "participantId": "org2",
+                    "entityName": "租户二"
+                }
+            ]
+        }
+    ]
+}
