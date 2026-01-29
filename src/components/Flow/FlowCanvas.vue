@@ -58,6 +58,29 @@
       @confirm="handleOutputConfigConfirm"
       @cancel="handleOutputConfigCancel"
     />
+
+    <!-- 模型配置对话框 (T039-T041) -->
+    <ModelSelector
+      v-model:visible="showModelDialog"
+      modelType="expression"
+      :available-variables="getAvailableVariables()"
+      @confirm="handleModelConfigConfirm"
+      @cancel="handleModelConfigCancel"
+    />
+
+    <!-- 算力资源配置对话框 (T048-T050) -->
+    <ResourceSelector
+      v-model:visible="showResourceDialog"
+      :recommended-enterprises="recommendedEnterprises"
+      @confirm="handleResourceConfigConfirm"
+      @cancel="handleResourceConfigCancel"
+    />
+
+    <!-- JSON 预览对话框 (T063-T065) -->
+    <JsonPreviewModal
+      v-model:visible="showJsonPreview"
+      :json-data="previewJsonData"
+    />
   </div>
 </template>
 
@@ -75,15 +98,21 @@ import type { ComputeTaskNodeData } from '@/types/contracts'
 import DataSourceNode from '@/components/Nodes/DataSourceNode.vue'
 import ComputeTaskNode from '@/components/Nodes/ComputeTaskNode.vue'
 import OutputDataNode from '@/components/Nodes/OutputDataNode.vue'
+import ModelNode from '@/components/Nodes/ModelNode.vue'
+import ComputeResourceNode from '@/components/Nodes/ComputeResourceNode.vue'
+import LocalTaskNode from '@/components/Nodes/LocalTaskNode.vue'
 import FlowEdge from '@/components/Edges/FlowEdge.vue'
 import AssetSelectorDialog from '@/components/Dialogs/AssetSelectorDialog.vue'
 import TechPathSelector from '@/components/Modals/TechPathSelector.vue'
 import FieldSelector from '@/components/Modals/FieldSelector.vue'
 import OutputConfigSelector from '@/components/Modals/OutputConfigSelector.vue'
+import ModelSelector from '@/components/Modals/ModelSelector.vue'
+import ResourceSelector from '@/components/Modals/ResourceSelector.vue'
+import JsonPreviewModal from '@/components/Modals/JsonPreviewModal.vue'
 import { createUniqueEdge } from '@/utils/edge-utils'
 import { getComputeType } from '@/utils/node-templates'
 import { logger } from '@/utils/logger'
-import { exportGraph, downloadJson, importGraph, restoreNodes } from '@/utils/exportUtils'
+import { exportGraph, importGraph, restoreNodes } from '@/utils/exportUtils'
 import { assetCache } from '@/services/assetCache'
 
 interface Emits {
@@ -96,11 +125,14 @@ const emit = defineEmits<Emits>()
 // 获取坐标投影函数（将屏幕坐标转换为画布坐标）
 const { project } = useVueFlow()
 
-// 注册自定义节点类型
+// 注册自定义节点类型 (T038: ModelNode, T048: ComputeResourceNode, T053: LocalTaskNode)
 const nodeTypes = {
   data_source: markRaw(DataSourceNode),
   compute_task: markRaw(ComputeTaskNode),
-  output_data: markRaw(OutputDataNode)
+  output_data: markRaw(OutputDataNode),
+  model: markRaw(ModelNode),
+  compute_resource: markRaw(ComputeResourceNode),
+  local_task: markRaw(LocalTaskNode)
 }
 
 // 注册自定义连接线类型
@@ -141,12 +173,29 @@ const availableOutputFields = ref<Array<{ name: string; type: string; source: 'i
 // 推荐企业列表（从当前任务的相关资源方获取）
 const recommendedEnterprises = ref<any[]>([])
 
+// 模型配置对话框状态 (T039-T041)
+const showModelDialog = ref(false)
+const pendingModelTaskNodeId = ref<string>()  // 待配置模型的计算任务节点 ID
+const pendingModelPosition = ref<{ x: number; y: number } | null>(null)  // 模型节点位置
+
+// 算力资源配置对话框状态 (T048-T050)
+const showResourceDialog = ref(false)
+const pendingResourceTaskNodeId = ref<string>()  // 待配置资源的计算任务节点 ID
+const pendingResourcePosition = ref<{ x: number; y: number } | null>(null)  // 算力资源节点位置
+
+// JSON 预览对话框状态 (T063-T065)
+const showJsonPreview = ref(false)
+const previewJsonData = ref<any>(null)  // 预览的 JSON 数据
+
 /**
  * 验证连接是否有效
  * 业务规则：
  * 1. 两个数据源节点不能直接连接
  * 2. 连接必须从输出 handle 连接到输入 handle
  * 3. 不能连接到同一个节点
+ * T038: 模型节点可以连接到计算任务节点的模型输入 handle
+ * T048: 算力资源节点可以连接到计算任务节点的算力输入 handle
+ * T054: 本地任务节点（CONCAT）可以接受多个输入
  */
 const isValidConnection = (
   connection: Connection,
@@ -159,6 +208,7 @@ const isValidConnection = (
 
   const sourceData = sourceNode.data as NodeData
   const targetData = targetNode.data as NodeData
+  const targetNodeType = targetNode.type
 
   // 规则 1: 两个数据源节点不能直接连接
   if (sourceData.category === NodeCategory.DATA_SOURCE && targetData.category === NodeCategory.DATA_SOURCE) {
@@ -166,11 +216,50 @@ const isValidConnection = (
     return false
   }
 
+  // T038: 模型节点可以连接到计算任务节点的模型输入 handle
+  if (connection.targetHandle === 'model-input') {
+    const sourceNodeType = sourceNode.type
+    if (sourceNodeType !== 'model') {
+      console.warn('⚠️ 连接被拒绝：只有模型节点可以连接到模型输入 handle')
+      return false
+    }
+    if (connection.sourceHandle !== 'output') {
+      console.warn('⚠️ 连接被拒绝：必须从源节点的输出 handle (output) 开始')
+      return false
+    }
+    return true
+  }
+
+  // T048: 算力资源节点可以连接到计算任务节点的算力输入 handle
+  if (connection.targetHandle === 'resource-input') {
+    const sourceNodeType = sourceNode.type
+    if (sourceNodeType !== 'compute_resource') {
+      console.warn('⚠️ 连接被拒绝：只有算力资源节点可以连接到算力输入 handle')
+      return false
+    }
+    if (connection.sourceHandle !== 'output') {
+      console.warn('⚠️ 连接被拒绝：必须从源节点的输出 handle (output) 开始')
+      return false
+    }
+    return true
+  }
+
+  // T054: 本地任务节点（CONCAT）允许来自数据源、输出数据节点或其他计算任务节点的输入
+  if (targetNodeType === 'local_task' && connection.targetHandle === 'input') {
+    const sourceNodeType = sourceNode.type
+    const validSourceTypes = ['data_source', 'compute_task', 'output_data']
+    if (!validSourceTypes.includes(sourceNodeType)) {
+      console.warn('⚠️ 连接被拒绝：本地任务节点只接受来自数据源、计算任务或输出数据节点的输入')
+      return false
+    }
+    if (connection.sourceHandle !== 'output') {
+      console.warn('⚠️ 连接被拒绝：必须从源节点的输出 handle (output) 开始')
+      return false
+    }
+    return true
+  }
+
   // 规则 2: 数据源节点只能从输出 handle 连出，计算任务节点只能从输入 handle 连入
-  // 在我们的实现中：
-  // - 数据源节点只有输出 handle (id="output", type="source")
-  // - 计算任务节点有输入 handle (id="input", type="target") 和输出 handle (id="output", type="source")
-  // 所以我们需要验证：targetHandle 必须是 "input"（表示连接到目标节点的输入端）
   if (connection.targetHandle !== 'input') {
     console.warn('⚠️ 连接被拒绝：必须连接到目标节点的输入 handle (input)')
     return false
@@ -192,6 +281,8 @@ const isValidConnection = (
  * - 任务节点的输入: "input"
  *
  * T022: 连接到计算任务时弹出字段选择窗口
+ * T038: 模型节点连接到计算任务节点的模型输入 handle
+ * T054: 本地任务节点接受多个输入连接
  */
 const onConnect = (connection: Connection) => {
   const sourceNode = nodes.value.find(n => n.id === connection.source)
@@ -202,9 +293,90 @@ const onConnect = (connection: Connection) => {
     return
   }
 
-  // T022: 如果目标节点是计算任务，且源节点是数据源，弹出字段选择窗口
   const sourceData = sourceNode.data as NodeData
   const targetData = targetNode.data as NodeData
+  const targetNodeType = targetNode.type
+
+  // T038: 如果连接到模型输入 handle，直接创建连接
+  if (connection.targetHandle === 'model-input') {
+    const newEdge = createUniqueEdge({
+      source: connection.source,
+      target: connection.target,
+      sourceHandle: 'output',
+      targetHandle: 'model-input'
+    }, edges.value)
+    edges.value.push(newEdge)
+    logger.info('[FlowCanvas] Model node connected to compute task', {
+      source: sourceNode.id,
+      target: targetNode.id
+    })
+    return
+  }
+
+  // T048: 如果连接到算力输入 handle，直接创建连接
+  if (connection.targetHandle === 'resource-input') {
+    const newEdge = createUniqueEdge({
+      source: connection.source,
+      target: connection.target,
+      sourceHandle: 'output',
+      targetHandle: 'resource-input'
+    }, edges.value)
+    edges.value.push(newEdge)
+    logger.info('[FlowCanvas] Resource node connected to compute task', {
+      source: sourceNode.id,
+      target: targetNode.id
+    })
+    return
+  }
+
+  // T054: 如果目标节点是本地任务节点（CONCAT），直接创建连接并添加输入提供者
+  if (targetNodeType === 'local_task') {
+    const newEdge = createUniqueEdge({
+      source: connection.source,
+      target: connection.target,
+      sourceHandle: 'output',
+      targetHandle: 'input'
+    }, edges.value)
+    edges.value.push(newEdge)
+
+    // 添加输入提供者信息到本地任务节点
+    const targetNodeData = targetNode.data as any
+    if (!targetNodeData.inputProviders) {
+      targetNodeData.inputProviders = []
+    }
+
+    // 从源节点获取输入提供者信息
+    let inputProvider: any = null
+    if (sourceNode.type === 'data_source') {
+      // 数据源节点
+      inputProvider = {
+        sourceNodeId: sourceNode.id,
+        sourceType: 'dataSource',
+        participantId: sourceData.assetInfo?.participantId || '',
+        dataset: sourceData.assetInfo?.assetName || '',
+        fields: [] // CONCAT 不需要详细字段信息
+      }
+    } else if (sourceNode.type === 'compute_task' || sourceNode.type === 'output_data') {
+      // 计算任务或输出数据节点
+      inputProvider = {
+        sourceNodeId: sourceNode.id,
+        sourceType: 'outputData',
+        participantId: (sourceData as any).participantId || '',
+        dataset: (sourceData as any).dataset || sourceData.label || '',
+        fields: []
+      }
+    }
+
+    if (inputProvider) {
+      targetNodeData.inputProviders.push(inputProvider)
+    }
+
+    logger.info('[FlowCanvas] Connected to local task node (CONCAT)', {
+      source: sourceNode.id,
+      target: targetNode.id
+    })
+    return
+  }
 
   // 检查是否为 DAG 计算任务节点
   const isTargetDagTask = targetData.category === NodeCategory.COMPUTE_TASK &&
@@ -241,17 +413,87 @@ const onConnect = (connection: Connection) => {
  * 处理节点变化（删除等）
  * 删除节点时，自动删除所有连接到该节点的连接线
  * T031: 删除计算任务节点时，自动删除关联的输出数据节点
+ * T041: 删除模型节点时，清理计算任务节点中的模型配置
+ * T054: 删除源节点时，清理本地任务节点中的输入提供者
  */
 const onNodesChange = (changes: NodeChange[]) => {
   for (const change of changes) {
     if (change.type === 'remove' && change.id) {
+      const removedNode = nodes.value.find(n => n.id === change.id)
+      const removedNodeType = removedNode?.type
+
+      // T054: 如果删除的节点连接到本地任务节点，先清理输入提供者
+      const connectedLocalTaskEdges = edges.value.filter(
+        e => e.source === change.id && nodes.value.find(n => n.id === e.target)?.type === 'local_task'
+      )
+      for (const edge of connectedLocalTaskEdges) {
+        const localTaskNode = nodes.value.find(n => n.id === edge.target)
+        if (localTaskNode) {
+          const localTaskData = localTaskNode.data as any
+          if (localTaskData.inputProviders && Array.isArray(localTaskData.inputProviders)) {
+            localTaskData.inputProviders = localTaskData.inputProviders.filter(
+              (p: any) => p.sourceNodeId !== change.id
+            )
+            logger.info('[FlowCanvas] Removed input provider from local task node', {
+              removedNodeId: change.id,
+              localTaskNodeId: edge.target
+            })
+          }
+        }
+      }
+
       // 删除所有与该节点相关的连接线
       edges.value = edges.value.filter(
         edge => edge.source !== change.id && edge.target !== change.id
       )
 
+      // T041: 如果删除的是模型节点，清理关联计算任务节点的模型配置
+      if (removedNodeType === 'model' && removedNode) {
+        // 查找所有连接到此模型节点的目标节点（计算任务节点）
+        const targetNodeIds = edges.value
+          .filter(e => e.source === change.id && e.targetHandle === 'model-input')
+          .map(e => e.target)
+
+        for (const taskNodeId of targetNodeIds) {
+          const taskNode = nodes.value.find(n => n.id === taskNodeId)
+          if (taskNode) {
+            const taskData = taskNode.data as any
+            // 移除对应的模型配置
+            if (taskData.models && Array.isArray(taskData.models)) {
+              taskData.models = taskData.models.filter((m: any) => m.sourceNodeId !== change.id)
+              logger.info('[FlowCanvas] Removed model config from compute task', {
+                modelNodeId: change.id,
+                taskNodeId
+              })
+            }
+          }
+        }
+      }
+
+      // T048-T050: 如果删除的是算力资源节点，清理关联计算任务节点的算力配置
+      if (removedNodeType === 'compute_resource' && removedNode) {
+        // 查找所有连接到此算力资源节点的目标节点（计算任务节点）
+        const targetNodeIds = edges.value
+          .filter(e => e.source === change.id && e.targetHandle === 'resource-input')
+          .map(e => e.target)
+
+        for (const taskNodeId of targetNodeIds) {
+          const taskNode = nodes.value.find(n => n.id === taskNodeId)
+          if (taskNode) {
+            const taskData = taskNode.data as any
+            // 移除对应的算力配置
+            if (taskData.computeProviders && Array.isArray(taskData.computeProviders)) {
+              taskData.computeProviders = taskData.computeProviders.filter((p: any) => p.sourceNodeId !== change.id)
+              logger.info('[FlowCanvas] Removed resource config from compute task', {
+                resourceNodeId: change.id,
+                taskNodeId
+              })
+            }
+          }
+        }
+      }
+
       // T031: 如果删除的是计算任务节点，找出并删除所有关联的输出数据节点
-      const removedNode = nodes.value.find(n => n.id === change.id)
       if (removedNode) {
         const nodeData = removedNode.data as any
         // 检查是否是计算任务节点（有 outputs 数组）
@@ -263,6 +505,30 @@ const onNodesChange = (changes: NodeChange[]) => {
             logger.info('[FlowCanvas] Auto-deleted output nodes for removed compute task', {
               computeTaskNodeId: change.id,
               deletedOutputNodeIds: outputNodeIds
+            })
+          }
+        }
+
+        // T041: 删除计算任务节点时，也删除关联的模型节点
+        if (nodeData.models && Array.isArray(nodeData.models)) {
+          const modelNodeIds = nodeData.models.map((m: any) => m.sourceNodeId).filter(Boolean)
+          if (modelNodeIds.length > 0) {
+            nodes.value = nodes.value.filter(n => !modelNodeIds.includes(n.id))
+            logger.info('[FlowCanvas] Auto-deleted model nodes for removed compute task', {
+              computeTaskNodeId: change.id,
+              deletedModelNodeIds: modelNodeIds
+            })
+          }
+        }
+
+        // T050: 删除计算任务节点时，也删除关联的算力资源节点
+        if (nodeData.computeProviders && Array.isArray(nodeData.computeProviders)) {
+          const resourceNodeIds = nodeData.computeProviders.map((p: any) => p.sourceNodeId).filter(Boolean)
+          if (resourceNodeIds.length > 0) {
+            nodes.value = nodes.value.filter(n => !resourceNodeIds.includes(n.id))
+            logger.info('[FlowCanvas] Auto-deleted resource nodes for removed compute task', {
+              computeTaskNodeId: change.id,
+              deletedResourceNodeIds: resourceNodeIds
             })
           }
         }
@@ -774,6 +1040,258 @@ function handleOutputConfigCancel() {
 }
 
 /**
+ * 获取可用变量列表（从输入提供者中收集）(T039)
+ */
+function getAvailableVariables(): string[] {
+  const variables: string[] = []
+
+  for (const node of nodes.value) {
+    const nodeData = node.data as any
+    // 从计算任务节点的输入提供者获取字段
+    if (nodeData.inputProviders && Array.isArray(nodeData.inputProviders)) {
+      for (const provider of nodeData.inputProviders) {
+        if (provider.fields && Array.isArray(provider.fields)) {
+          for (const field of provider.fields) {
+            variables.push(`${provider.participantId}.${provider.dataset}.${field.columnName}`)
+          }
+        }
+      }
+    }
+  }
+
+  return variables
+}
+
+/**
+ * 处理添加模型节点 (T039)
+ * 打开模型配置对话框
+ */
+function handleAddModel(taskNodeId: string, position: { x: number; y: number }) {
+  const taskNode = nodes.value.find(n => n.id === taskNodeId)
+  if (!taskNode) {
+    logger.warn('[FlowCanvas] Task node not found', { nodeId: taskNodeId })
+    return
+  }
+
+  pendingModelTaskNodeId.value = taskNodeId
+  pendingModelPosition.value = position
+
+  showModelDialog.value = true
+  logger.info('[FlowCanvas] Opening model config dialog', { taskNodeId })
+}
+
+// Provide addModel handler for child nodes (T039)
+provide('addModelHandler', handleAddModel)
+
+/**
+ * 处理模型配置确认 (T040)
+ * 创建模型节点并连接到计算任务节点
+ */
+function handleModelConfigConfirm(config: {
+  modelType: string
+  participantId?: string
+  modelId?: string
+  expression?: string
+  parameters?: any[]
+}) {
+  if (!pendingModelTaskNodeId.value || !pendingModelPosition.value) {
+    logger.warn('[FlowCanvas] No pending task node for model')
+    return
+  }
+
+  const taskNode = nodes.value.find(n => n.id === pendingModelTaskNodeId.value)
+  if (!taskNode) {
+    logger.warn('[FlowCanvas] Task node not found', { nodeId: pendingModelTaskNodeId.value })
+    return
+  }
+
+  const taskData = taskNode.data as any
+
+  // 创建模型节点
+  const modelNodeId = `model_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+  const newNode: Node = {
+    id: modelNodeId,
+    type: 'model',
+    position: pendingModelPosition.value,
+    data: {
+      label: config.modelId ? `模型-${config.modelId}` : '表达式模型',
+      modelType: config.modelType,
+      participantId: config.participantId,
+      modelId: config.modelId,
+      expression: config.expression,
+      parameters: config.parameters,
+      icon: '🧠',
+      color: '#13C2C2',
+      category: 'model'
+    } as any
+  }
+
+  nodes.value.push(newNode)
+
+  // 添加模型配置到计算任务节点
+  if (!taskData.models) {
+    taskData.models = []
+  }
+
+  taskData.models.push({
+    id: `model_config_${Date.now()}`,
+    modelType: config.modelType,
+    participantId: config.participantId,
+    modelId: config.modelId,
+    expression: config.expression,
+    parameters: config.parameters,
+    sourceNodeId: modelNodeId
+  })
+
+  // 创建从模型节点到计算任务节点的连接（连接到模型输入 handle）
+  const newEdge = createUniqueEdge({
+    source: modelNodeId,
+    target: pendingModelTaskNodeId.value,
+    sourceHandle: 'output',
+    targetHandle: 'model-input'
+  }, edges.value)
+  edges.value.push(newEdge)
+
+  logger.info('[FlowCanvas] Model node created and connected to compute task', {
+    modelNodeId,
+    taskNodeId: pendingModelTaskNodeId.value,
+    modelType: config.modelType
+  })
+
+  // 清理状态
+  pendingModelTaskNodeId.value = undefined
+  pendingModelPosition.value = null
+  showModelDialog.value = false
+}
+
+/**
+ * 处理模型配置取消 (T041)
+ */
+function handleModelConfigCancel() {
+  logger.info('[FlowCanvas] Model config dialog cancelled')
+
+  // 清理状态
+  pendingModelTaskNodeId.value = undefined
+  pendingModelPosition.value = null
+  showModelDialog.value = false
+}
+
+/**
+ * 处理添加算力资源节点 (T049)
+ * 打开算力资源配置对话框
+ */
+function handleAddResource(taskNodeId: string, position: { x: number; y: number }) {
+  const taskNode = nodes.value.find(n => n.id === taskNodeId)
+  if (!taskNode) {
+    logger.warn('[FlowCanvas] Task node not found', { nodeId: taskNodeId })
+    return
+  }
+
+  pendingResourceTaskNodeId.value = taskNodeId
+  pendingResourcePosition.value = position
+
+  showResourceDialog.value = true
+  logger.info('[FlowCanvas] Opening resource config dialog', { taskNodeId })
+}
+
+// Provide addResource handler for child nodes (T049)
+provide('addResourceHandler', handleAddResource)
+
+/**
+ * 处理算力资源配置确认 (T050)
+ * 创建算力资源节点并连接到计算任务节点
+ */
+function handleResourceConfigConfirm(config: {
+  participantId: string
+  cpu: number
+  memory: number
+  gpu?: number
+  gpuType?: string
+}) {
+  if (!pendingResourceTaskNodeId.value || !pendingResourcePosition.value) {
+    logger.warn('[FlowCanvas] No pending task node for resource')
+    return
+  }
+
+  const taskNode = nodes.value.find(n => n.id === pendingResourceTaskNodeId.value)
+  if (!taskNode) {
+    logger.warn('[FlowCanvas] Task node not found', { nodeId: pendingResourceTaskNodeId.value })
+    return
+  }
+
+  const taskData = taskNode.data as any
+
+  // 创建算力资源节点
+  const resourceNodeId = `resource_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+  const newNode: Node = {
+    id: resourceNodeId,
+    type: 'compute_resource',
+    position: pendingResourcePosition.value,
+    data: {
+      label: `算力-${config.cpu}核`,
+      participantId: config.participantId,
+      cpu: config.cpu,
+      memory: config.memory,
+      gpu: config.gpu,
+      gpuType: config.gpuType,
+      icon: '⚡',
+      color: '#FA8C16',
+      category: 'compute_resource'
+    } as any
+  }
+
+  nodes.value.push(newNode)
+
+  // 添加算力配置到计算任务节点
+  if (!taskData.computeProviders) {
+    taskData.computeProviders = []
+  }
+
+  taskData.computeProviders.push({
+    id: `resource_config_${Date.now()}`,
+    participantId: config.participantId,
+    cpu: config.cpu,
+    memory: config.memory,
+    gpu: config.gpu,
+    gpuType: config.gpuType,
+    sourceNodeId: resourceNodeId
+  })
+
+  // 创建从算力资源节点到计算任务节点的连接（连接到算力输入 handle）
+  const newEdge = createUniqueEdge({
+    source: resourceNodeId,
+    target: pendingResourceTaskNodeId.value,
+    sourceHandle: 'output',
+    targetHandle: 'resource-input'
+  }, edges.value)
+  edges.value.push(newEdge)
+
+  logger.info('[FlowCanvas] Resource node created and connected to compute task', {
+    resourceNodeId,
+    taskNodeId: pendingResourceTaskNodeId.value,
+    cpu: config.cpu,
+    memory: config.memory
+  })
+
+  // 清理状态
+  pendingResourceTaskNodeId.value = undefined
+  pendingResourcePosition.value = null
+  showResourceDialog.value = false
+}
+
+/**
+ * 处理算力资源配置取消 (T050)
+ */
+function handleResourceConfigCancel() {
+  logger.info('[FlowCanvas] Resource config dialog cancelled')
+
+  // 清理状态
+  pendingResourceTaskNodeId.value = undefined
+  pendingResourcePosition.value = null
+  showResourceDialog.value = false
+}
+
+/**
  * 处理节点点击事件
  */
 function onNodeClick(event: any) {
@@ -807,13 +1325,15 @@ function openEditDialog(nodeId: string) {
 }
 
 /**
- * 导出任务图
+ * 导出任务图 (T063-T065)
  */
 function handleExport() {
   try {
     const json = exportGraph(nodes.value, edges.value)
-    downloadJson(json)
-    logger.info('[FlowCanvas] Export successful')
+    // 解析 JSON 用于预览
+    previewJsonData.value = JSON.parse(json)
+    showJsonPreview.value = true
+    logger.info('[FlowCanvas] JSON preview opened')
   } catch (error) {
     logger.error('[FlowCanvas] Export failed', error)
     // TODO: 显示错误提示

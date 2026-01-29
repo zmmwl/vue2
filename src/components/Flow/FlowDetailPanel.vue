@@ -123,6 +123,109 @@
             </div>
           </div>
 
+          <!-- 计算模型 (T042-T044) -->
+          <div class="info-section">
+            <h4 class="section-title">
+              计算模型
+              <span class="field-count">({{ modelConfigs.length }})</span>
+            </h4>
+            <div v-if="modelConfigs.length > 0" class="model-list">
+              <div
+                v-for="(model, idx) in modelConfigs"
+                :key="model.id"
+                class="model-card"
+              >
+                <div class="model-header">
+                  <span class="model-index">#{{ idx + 1 }}</span>
+                  <span class="model-type">{{ modelTypeLabels[model.modelType] || model.modelType }}</span>
+                </div>
+                <div class="model-body">
+                  <!-- 表达式模型 -->
+                  <div v-if="model.modelType === 'expression'" class="model-expression">
+                    <div class="expression-label">表达式:</div>
+                    <pre class="expression-code">{{ model.expression || '(空)' }}</pre>
+                  </div>
+                  <!-- 其他模型类型 -->
+                  <div v-else class="model-info-grid">
+                    <div class="model-info-item">
+                      <span class="model-info-label">提供方</span>
+                      <span class="model-info-value">{{ model.participantId || '-' }}</span>
+                    </div>
+                    <div class="model-info-item">
+                      <span class="model-info-label">模型 ID</span>
+                      <span class="model-info-value">{{ model.modelId || '-' }}</span>
+                    </div>
+                  </div>
+                  <!-- 参数绑定 -->
+                  <div v-if="model.parameters && model.parameters.length > 0" class="model-parameters">
+                    <div class="parameters-label">参数绑定 ({{ model.parameters.length }}):</div>
+                    <div class="parameters-list">
+                      <div
+                        v-for="(param, pIdx) in model.parameters"
+                        :key="pIdx"
+                        class="parameter-item"
+                      >
+                        <span class="param-name">{{ param.name }}</span>
+                        <span class="param-binding" :class="param.bindingType">
+                          <span v-if="param.bindingType === 'field'" class="binding-icon">🔗</span>
+                          <span v-else class="binding-icon">📌</span>
+                          {{ param.bindingType === 'field' ? (param.fieldRef || '-') : (param.fixedValue || '-') }}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div v-else class="empty-models">
+              <div class="empty-icon">🧠</div>
+              <p>尚未配置计算模型</p>
+            </div>
+          </div>
+
+          <!-- 算力资源 (T051-T052) -->
+          <div class="info-section">
+            <h4 class="section-title">
+              算力资源
+              <span class="field-count">({{ resourceConfigs.length }})</span>
+            </h4>
+            <div v-if="resourceConfigs.length > 0" class="resource-list">
+              <div
+                v-for="(resource, idx) in resourceConfigs"
+                :key="resource.id || idx"
+                class="resource-card"
+              >
+                <div class="resource-header">
+                  <span class="resource-index">#{{ idx + 1 }}</span>
+                  <span class="resource-provider">{{ resource.participantId || '-' }}</span>
+                </div>
+                <div class="resource-body">
+                  <div class="resource-specs">
+                    <div class="resource-spec-item">
+                      <span class="spec-icon">🖥️</span>
+                      <span class="spec-label">CPU</span>
+                      <span class="spec-value">{{ resource.cpu }}核</span>
+                    </div>
+                    <div class="resource-spec-item">
+                      <span class="spec-icon">💾</span>
+                      <span class="spec-label">内存</span>
+                      <span class="spec-value">{{ resource.memory }}GB</span>
+                    </div>
+                    <div v-if="resource.gpu" class="resource-spec-item">
+                      <span class="spec-icon">🎮</span>
+                      <span class="spec-label">GPU</span>
+                      <span class="spec-value">{{ resource.gpu }}张 {{ resource.gpuType || '' }}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div v-else class="empty-resources">
+              <div class="empty-icon">⚡</div>
+              <p>尚未配置算力资源</p>
+            </div>
+          </div>
+
           <!-- 输出数据 (T032-T034) -->
           <div class="info-section">
             <h4 class="section-title">
@@ -137,6 +240,91 @@
               >
                 <div class="output-header">
                   <span class="output-index">#{{ idx + 1 }}</span>
+                  <span class="output-participant">{{ output.participantId }}</span>
+                  <span class="output-dataset">{{ output.dataset }}</span>
+                </div>
+                <div class="output-body">
+                  <div class="output-fields">
+                    <span class="field-count-label">{{ output.outputFields.length }} 个字段:</span>
+                    <div class="field-chips">
+                      <span
+                        v-for="field in output.outputFields"
+                        :key="field.columnName"
+                        class="field-chip"
+                      >
+                        {{ field.columnAlias || field.columnName }}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div v-else class="empty-outputs">
+              <div class="empty-icon">📤</div>
+              <p>尚未配置输出数据</p>
+            </div>
+          </div>
+        </template>
+
+        <!-- 本地任务节点 (CONCAT) (T056) -->
+        <template v-else-if="isLocalTask">
+          <!-- 基本信息 -->
+          <div class="info-section">
+            <h4 class="section-title">本地结果处理任务</h4>
+            <div class="info-grid">
+              <div class="info-item">
+                <span class="info-label">任务类型</span>
+                <span class="info-value concat-type">CONCAT 数据合并</span>
+              </div>
+              <div class="info-item" v-if="localTaskData?.participantId">
+                <span class="info-label">执行方</span>
+                <span class="info-value">{{ localTaskData.participantId }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 输入源 -->
+          <div class="info-section">
+            <h4 class="section-title">
+              输入源
+              <span class="field-count">({{ localTaskData?.inputProviders?.length || 0 }})</span>
+            </h4>
+            <div v-if="localTaskData?.inputProviders?.length > 0" class="provider-list">
+              <div
+                v-for="(provider, idx) in localTaskData.inputProviders"
+                :key="provider.sourceNodeId"
+                class="provider-card"
+              >
+                <div class="provider-header">
+                  <span class="provider-index">#{{ Number(idx) + 1 }}</span>
+                  <span class="provider-source">{{ provider.participantId }}</span>
+                  <span class="provider-source-type">{{ provider.sourceType === 'dataSource' ? '数据源' : '输出数据' }}</span>
+                </div>
+                <div class="provider-body">
+                  <div class="provider-dataset">📊 {{ provider.dataset }}</div>
+                </div>
+              </div>
+            </div>
+            <div v-else class="empty-providers">
+              <div class="empty-icon">🔗</div>
+              <p>尚未连接输入源</p>
+            </div>
+          </div>
+
+          <!-- 输出配置 -->
+          <div class="info-section">
+            <h4 class="section-title">
+              输出数据
+              <span class="field-count">({{ localTaskData?.outputs?.length || 0 }})</span>
+            </h4>
+            <div v-if="localTaskData?.outputs?.length > 0" class="output-list">
+              <div
+                v-for="(output, idx) in localTaskData.outputs"
+                :key="output.id"
+                class="output-card"
+              >
+                <div class="output-header">
+                  <span class="output-index">#{{ Number(idx) + 1 }}</span>
                   <span class="output-participant">{{ output.participantId }}</span>
                   <span class="output-dataset">{{ output.dataset }}</span>
                 </div>
@@ -245,6 +433,7 @@ import type { Node } from '@vue-flow/core'
 import type { NodeData } from '@/types/nodes'
 import type { InputProvider, JoinCondition } from '@/types/contracts'
 import { logger } from '@/utils/logger'
+import { useVueFlow } from '@vue-flow/core'
 
 interface Props {
   selectedNode: Node<NodeData> | null
@@ -257,20 +446,37 @@ interface Emits {
 const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 
+// Get edges to find connected resource nodes
+const { edges, findNode } = useVueFlow()
+
 // 判断节点是否已配置
 const isConfigured = computed(() => {
   const nodeData = props.selectedNode?.data
+  const nodeType = props.selectedNode?.type
   // 数据源节点
   const isDataSourceConfigured = !!(nodeData?.assetInfo && nodeData?.selectedFields)
   // DAG 计算任务节点
   const isComputeTaskConfigured = !!(nodeData as any)?.computeType
-  return isDataSourceConfigured || isComputeTaskConfigured
+  // 本地任务节点（CONCAT）
+  const isLocalTaskConfigured = nodeType === 'local_task' && !!(nodeData as any)?.inputProviders
+  return isDataSourceConfigured || isComputeTaskConfigured || isLocalTaskConfigured
 })
 
 // 判断是否是 DAG 计算任务节点
 const isDagComputeTask = computed(() => {
   const nodeData = props.selectedNode?.data as any
   return !!(nodeData?.computeType)
+})
+
+// 判断是否是本地任务节点（CONCAT）
+const isLocalTask = computed(() => {
+  return props.selectedNode?.type === 'local_task'
+})
+
+// 获取本地任务节点数据
+const localTaskData = computed(() => {
+  if (!isLocalTask.value) return null
+  return props.selectedNode?.data as any
 })
 
 // 获取计算任务节点数据
@@ -308,6 +514,36 @@ const joinConditions = computed((): JoinCondition[] => {
 const outputConfigs = computed(() => {
   return (computeTaskData.value?.outputs as any[]) || []
 })
+
+// 获取计算模型配置列表 (T042-T044)
+const modelConfigs = computed(() => {
+  return (computeTaskData.value?.models as any[]) || []
+})
+
+// 获取算力资源配置列表 (T051-T052)
+const resourceConfigs = computed(() => {
+  if (!props.selectedNode) return []
+
+  // 找到所有连接到 resource-input handle 的边
+  const resourceEdges = edges.value.filter(
+    edge => edge.target === props.selectedNode!.id && edge.targetHandle === 'resource-input'
+  )
+
+  // 获取源节点的资源数据
+  return resourceEdges.map(edge => {
+    const sourceNode = findNode(edge.source)
+    return sourceNode?.data || null
+  }).filter(Boolean)
+})
+
+// 模型类型标签映射 (T042-T044)
+const modelTypeLabels: Record<string, string> = {
+  'expression': 'MPC模型(表达式)',
+  'CodeBin-V2': 'CodeBin-V2',
+  'CodeBin-V3-1': 'CodeBin-V3-1',
+  'CodeBin-V3-2': 'CodeBin-V3-2',
+  'SPDZ': 'SPDZ'
+}
 
 // ========== 数据源节点相关 ==========
 
@@ -597,6 +833,22 @@ watch(() => props.selectedNode, (node) => {
   font-weight: 500;
   word-break: break-word;
   line-height: 1.5;
+}
+
+.concat-type {
+  font-weight: 700;
+  color: #52C41A;
+  font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+}
+
+.provider-source-type {
+  font-size: 11px;
+  padding: 2px 8px;
+  background: rgba(0, 0, 0, 0.04);
+  border-radius: 4px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-left: auto;
 }
 
 // 字段列表
@@ -941,6 +1193,301 @@ watch(() => props.selectedNode, (node) => {
 }
 
 .empty-outputs {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 13px;
+
+  .empty-icon {
+    font-size: 40px;
+    margin-bottom: 12px;
+    opacity: 0.6;
+  }
+
+  p {
+    margin: 0;
+  }
+}
+
+// ========== 计算模型样式 (T042-T044) ==========
+
+.model-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.model-card {
+  background: var(--glass-bg);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-left: 3px solid #13C2C2;
+  border-radius: 10px;
+  overflow: hidden;
+  transition: all var(--transition-base) var(--easing-smooth);
+
+  &:hover {
+    border-color: rgba(19, 194, 194, 0.3);
+    box-shadow: 0 4px 12px rgba(19, 194, 194, 0.15);
+  }
+}
+
+.model-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: rgba(19, 194, 194, 0.08);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.model-index {
+  font-size: 11px;
+  font-weight: 700;
+  color: #08979C;
+  padding: 2px 8px;
+  background: rgba(19, 194, 194, 0.2);
+  border-radius: 4px;
+  font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+}
+
+.model-type {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.model-body {
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.model-expression {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.expression-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.expression-code {
+  margin: 0;
+  padding: 10px 12px;
+  background: rgba(0, 0, 0, 0.03);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 6px;
+  font-size: 12px;
+  font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+  color: var(--text-primary);
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.model-info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.model-info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.model-info-label {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.model-info-value {
+  font-size: 13px;
+  color: var(--text-primary);
+  font-weight: 500;
+  font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+}
+
+.model-parameters {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.parameters-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.parameters-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.parameter-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: rgba(0, 0, 0, 0.02);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+.param-name {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+  flex-shrink: 0;
+}
+
+.param-binding {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  background: rgba(0, 0, 0, 0.04);
+
+  &.field {
+    background: rgba(19, 194, 194, 0.1);
+    color: #08979C;
+  }
+
+  &.fixed {
+    background: rgba(250, 140, 22, 0.1);
+    color: #D46B08;
+  }
+}
+
+.binding-icon {
+  font-size: 10px;
+}
+
+.empty-models {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 13px;
+
+  .empty-icon {
+    font-size: 40px;
+    margin-bottom: 12px;
+    opacity: 0.6;
+  }
+
+  p {
+    margin: 0;
+  }
+}
+
+// ========== 算力资源样式 (T051-T052) ==========
+
+.resource-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.resource-card {
+  background: var(--glass-bg);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-left: 3px solid #FA8C16;
+  border-radius: 10px;
+  overflow: hidden;
+  transition: all var(--transition-base) var(--easing-smooth);
+
+  &:hover {
+    border-color: rgba(250, 140, 22, 0.3);
+    box-shadow: 0 4px 12px rgba(250, 140, 22, 0.15);
+  }
+}
+
+.resource-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: rgba(250, 140, 22, 0.08);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.resource-index {
+  font-size: 11px;
+  font-weight: 700;
+  color: #D46B08;
+  padding: 2px 8px;
+  background: rgba(250, 140, 22, 0.2);
+  border-radius: 4px;
+  font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+}
+
+.resource-provider {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.resource-body {
+  padding: 12px 14px;
+}
+
+.resource-specs {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.resource-spec-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: rgba(0, 0, 0, 0.02);
+  border-radius: 6px;
+}
+
+.spec-icon {
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.spec-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 500;
+  min-width: 40px;
+}
+
+.spec-value {
+  margin-left: auto;
+  font-size: 13px;
+  color: var(--text-primary);
+  font-weight: 600;
+  font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+}
+
+.empty-resources {
   display: flex;
   flex-direction: column;
   align-items: center;

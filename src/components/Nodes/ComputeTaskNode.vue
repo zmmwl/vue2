@@ -9,6 +9,26 @@
       :class="['input-handle', { 'is-visible': isInputVisible }]"
     />
 
+    <!-- DAG 节点：左侧模型输入连接点 (T035) -->
+    <Handle
+      v-if="isDagNode"
+      id="model-input"
+      type="target"
+      :position="Position.Left"
+      :style="{ top: '50%' }"
+      :class="['model-input-handle', { 'is-visible': isModelInputVisible }]"
+    />
+
+    <!-- DAG 节点：右侧算力输入连接点 (T045) -->
+    <Handle
+      v-if="isDagNode"
+      id="resource-input"
+      type="target"
+      :position="Position.Right"
+      :style="{ top: '50%' }"
+      :class="['resource-input-handle', { 'is-visible': isResourceInputVisible }]"
+    />
+
     <div class="node-card">
       <div class="node-icon-wrapper" :style="{ background: iconBg }">
         <div class="node-icon">{{ data.icon || '🧮' }}</div>
@@ -45,6 +65,28 @@
       </button>
     </div>
 
+    <!-- DAG 节点：添加模型按钮 (T039) -->
+    <div v-if="isDagNode" class="model-action">
+      <button
+        class="add-model-btn"
+        @click.stop="onAddModel"
+        title="添加计算模型"
+      >
+        <span class="btn-icon">🧠</span>
+      </button>
+    </div>
+
+    <!-- DAG 节点：添加算力按钮 (T049) -->
+    <div v-if="isDagNode" class="resource-action">
+      <button
+        class="add-resource-btn"
+        @click.stop="onAddResource"
+        title="添加算力资源"
+      >
+        <span class="btn-icon">⚡</span>
+      </button>
+    </div>
+
     <!-- 固定的底部输出连接点 -->
     <Handle
       id="output"
@@ -70,6 +112,12 @@ const { edges } = useVueFlow()
 
 // Inject addOutput handler from FlowCanvas (T029)
 const addOutputHandler = inject<(nodeId: string) => void>('addOutputHandler', () => {})
+
+// Inject addModel handler from FlowCanvas (T039)
+const addModelHandler = inject<(nodeId: string, position: { x: number; y: number }) => void>('addModelHandler', () => {})
+
+// Inject addResource handler from FlowCanvas (T049)
+const addResourceHandler = inject<(nodeId: string, position: { x: number; y: number }) => void>('addResourceHandler', () => {})
 
 // 检查是否为 DAG 节点
 const isDagNode = computed(() => {
@@ -123,6 +171,16 @@ const isInputVisible = computed(() => {
   return edges.value.some(edge => edge.target === props.id && edge.targetHandle === 'input')
 })
 
+// 检查是否有模型输入连接 (T035)
+const isModelInputVisible = computed(() => {
+  return edges.value.some(edge => edge.target === props.id && edge.targetHandle === 'model-input')
+})
+
+// 检查是否有算力输入连接 (T045)
+const isResourceInputVisible = computed(() => {
+  return edges.value.some(edge => edge.target === props.id && edge.targetHandle === 'resource-input')
+})
+
 // 检查是否有输出连接
 const isOutputVisible = computed(() => {
   return edges.value.some(edge => edge.source === props.id && edge.sourceHandle === 'output')
@@ -132,6 +190,30 @@ const isOutputVisible = computed(() => {
 function onAddOutput() {
   if (addOutputHandler) {
     addOutputHandler(props.id)
+  }
+}
+
+// 添加模型节点 (T039)
+function onAddModel() {
+  if (addModelHandler) {
+    // 计算模型节点位置（在计算任务节点左侧）
+    const modelPosition = {
+      x: (props.position?.x || 0) - 160,
+      y: (props.position?.y || 0) + 20
+    }
+    addModelHandler(props.id, modelPosition)
+  }
+}
+
+// 添加算力节点 (T049)
+function onAddResource() {
+  if (addResourceHandler) {
+    // 计算算力节点位置（在计算任务节点右侧）
+    const resourcePosition = {
+      x: (props.position?.x || 0) + 280,
+      y: (props.position?.y || 0) + 20
+    }
+    addResourceHandler(props.id, resourcePosition)
   }
 }
 </script>
@@ -163,6 +245,52 @@ function onAddOutput() {
     }
   }
 
+  // 模型输入 handle - 正方形（左侧） (T035)
+  .model-input-handle {
+    width: 8px;
+    height: 24px;
+    background-color: #13C2C2;
+    border: 2px solid #ffffff;
+    border-radius: 2px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+    transform: translateY(-50%);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+
+    &.is-visible {
+      opacity: 1;
+    }
+
+    &:hover {
+      opacity: 1;
+      background-color: #1890ff;
+      transform: translateY(-50%) scale(1.1);
+    }
+  }
+
+  // 算力输入 handle - 菱形（右侧） (T045)
+  .resource-input-handle {
+    width: 10px;
+    height: 10px;
+    background-color: #FA8C16;
+    border: 2px solid #ffffff;
+    border-radius: 2px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+    transform: translateY(-50%) rotate(45deg);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+
+    &.is-visible {
+      opacity: 1;
+    }
+
+    &:hover {
+      opacity: 1;
+      background-color: #1890ff;
+      transform: translateY(-50%) rotate(45deg) scale(1.2);
+    }
+  }
+
   // 输出 handle - 圆形（底部）
   .output-handle {
     width: 12px;
@@ -188,6 +316,8 @@ function onAddOutput() {
   // 鼠标悬停节点时显示所有 handle
   &:hover {
     .input-handle,
+    .model-input-handle,
+    .resource-input-handle,
     .output-handle {
       opacity: 1;
     }
@@ -333,6 +463,86 @@ function onAddOutput() {
     }
 
     .btn-text {
+      line-height: 1;
+    }
+  }
+
+  // 模型操作区域 (T039)
+  .model-action {
+    position: absolute;
+    top: 50%;
+    left: -32px;
+    transform: translateY(-50%);
+    z-index: 10;
+  }
+
+  .add-model-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    background: linear-gradient(135deg, #13C2C2, #08979C);
+    border: none;
+    border-radius: 50%;
+    color: white;
+    font-size: 12px;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(19, 194, 194, 0.3);
+    transition: all 0.2s ease;
+
+    &:hover {
+      transform: scale(1.1);
+      box-shadow: 0 4px 10px rgba(19, 194, 194, 0.4);
+      background: linear-gradient(135deg, #36CFC9, #13C2C2);
+    }
+
+    &:active {
+      transform: scale(0.95);
+    }
+
+    .btn-icon {
+      line-height: 1;
+    }
+  }
+
+  // 算力操作区域 (T049)
+  .resource-action {
+    position: absolute;
+    top: 50%;
+    right: -32px;
+    transform: translateY(-50%);
+    z-index: 10;
+  }
+
+  .add-resource-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    background: linear-gradient(135deg, #FA8C16, #D46B08);
+    border: none;
+    border-radius: 50%;
+    color: white;
+    font-size: 12px;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(250, 140, 22, 0.3);
+    transition: all 0.2s ease;
+
+    &:hover {
+      transform: scale(1.1);
+      box-shadow: 0 4px 10px rgba(250, 140, 22, 0.4);
+      background: linear-gradient(135deg, #FFA940, #FA8C16);
+    }
+
+    &:active {
+      transform: scale(0.95);
+    }
+
+    .btn-icon {
       line-height: 1;
     }
   }
