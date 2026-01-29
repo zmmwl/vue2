@@ -31,6 +31,14 @@
       @confirm="handleAssetSelected"
       @cancel="handleDialogCancel"
     />
+
+    <!-- 技术路径选择对话框 (DAG 任务编排) -->
+    <TechPathSelector
+      v-model:visible="showTechPathDialog"
+      :task-type="pendingTaskType!"
+      @confirm="handleTechPathSelected"
+      @cancel="handleTechPathCancel"
+    />
   </div>
 </template>
 
@@ -42,13 +50,16 @@ import { Controls } from '@vue-flow/controls'
 import { MiniMap } from '@vue-flow/minimap'
 import type { Node, Edge, Connection, EdgeChange, NodeChange, GraphNode } from '@vue-flow/core'
 import type { DroppedNodeData } from '@/types/graph'
-import { NodeCategory } from '@/types/nodes'
+import { NodeCategory, ComputeTaskType } from '@/types/nodes'
 import type { NodeData, AssetInfo, FieldInfo } from '@/types/nodes'
+import type { ComputeTaskNodeData } from '@/types/contracts'
 import DataSourceNode from '@/components/Nodes/DataSourceNode.vue'
 import ComputeTaskNode from '@/components/Nodes/ComputeTaskNode.vue'
 import FlowEdge from '@/components/Edges/FlowEdge.vue'
 import AssetSelectorDialog from '@/components/Dialogs/AssetSelectorDialog.vue'
+import TechPathSelector from '@/components/Modals/TechPathSelector.vue'
 import { createUniqueEdge } from '@/utils/edge-utils'
+import { getComputeType } from '@/utils/node-templates'
 import { logger } from '@/utils/logger'
 import { exportGraph, downloadJson, importGraph, restoreNodes } from '@/utils/exportUtils'
 import { assetCache } from '@/services/assetCache'
@@ -84,6 +95,13 @@ const editingNodeId = ref<string>()
 const editingNodeAssetInfo = ref<AssetInfo>()
 const editingNodeSelectedFields = ref<string[]>()
 const pendingNodePosition = ref<{ x: number; y: number } | null>(null)
+
+// 技术路径选择对话框状态 (DAG 任务编排)
+const showTechPathDialog = ref(false)
+const pendingTaskType = ref<ComputeTaskType>()
+const pendingTaskLabel = ref<string>()
+const pendingTaskIcon = ref<string>()
+const pendingTaskColor = ref<string>()
 
 /**
  * 验证连接是否有效
@@ -188,27 +206,48 @@ const onDrop = (event: DragEvent) => {
   try {
     const data: DroppedNodeData = JSON.parse(rawData)
 
-    // 只对数据源节点弹出选择对话框
-    if (data.category !== NodeCategory.DATA_SOURCE) {
-      // 非数据源节点直接创建
-      createNode(data, event)
+    // 数据源节点：保存位置信息，弹出资产选择对话框
+    if (data.category === NodeCategory.DATA_SOURCE) {
+      const projected = project({
+        x: event.offsetX,
+        y: event.offsetY
+      })
+
+      pendingNodePosition.value = {
+        x: projected.x - 100,
+        y: projected.y - 30
+      }
+
+      showAssetDialog.value = true
+      logger.info('[FlowCanvas] Opening asset selector dialog for new node')
       return
     }
 
-    // 数据源节点：保存位置信息，弹出对话框
-    const projected = project({
-      x: event.offsetX,
-      y: event.offsetY
-    })
+    // 计算任务节点：弹出技术路径选择对话框 (T012)
+    if (data.category === NodeCategory.COMPUTE_TASK && data.taskType) {
+      const projected = project({
+        x: event.offsetX,
+        y: event.offsetY
+      })
 
-    pendingNodePosition.value = {
-      x: projected.x - 100,
-      y: projected.y - 30
+      pendingNodePosition.value = {
+        x: projected.x - 100,
+        y: projected.y - 30
+      }
+
+      // 保存任务信息，等待用户选择技术路径
+      pendingTaskType.value = data.taskType as ComputeTaskType
+      pendingTaskLabel.value = data.label
+      pendingTaskIcon.value = data.icon
+      pendingTaskColor.value = data.color
+
+      showTechPathDialog.value = true
+      logger.info('[FlowCanvas] Opening tech path selector for compute task', { taskType: data.taskType })
+      return
     }
 
-    // 打开选择对话框
-    showAssetDialog.value = true
-    logger.info('[FlowCanvas] Opening asset selector dialog for new node')
+    // 其他节点直接创建
+    createNode(data, event)
   } catch (error) {
     logger.error('[FlowCanvas] Failed to parse dropped data', error)
   }
@@ -304,6 +343,77 @@ function handleDialogCancel() {
   editingNodeAssetInfo.value = undefined
   editingNodeSelectedFields.value = undefined
   pendingNodePosition.value = null
+}
+
+/**
+ * 处理技术路径选择确认 (T013)
+ * 创建计算任务节点并设置 computeType 和 techPath
+ */
+function handleTechPathSelected(techPath: 'software' | 'tee') {
+  if (!pendingTaskType.value || !pendingTaskLabel.value) {
+    logger.warn('[FlowCanvas] No pending task data')
+    return
+  }
+
+  // 计算最终计算类型
+  const computeType = getComputeType(pendingTaskType.value, techPath)
+
+  // 创建计算任务节点数据
+  const newNodeData: ComputeTaskNodeData = {
+    label: pendingTaskLabel.value,
+    computeType: computeType as any,
+    techPath: techPath,
+    inputProviders: [],
+    joinConditions: [],
+    models: [],
+    computeProviders: [],
+    outputs: []
+  }
+
+  // 创建节点
+  const newNode: Node = {
+    id: `node_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    type: 'compute_task',
+    position: pendingNodePosition.value || { x: 100, y: 100 },
+    data: {
+      ...newNodeData,
+      icon: pendingTaskIcon.value || '🧮',
+      color: pendingTaskColor.value || '#1890FF',
+      category: NodeCategory.COMPUTE_TASK,
+      taskType: pendingTaskType.value
+    } as any
+  }
+
+  nodes.value.push(newNode)
+  logger.info('[FlowCanvas] Compute task node created with tech path', {
+    nodeId: newNode.id,
+    taskType: pendingTaskType.value,
+    techPath,
+    computeType
+  })
+
+  // 清理状态
+  pendingNodePosition.value = null
+  pendingTaskType.value = undefined
+  pendingTaskLabel.value = undefined
+  pendingTaskIcon.value = undefined
+  pendingTaskColor.value = undefined
+  showTechPathDialog.value = false
+}
+
+/**
+ * 处理技术路径选择取消
+ */
+function handleTechPathCancel() {
+  logger.info('[FlowCanvas] Tech path selector dialog cancelled')
+
+  // 清理状态
+  pendingNodePosition.value = null
+  pendingTaskType.value = undefined
+  pendingTaskLabel.value = undefined
+  pendingTaskIcon.value = undefined
+  pendingTaskColor.value = undefined
+  showTechPathDialog.value = false
 }
 
 /**
