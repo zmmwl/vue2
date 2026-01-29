@@ -72,6 +72,21 @@ src/
 #### 4. 节点类型系统
 - **数据源节点** (`type: 'data_source'`)：MySQL、PostgreSQL、CSV、Excel、REST API、GraphQL
 - **计算任务节点** (`type: 'compute_task'`)：PSI、PIR、MPC、联邦学习、同态加密、差分隐私
+- **计算模型节点** (`type: 'model'`)：MPC 表达式模型、CodeBin V2/V3、SPDZ
+- **算力资源节点** (`type: 'compute_resource'`)：TEE 板卡算力
+- **输出数据节点** (`type: 'output_data'`)：任务输出配置
+- **本地任务节点** (`type: 'local_task'`)：本地结果处理任务（CONCAT）
+
+#### 5. DAG 任务编排 Handle 系统
+DAG 任务编排使用多输入 handle 系统：
+- **数据源/输出数据/计算任务节点**：只有输出 handle (`id="output"`)
+- **计算任务节点**：
+  - 顶部输入 handle (`id="input"`) - 连接数据源
+  - 左侧模型输入 handle (`id="model-input"`) - 连接计算模型
+  - 右侧算力输入 handle (`id="resource-input"`) - 连接算力资源
+  - 底部输出 handle (`id="output"`)
+- **本地任务节点**：只有输入 handle (`id="input"`)，可接受多个输入
+- **模型节点/算力资源节点**：只有输出 handle (`id="output"`)
 
 ## 重要配置
 
@@ -90,6 +105,60 @@ src/
 
 1. 在 `src/utils/node-templates.ts` 中添加节点模板到 `DATA_SOURCE_TEMPLATES` 或 `COMPUTE_TASK_TEMPLATES`
 2. 如需新类型枚举，在 `src/types/nodes.ts` 中添加对应的 `Enum`
+
+## DAG 任务编排系统
+
+### 概述
+DAG 任务编排系统允许用户通过可视化方式创建隐私计算任务流程，支持 PSI、PIR、MPC 等多种计算类型，并可将流程导出为标准 JSON 格式提交到后端服务。
+
+### 核心功能
+1. **拖拽创建节点** - 从侧边栏拖拽数据源、计算任务、模型、算力等到画布
+2. **连接配置** - 连接数据源到计算任务时弹出字段选择器
+3. **模型配置** - 拖拽模型到计算任务节点，配置表达式或选择模型
+4. **算力配置** - 拖拽算力资源到计算任务节点
+5. **输出配置** - 点击"添加输出"按钮配置输出参与方和字段
+6. **JSON 导出** - 导出标准 JSON 格式（参见 `specs/DAG_TO_JSON_SPEC.md`）
+
+### 组件结构
+```
+src/
+├── components/
+│   ├── Flow/
+│   │   ├── FlowDetailPanel.vue  # 右侧详情面板（支持可折叠 sections）
+│   │   └── FlowCanvas.vue        # 主画布（包含拖放、连接逻辑）
+│   ├── Modals/
+│   │   ├── TechPathSelector.vue  # 技术路径选择器
+│   │   ├── FieldSelector.vue     # 字段选择器
+│   │   ├── OutputConfigSelector.vue # 输出配置
+│   │   ├── ModelSelector.vue     # 模型配置（含 Monaco Editor）
+│   │   ├── ResourceSelector.vue  # 算力资源配置
+│   │   └── MonacoEditor.vue      # Monaco Editor 封装
+│   └── Nodes/
+│       ├── ModelNode.vue         # 模型节点
+│       ├── ComputeResourceNode.vue # 算力资源节点
+│       ├── OutputDataNode.vue    # 输出数据节点
+│       └── LocalTaskNode.vue     # 本地任务节点
+├── utils/
+│   └── dag-export.ts             # DAG 到 JSON 转换
+└── types/
+    └── contracts.ts              # DAG 任务相关接口定义
+```
+
+### 导出 JSON 格式
+导出的 JSON 包含以下部分：
+- `jobId` - 任务唯一 ID
+- `taskList` - 任务列表（计算类型、输入配置）
+- `dataProviderList` - 数据提供方配置
+- `joinConditionList` - Join 条件（INNER/CROSS）
+- `modelProviderList` - 模型提供方配置
+- `expressionList` - 表达式列表（用于表达式模型）
+- `computeProviderList` - 算力提供方配置
+- `resultConsumerList` - 结果消费方配置
+
+详细转换规则参见 `specs/DAG_TO_JSON_SPEC.md`。
+
+### 页面刷新保护
+FlowCanvas 实现了 beforeunload 事件监听，当有未保存的更改时，刷新或关闭页面会弹出确认提示。
 
 ## Active Technologies
 - TypeScript 5.9.3, Vue 3.5.24 + @vue-flow/core 1.48.1, Vite 7.2.4, Sass 1.97.2, Playwright 1.57.0 (001-data-asset-select)

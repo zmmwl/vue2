@@ -139,6 +139,63 @@ $node-unconfigured-border: #E2E8F0;     // 浅灰边框
 $node-configured-border: rgba(14, 165, 233, 0.25);  // 天蓝色边框
 $node-asset-name-max-width: 120px;
 
+// ========== 节点类型颜色系统 ==========
+
+// 数据源节点
+$node-datasource-color: #52C41A;        // 绿色
+$node-datasource-bg: rgba(82, 196, 26, 0.08);
+$node-datasource-border: rgba(82, 196, 26, 0.3);
+
+// PSI计算任务节点
+$node-psi-color: #1890FF;               // 蓝色
+$node-psi-bg: rgba(24, 144, 255, 0.08);
+$node-psi-border: rgba(24, 144, 255, 0.3);
+
+// PIR查询任务节点
+$node-pir-color: #722ED1;               // 紫色
+$node-pir-bg: rgba(114, 46, 209, 0.08);
+$node-pir-border: rgba(114, 46, 209, 0.3);
+
+// MPC计算任务节点
+$node-mpc-color: #FA8C16;               // 橙色
+$node-mpc-bg: rgba(250, 140, 22, 0.08);
+$node-mpc-border: rgba(250, 140, 22, 0.3);
+
+// 联邦学习任务节点
+$node-fl-color: #EB2F96;                // 粉色
+$node-fl-bg: rgba(235, 47, 150, 0.08);
+$node-fl-border: rgba(235, 47, 150, 0.3);
+
+// 同态加密任务节点
+$node-he-color: #13C2C2;                // 青色
+$node-he-bg: rgba(19, 194, 194, 0.08);
+$node-he-border: rgba(19, 194, 194, 0.3);
+
+// 差分隐私任务节点
+$node-dp-color: #F5222D;                // 红色
+$node-dp-bg: rgba(245, 34, 45, 0.08);
+$node-dp-border: rgba(245, 34, 45, 0.3);
+
+// 计算模型节点
+$node-model-color: #13C2C2;             // 青色
+$node-model-bg: rgba(19, 194, 194, 0.08);
+$node-model-border: rgba(19, 194, 194, 0.3);
+
+// 算力资源节点
+$node-resource-color: #FA8C16;          // 橙色
+$node-resource-bg: rgba(250, 140, 22, 0.08);
+$node-resource-border: rgba(250, 140, 22, 0.3);
+
+// 输出数据节点
+$node-output-color: #52C41A;            // 绿色
+$node-output-bg: rgba(82, 196, 26, 0.08);
+$node-output-border: rgba(82, 196, 26, 0.3);
+
+// 本地任务节点
+$node-local-task-color: #52C41A;        // 绿色
+$node-local-task-bg: rgba(82, 196, 26, 0.08);
+$node-local-task-border: rgba(82, 196, 26, 0.3);
+
 // ========== 虚拟滚动样式 ==========
 
 // 虚拟滚动容器

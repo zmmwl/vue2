@@ -54,62 +54,70 @@
         <!-- DAG 计算任务节点 -->
         <template v-if="isDagComputeTask">
           <!-- 计算任务信息 -->
-          <div class="info-section">
-            <h4 class="section-title">计算任务</h4>
-            <div class="info-grid">
-              <div class="info-item">
-                <span class="info-label">计算类型</span>
-                <span class="info-value compute-type" :style="{ color: computeTypeColor }">
-                  {{ computeTaskData?.computeType || '-' }}
-                </span>
-              </div>
-              <div class="info-item">
-                <span class="info-label">技术路径</span>
-                <span class="info-value tech-path">
-                  {{ computeTaskData?.techPath === 'tee' ? '硬件 TEE' : '软件密码学' }}
-                </span>
+          <div class="info-section" :class="{ 'is-collapsed': collapsedState.taskInfo }">
+            <h4 class="section-title collapsible" @click="toggleSection('taskInfo')">
+              <span class="title-text">计算任务</span>
+              <span class="collapse-icon">{{ collapsedState.taskInfo ? '▶' : '▼' }}</span>
+            </h4>
+            <div class="collapsible-content" :style="{ maxHeight: collapsedState.taskInfo ? '0' : '1000px' }">
+              <div class="info-grid">
+                <div class="info-item">
+                  <span class="info-label">计算类型</span>
+                  <span class="info-value compute-type" :style="{ color: computeTypeColor }">
+                    {{ computeTaskData?.computeType || '-' }}
+                  </span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">技术路径</span>
+                  <span class="info-value tech-path">
+                    {{ computeTaskData?.techPath === 'tee' ? '硬件 TEE' : '软件密码学' }}
+                  </span>
+                </div>
               </div>
             </div>
           </div>
 
           <!-- 输入数据 -->
-          <div class="info-section">
-            <h4 class="section-title">
-              输入数据
+          <div class="info-section" :class="{ 'is-collapsed': collapsedState.inputData }">
+            <h4 class="section-title collapsible" @click="toggleSection('inputData')">
+              <span class="title-text">输入数据</span>
               <span class="field-count">({{ inputProviders.length }})</span>
+              <span class="collapse-icon">{{ collapsedState.inputData ? '▶' : '▼' }}</span>
             </h4>
-            <div v-if="inputProviders.length > 0" class="provider-list">
-              <div
-                v-for="(provider, idx) in inputProviders"
-                :key="provider.sourceNodeId"
-                class="provider-card"
-              >
-                <div class="provider-header">
-                  <span class="provider-index">#{{ idx + 1 }}</span>
-                  <span class="provider-source">{{ provider.participantId }}</span>
-                </div>
-                <div class="provider-body">
-                  <div class="provider-dataset">📊 {{ provider.dataset }}</div>
-                  <div class="provider-fields">
-                    <span class="field-count-label">{{ provider.fields.length }} 个字段:</span>
-                    <div class="field-chips">
-                      <span
-                        v-for="field in provider.fields"
-                        :key="field.columnName"
-                        class="field-chip"
-                        :class="{ 'is-join': field.isJoinField }"
-                      >
-                        {{ field.columnAlias || field.columnName }}
-                        <span v-if="field.isJoinField" class="join-badge">{{ field.joinType }}</span>
-                      </span>
+            <div class="collapsible-content" :style="{ maxHeight: collapsedState.inputData ? '0' : '1000px' }">
+              <div v-if="inputProviders.length > 0" class="provider-list">
+                <div
+                  v-for="(provider, idx) in inputProviders"
+                  :key="provider.sourceNodeId"
+                  class="provider-card"
+                >
+                  <div class="provider-header">
+                    <span class="provider-index">#{{ idx + 1 }}</span>
+                    <span class="provider-source">{{ provider.participantId }}</span>
+                  </div>
+                  <div class="provider-body">
+                    <div class="provider-dataset">📊 {{ provider.dataset }}</div>
+                    <div class="provider-fields">
+                      <span class="field-count-label">{{ provider.fields.length }} 个字段:</span>
+                      <div class="field-chips">
+                        <span
+                          v-for="field in provider.fields"
+                          :key="field.columnName"
+                          class="field-chip"
+                          :class="{ 'is-join': field.isJoinField }"
+                        >
+                          {{ field.columnAlias || field.columnName }}
+                          <span v-if="field.isJoinField" class="join-badge">{{ field.joinType }}</span>
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
-            <div v-else class="empty-providers">
-              <div class="empty-icon">🔗</div>
-              <p>尚未连接输入数据源</p>
+              <div v-else class="empty-providers">
+                <div class="empty-icon">🔗</div>
+                <p>尚未连接输入数据源</p>
+              </div>
             </div>
           </div>
 
@@ -453,6 +461,47 @@ import type { NodeData } from '@/types/nodes'
 import type { InputProvider, JoinCondition } from '@/types/contracts'
 import { logger } from '@/utils/logger'
 import { useVueFlow } from '@vue-flow/core'
+
+// T089: 可折叠 section 状态管理
+interface CollapsibleState {
+  taskInfo: boolean
+  inputData: boolean
+  joinConditions: boolean
+  models: boolean
+  resources: boolean
+  outputs: boolean
+}
+
+// 默认折叠状态
+const collapsedState = ref<CollapsibleState>({
+  taskInfo: false,
+  inputData: false,
+  joinConditions: false,
+  models: false,
+  resources: false,
+  outputs: false
+})
+
+// T089: 切换折叠状态
+function toggleSection(section: keyof CollapsibleState) {
+  collapsedState.value[section] = !collapsedState.value[section]
+  logger.debug('[FlowDetailPanel] Section toggled', {
+    section,
+    collapsed: collapsedState.value[section]
+  })
+}
+
+// 重置折叠状态（当切换节点时）
+watch(() => props.selectedNode, () => {
+  collapsedState.value = {
+    taskInfo: false,
+    inputData: false,
+    joinConditions: false,
+    models: false,
+    resources: false,
+    outputs: false
+  }
+})
 
 interface Props {
   selectedNode: Node<NodeData> | null
@@ -863,6 +912,46 @@ watch(() => props.selectedNode, (node) => {
     background: rgba(0, 0, 0, 0.04);
     border-radius: var(--field-tag-radius);
   }
+
+  // T089: 可折叠样式
+  &.collapsible {
+    cursor: pointer;
+    user-select: none;
+    transition: color var(--transition-base) var(--easing-smooth);
+
+    &:hover {
+      color: var(--datasource-blue);
+    }
+
+    .title-text {
+      flex: 1;
+    }
+
+    .collapse-icon {
+      font-size: 10px;
+      color: var(--text-secondary);
+      transition: transform var(--transition-base) var(--easing-smooth);
+      margin-left: auto;
+    }
+  }
+}
+
+// T089: 可折叠内容动画
+.collapsible-content {
+  overflow: hidden;
+  transition: max-height var(--transition-base) var(--easing-smooth),
+              opacity var(--transition-base) var(--easing-smooth),
+              margin var(--transition-base) var(--easing-smooth);
+  opacity: 1;
+
+  .is-collapsed & {
+    opacity: 0;
+    margin-top: -12px;
+  }
+}
+
+.info-section.is-collapsed {
+  padding-bottom: var(--info-card-padding);
 }
 
 .info-grid {

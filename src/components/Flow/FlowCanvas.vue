@@ -85,7 +85,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, markRaw, provide } from 'vue'
+import { ref, markRaw, provide, onMounted, onBeforeUnmount, watch } from 'vue'
 import { VueFlow, useVueFlow } from '@vue-flow/core'
 import { Background } from '@vue-flow/background'
 import { Controls } from '@vue-flow/controls'
@@ -188,6 +188,35 @@ const pendingResourcePosition = ref<{ x: number; y: number } | null>(null)  // �
 // JSON 预览对话框状态 (T063-T065)
 const showJsonPreview = ref(false)
 const previewJsonData = ref<any>(null)  // 预览的 JSON 数据
+
+// T087: 页面刷新确认提示
+const hasUnsavedChanges = ref(false)  // 是否有未保存的更改
+const initialNodesJson = ref('')  // 初始节点状态快照
+const initialEdgesJson = ref('')  // 初始边状态快照
+
+/**
+ * 检查是否有未保存的更改
+ */
+function checkUnsavedChanges() {
+  const currentNodesJson = JSON.stringify(nodes.value)
+  const currentEdgesJson = JSON.stringify(edges.value)
+  hasUnsavedChanges.value =
+    currentNodesJson !== initialNodesJson.value ||
+    currentEdgesJson !== initialEdgesJson.value
+}
+
+/**
+ * beforeunload 事件处理函数
+ * 当用户尝试刷新或关闭页面时，如果有未保存的更改则显示确认提示
+ */
+function handleBeforeUnload(event: BeforeUnloadEvent) {
+  if (hasUnsavedChanges.value) {
+    // 设置返回值会触发浏览器确认对话框
+    event.preventDefault()
+    event.returnValue = ''  // Chrome 需要设置此值
+    return ''  // 其他浏览器兼容
+  }
+}
 
 /**
  * 验证连接是否有效
@@ -1560,6 +1589,26 @@ defineExpose({
   downloadExportJson,
   handleImport
 })
+
+// T087: 生命周期钩子
+onMounted(() => {
+  // 保存初始状态快照
+  initialNodesJson.value = JSON.stringify(nodes.value)
+  initialEdgesJson.value = JSON.stringify(edges.value)
+
+  // 添加 beforeunload 事件监听
+  window.addEventListener('beforeunload', handleBeforeUnload)
+})
+
+onBeforeUnmount(() => {
+  // 移除 beforeunload 事件监听
+  window.removeEventListener('beforeunload', handleBeforeUnload)
+})
+
+// 监听 nodes 和 edges 变化，自动检查是否有未保存的更改
+watch([nodes, edges], () => {
+  checkUnsavedChanges()
+}, { deep: true })
 </script>
 
 <style scoped lang="scss">
