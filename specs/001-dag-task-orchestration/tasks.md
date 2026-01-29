@@ -222,19 +222,21 @@ Single project structure: `src/` and `tests/` at repository root
 
 ---
 
-## Phase 11: Polish & Cross-Cutting Concerns
+## Phase 11: Polish & Cross-Cutting Concerns ✅
 
 **Purpose**: 跨用户故事的改进和优化
 
 - [X] T084 [P] 在`src/components/Nodes/`目录中实现节点卡片样式统一（颜色区分节点类型）
-- [ ] T085 [P] 在`src/assets/styles/variables.scss`中添加节点颜色变量（PSI/PIR/MPC不同色系）
+- [X] T085 [P] 在`src/assets/styles/variables.scss`中添加节点颜色变量（PSI/PIR/MPC不同色系）
 - [X] T086 [P] 在`src/composables/useGraphState.ts`中实现循环依赖检测逻辑（DFS算法）
-- [ ] T087 [P] 在`src/components/Flow/FlowCanvas.vue`中实现页面刷新确认提示（beforeunload事件）
+- [X] T087 [P] 在`src/components/Flow/FlowCanvas.vue`中实现页面刷新确认提示（beforeunload事件）
 - [X] T088 [P] 在`src/components/Modals/`目录中为所有弹窗组件添加统一的样式和动画
-- [ ] T089 [P] 在`src/components/Flow/FlowDetailPanel.vue`中优化可折叠section的展开/收起动画
+- [X] T089 [P] 在`src/components/Flow/FlowDetailPanel.vue`中优化可折叠section的展开/收起动画
 - [X] T090 [P] 在`src/utils/dag-export.ts`中添加导出JSON验证逻辑（结构完整性检查）
-- [ ] T091 [P] 生成DAG到JSON转换规则spec文档到`specs/DAG_TO_JSON_SPEC.md`
-- [ ] T092 更新CLAUDE.md添加DAG任务编排相关说明
+- [X] T091 [P] 生成DAG到JSON转换规则spec文档到`specs/DAG_TO_JSON_SPEC.md`
+- [X] T092 更新CLAUDE.md添加DAG任务编排相关说明
+
+**Checkpoint**: Phase 11 完成 - 所有优化和文档任务完成 ✅
 
 ---
 
