@@ -17,34 +17,34 @@ Single project structure: `src/` and `tests/` at repository root
 
 ---
 
-## Phase 1: Setup (共享基础设施)
+## Phase 1: Setup (共享基础设施) ✅
 
 **Purpose**: 项目初始化和Monaco Editor安装
 
-- [ ] T001 安装Monaco Editor依赖 `npm install monaco-editor monaco-editor-vue` per research.md Decision 1
-- [ ] T002 [P] 在`src/components/`下创建`Modals/`目录结构
-- [ ] T003 [P] 在`src/stores/`下创建状态管理目录
+- [X] T001 安装Monaco Editor依赖 `npm install monaco-editor monaco-editor-vue` per research.md Decision 1
+- [X] T002 [P] 在`src/components/`下创建`Modals/`目录结构
+- [X] T003 [P] 在`src/stores/`下创建状态管理目录
 
 ---
 
-## Phase 2: Foundational (阻塞性前置条件)
+## Phase 2: Foundational (阻塞性前置条件) ✅
 
 **Purpose**: 所有用户故事依赖的核心基础设施
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T004 在`src/types/export.ts`中定义导出JSON类型（ExportJson, Task, ComputeType等）
-- [ ] T005 [P] 在`src/types/nodes.ts`中扩展节点类型定义（ComputeTaskNodeData, ModelNodeData等）
-- [ ] T006 [P] 在`src/utils/enterprise-sorter.ts`中实现企业加权排序逻辑
-- [ ] T007 [P] 在`src/utils/mock-data.ts`中创建Mock数据工厂函数
-- [ ] T008 在`src/components/Flow/FlowCanvas.vue`中扩展handleDrop支持新节点类型
-- [ ] T009 在`src/components/Flow/FlowCanvas.vue`中实现isValidConnection验证逻辑
+- [X] T004 在`src/types/export.ts`中定义导出JSON类型（ExportJson, Task, ComputeType等）
+- [X] T005 [P] 在`src/types/nodes.ts`中扩展节点类型定义（ComputeTaskNodeData, ModelNodeData等）
+- [X] T006 [P] 在`src/utils/enterprise-sorter.ts`中实现企业加权排序逻辑
+- [X] T007 [P] 在`src/utils/mock-data.ts`中创建Mock数据工厂函数
+- [X] T008 在`src/components/Flow/FlowCanvas.vue`中扩展handleDrop支持新节点类型
+- [X] T009 在`src/components/Flow/FlowCanvas.vue`中实现isValidConnection验证逻辑
 
-**Checkpoint**: 基础设施就绪 - 用户故事实现现在可以并行开始
+**Checkpoint**: 基础设施就绪 - 用户故事实现现在可以并行开始 ✅
 
 ---
 
-## Phase 3: User Story 1 - 拖拽创建计算任务 (Priority: P1) 🎯 MVP
+## Phase 3: User Story 1 - 拖拽创建计算任务 (Priority: P1) 🎯 MVP ✅
 
 **Goal**: 用户可以拖拽计算任务到画布，选择技术路径后创建计算任务节点
 
@@ -52,19 +52,19 @@ Single project structure: `src/` and `tests/` at repository root
 
 ### Implementation for User Story 1
 
-- [ ] T010 [P] [US1] 在`src/components/Flow/FlowSidebar.vue`中添加"计算任务"分类（PSI计算、PIR查询、MPC计算、联邦学习置灰）
-- [ ] T011 [P] [US1] 在`src/components/Modals/TechPathSelector.vue`中实现技术路径选择弹窗
-- [ ] T012 [US1] 在`src/components/Flow/FlowCanvas.vue`中实现计算任务拖拽释放处理（弹出TechPathSelector）
-- [ ] T013 [US1] 在`src/components/Flow/FlowCanvas.vue`中实现计算任务节点创建逻辑（设置computeType和techPath）
-- [ ] T014 [P] [US1] 在`src/components/Nodes/ComputeTaskNode.vue`中创建计算任务节点组件（显示任务名称、计算类型、技术路径）
-- [ ] T015 [US1] 在`src/utils/node-templates.ts`中添加COMPUTE_TASK_TEMPLATES常量
-- [ ] T016 [US1] 在计算任务节点中添加技术路径锁定逻辑（禁用修改）
+- [X] T010 [P] [US1] 在`src/components/Flow/FlowSidebar.vue`中添加"计算任务"分类（PSI计算、PIR查询、MPC计算、联邦学习置灰）
+- [X] T011 [P] [US1] 在`src/components/Modals/TechPathSelector.vue`中实现技术路径选择弹窗
+- [X] T012 [US1] 在`src/components/Flow/FlowCanvas.vue`中实现计算任务拖拽释放处理（弹出TechPathSelector）
+- [X] T013 [US1] 在`src/components/Flow/FlowCanvas.vue`中实现计算任务节点创建逻辑（设置computeType和techPath）
+- [X] T014 [P] [US1] 在`src/components/Nodes/ComputeTaskNode.vue`中创建计算任务节点组件（显示任务名称、计算类型、技术路径）
+- [X] T015 [US1] 在`src/utils/node-templates.ts`中添加COMPUTE_TASK_TEMPLATES常量
+- [X] T016 [US1] 在计算任务节点中添加技术路径锁定逻辑（禁用修改）
 
-**Checkpoint**: User Story 1完成 - 可以独立拖拽创建计算任务节点
+**Checkpoint**: User Story 1完成 - 可以独立拖拽创建计算任务节点 ✅
 
 ---
 
-## Phase 4: User Story 2 - 配置输入数据与字段映射 (Priority: P1)
+## Phase 4: User Story 2 - 配置输入数据与字段映射 (Priority: P1) ✅
 
 **Goal**: 用户从数据源节点连线到计算任务时弹出字段选择窗口，配置字段映射和join条件
 
@@ -72,21 +72,21 @@ Single project structure: `src/` and `tests/` at repository root
 
 ### Implementation for User Story 2
 
-- [ ] T017 [P] [US2] 在`src/components/Modals/FieldSelector.vue`中实现字段选择弹窗组件
-- [ ] T018 [P] [US2] 在字段选择窗口中实现字段列表展示（默认全选）
-- [ ] T019 [US2] 在字段选择窗口中实现join字段选择（INNER/CROSS连接类型）
-- [ ] T020 [US2] 在字段选择窗口中实现字段别名设置
-- [ ] T021 [US2] 在字段选择窗口中实现别名冲突检测（标*提示）
-- [ ] T022 [US2] 在`src/components/Flow/FlowCanvas.vue`中实现连线到计算任务时弹出字段选择窗口
-- [ ] T023 [US2] 在`src/components/Flow/FlowCanvas.vue`中实现取消字段选择时阻止连线
-- [ ] T024 [US2] 在`src/components/Flow/FlowDetailPanel.vue`中添加"输入数据"可折叠section
-- [ ] T025 [US2] 在详情面板"输入数据"section中显示已配置的数据源和字段信息
+- [X] T017 [P] [US2] 在`src/components/Modals/FieldSelector.vue`中实现字段选择弹窗组件
+- [X] T018 [P] [US2] 在字段选择窗口中实现字段列表展示（默认全选）
+- [X] T019 [US2] 在字段选择窗口中实现join字段选择（INNER/CROSS连接类型）
+- [X] T020 [US2] 在字段选择窗口中实现字段别名设置
+- [X] T021 [US2] 在字段选择窗口中实现别名冲突检测（标*提示）
+- [X] T022 [US2] 在`src/components/Flow/FlowCanvas.vue`中实现连线到计算任务时弹出字段选择窗口
+- [X] T023 [US2] 在`src/components/Flow/FlowCanvas.vue`中实现取消字段选择时阻止连线
+- [X] T024 [US2] 在`src/components/Flow/FlowDetailPanel.vue`中添加"输入数据"可折叠section
+- [X] T025 [US2] 在详情面板"输入数据"section中显示已配置的数据源和字段信息
 
-**Checkpoint**: User Story 2完成 - 可以独立配置输入数据与字段映射
+**Checkpoint**: User Story 2完成 - 可以独立配置输入数据与字段映射 ✅
 
 ---
 
-## Phase 5: User Story 5 - 配置输出数据节点 (Priority: P1)
+## Phase 5: User Story 5 - 配置输出数据节点 (Priority: P1) ✅
 
 **Goal**: 用户点击计算任务下方的"添加输出"按钮创建输出数据节点，配置输出参与方和字段
 
@@ -94,19 +94,19 @@ Single project structure: `src/` and `tests/` at repository root
 
 ### Implementation for User Story 5
 
-- [ ] T026 [P] [US5] 在`src/components/Nodes/ComputeTaskNode.vue`中添加"添加输出"按钮（Click-to-Connect）
-- [ ] T027 [P] [US5] 在`src/components/Modals/OutputConfig.vue`中实现输出配置弹窗组件
-- [ ] T028 [P] [US5] 在输出配置弹窗中实现企业选择（带优先级排序）
-- [ ] T029 [P] [US5] 在输出配置弹窗中实现输出字段选择（输入字段/模型输出结果）
-- [ ] T030 [P] [US5] 在`src/components/Nodes/OutputDataNode.vue`中创建输出数据节点组件
-- [ ] T031 [US5] 在`src/components/Flow/FlowCanvas.vue`中实现点击"添加输出"创建输出节点的逻辑
-- [ ] T032 [US5] 在`src/components/Flow/FlowDetailPanel.vue`中添加"输出数据"可折叠section
-- [ ] T033 [US5] 在详情面板"输出数据"section中实现所有输出的显示和增删操作
-- [ ] T034 [US5] 在`src/components/Flow/FlowCanvas.vue`中实现输出节点作为其他任务输入的连线逻辑
-- [ ] T035 [US5] 在`src/components/Flow/FlowCanvas.vue`中实现删除计算任务时自动删除关联输出节点
-- [ ] T036 [US5] 在`src/components/Flow/FlowCanvas.vue`中实现删除输出节点连线时自动删除输出节点
+- [X] T026 [P] [US5] 在`src/components/Nodes/ComputeTaskNode.vue`中添加"添加输出"按钮（Click-to-Connect）
+- [X] T027 [P] [US5] 在`src/components/Modals/OutputConfig.vue`中实现输出配置弹窗组件
+- [X] T028 [P] [US5] 在输出配置弹窗中实现企业选择（带优先级排序）
+- [X] T029 [P] [US5] 在输出配置弹窗中实现输出字段选择（输入字段/模型输出结果）
+- [X] T030 [P] [US5] 在`src/components/Nodes/OutputDataNode.vue`中创建输出数据节点组件
+- [X] T031 [US5] 在`src/components/Flow/FlowCanvas.vue`中实现点击"添加输出"创建输出节点的逻辑
+- [X] T032 [US5] 在`src/components/Flow/FlowDetailPanel.vue`中添加"输出数据"可折叠section
+- [X] T033 [US5] 在详情面板"输出数据"section中实现所有输出的显示和增删操作
+- [X] T034 [US5] 在`src/components/Flow/FlowCanvas.vue`中实现输出节点作为其他任务输入的连线逻辑
+- [X] T035 [US5] 在`src/components/Flow/FlowCanvas.vue`中实现删除计算任务时自动删除关联输出节点
+- [X] T036 [US5] 在`src/components/Flow/FlowCanvas.vue`中实现删除输出节点连线时自动删除输出节点
 
-**Checkpoint**: User Story 5完成 - 可以独立配置输出数据节点
+**Checkpoint**: User Story 5完成 - 可以独立配置输出数据节点 ✅
 
 ---
 
