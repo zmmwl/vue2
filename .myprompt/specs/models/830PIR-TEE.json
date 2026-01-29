@@ -52,13 +52,10 @@
             "kind": "Task",
             "taskId": "1",
             "name": "1",
-            "labelList": [],
-            "taskSrcIdList": [],
             "isFinalTask": true,
             "serviceType": 1,
             "computeType": "TEE_PIR",
             "implementation": "硬件隐匿查询 (3.2.0)",
-            "joinConditionList": [],
             "queryConditionList": [
                 {
                     "participantId": "org1",
