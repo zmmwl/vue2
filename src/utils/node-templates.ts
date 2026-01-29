@@ -1,6 +1,31 @@
 import type { NodeTemplate } from '@/types/nodes'
 import { NodeCategory, ComputeTaskType, DataSourceType } from '@/types/nodes'
 
+/**
+ * DAG 任务编排系统节点模板
+ * 用于拖拽创建新节点
+ */
+
+// 侧边栏分类项（用于非拖拽场景）
+export interface SidebarCategory {
+  id: string
+  label: string
+  icon?: string
+  items: SidebarItem[]
+}
+
+// 侧边栏项（用于拖拽场景）
+export interface SidebarItem {
+  id: string
+  label: string
+  type: string
+  disabled?: boolean
+  taskType?: ComputeTaskType
+  icon?: string
+  color?: string
+  description?: string
+}
+
 // 数据源节点模板
 export const DATA_SOURCE_TEMPLATES: NodeTemplate[] = [
   {
@@ -116,3 +141,167 @@ export const COMPUTE_TASK_TEMPLATES: NodeTemplate[] = [
     description: 'Differential Privacy'
   }
 ]
+
+// ========== DAG 任务编排系统侧边栏分类 ==========
+
+/**
+ * DAG 计算任务侧边栏分类
+ * 符合 FR-001: 支持拖拽 PSI/PIR/MPC 计算任务到画布
+ * 符合 FR-005: 联邦学习暂时置灰
+ */
+export const DAG_SIDEBAR_CATEGORIES: SidebarCategory[] = [
+  {
+    id: 'compute-tasks',
+    label: '计算任务',
+    items: [
+      {
+        id: 'psi',
+        label: 'PSI计算',
+        type: 'compute_task',
+        taskType: ComputeTaskType.PSI,
+        icon: '🔐',
+        color: '#1890FF',
+        description: '隐私集合求交',
+        disabled: false
+      },
+      {
+        id: 'pir',
+        label: 'PIR查询',
+        type: 'compute_task',
+        taskType: ComputeTaskType.PIR,
+        icon: '🔍',
+        color: '#722ED1',
+        description: '隐私信息检索',
+        disabled: false
+      },
+      {
+        id: 'mpc',
+        label: 'MPC计算',
+        type: 'compute_task',
+        taskType: ComputeTaskType.MPC,
+        icon: '🧮',
+        color: '#FA8C16',
+        description: '多方安全计算',
+        disabled: false
+      },
+      {
+        id: 'fl',
+        label: '联邦学习',
+        type: 'compute_task',
+        taskType: ComputeTaskType.FL,
+        icon: '🤖',
+        color: '#EB2F96',
+        description: 'Federated Learning',
+        disabled: true // 置灰，暂不可用
+      }
+    ]
+  },
+  {
+    id: 'compute-models',
+    label: '计算模型',
+    items: [
+      {
+        id: 'expr',
+        label: 'MPC模型(表达式)',
+        type: 'model',
+        icon: '📝',
+        color: '#13C2C2',
+        description: 'Python表达式模型',
+        disabled: false
+      },
+      {
+        id: 'cbv2',
+        label: 'MPC模型(CodeBin-V2)',
+        type: 'model',
+        icon: '📦',
+        color: '#13C2C2',
+        description: 'CodeBin V2版本',
+        disabled: false
+      },
+      {
+        id: 'cbv3-1',
+        label: 'MPC模型(CodeBin-V3-1)',
+        type: 'model',
+        icon: '📦',
+        color: '#13C2C2',
+        description: 'CodeBin V3.1版本',
+        disabled: false
+      },
+      {
+        id: 'cbv3-2',
+        label: 'MPC模型(CodeBin-V3-2)',
+        type: 'model',
+        icon: '📦',
+        color: '#13C2C2',
+        description: 'CodeBin V3.2版本',
+        disabled: false
+      },
+      {
+        id: 'spdz',
+        label: 'MPC模型(SPDZ)',
+        type: 'model',
+        icon: '📦',
+        color: '#13C2C2',
+        description: 'SPDZ协议模型',
+        disabled: false
+      }
+    ]
+  },
+  {
+    id: 'compute-resources',
+    label: '算力资源',
+    items: [
+      {
+        id: 'tee',
+        label: 'TEE板卡算力',
+        type: 'compute_resource',
+        icon: '🔧',
+        color: '#FA8C16',
+        description: '可信执行环境算力',
+        disabled: false
+      }
+    ]
+  },
+  {
+    id: 'local-tasks',
+    label: '本地计算任务',
+    items: [
+      {
+        id: 'concat',
+        label: '本地结果处理任务',
+        type: 'local_task',
+        icon: '🔗',
+        color: '#52C41A',
+        description: 'CONCAT 数据合并',
+        disabled: false
+      },
+      {
+        id: 'query',
+        label: '本地Query任务',
+        type: 'local_task',
+        icon: '📋',
+        color: '#8C8C8C',
+        description: '本地查询任务',
+        disabled: true // 置灰，暂不可用
+      }
+    ]
+  }
+]
+
+/**
+ * 技术路径映射表
+ * 符合 FR-003: 选择技术路径后锁定不可更改
+ */
+export const TECH_PATH_MAPPING: Record<ComputeTaskType, { software: string; tee: string }> = {
+  [ComputeTaskType.PSI]: { software: 'PSI', tee: 'TEE_PSI' },
+  [ComputeTaskType.PIR]: { software: 'PIR', tee: 'TEE_PIR' },
+  [ComputeTaskType.MPC]: { software: 'MPC', tee: 'TEE_MPC' },
+  [ComputeTaskType.FL]: { software: 'FL', tee: 'TEE_FL' }
+}
+
+/**
+ * 根据任务类型和技术路径获取最终计算类型
+ */
+export function getComputeType(taskType: ComputeTaskType, techPath: 'software' | 'tee'): string {
+  return TECH_PATH_MAPPING[taskType]?.[techPath] || taskType
+}
