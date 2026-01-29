@@ -39,6 +39,16 @@
       @confirm="handleTechPathSelected"
       @cancel="handleTechPathCancel"
     />
+
+    <!-- 字段选择对话框 (DAG 任务编排 - US2) -->
+    <FieldSelector
+      v-model:visible="showFieldSelectorDialog"
+      :data-source-id="pendingSourceNodeData?.assetInfo?.assetId || ''"
+      :data-source-label="pendingSourceNodeData?.label || ''"
+      :fields="pendingSourceNodeData?.assetInfo?.dataInfo?.fieldList || []"
+      @confirm="handleFieldSelected"
+      @cancel="handleFieldSelectorCancel"
+    />
   </div>
 </template>
 
@@ -58,6 +68,7 @@ import ComputeTaskNode from '@/components/Nodes/ComputeTaskNode.vue'
 import FlowEdge from '@/components/Edges/FlowEdge.vue'
 import AssetSelectorDialog from '@/components/Dialogs/AssetSelectorDialog.vue'
 import TechPathSelector from '@/components/Modals/TechPathSelector.vue'
+import FieldSelector from '@/components/Modals/FieldSelector.vue'
 import { createUniqueEdge } from '@/utils/edge-utils'
 import { getComputeType } from '@/utils/node-templates'
 import { logger } from '@/utils/logger'
@@ -102,6 +113,11 @@ const pendingTaskType = ref<ComputeTaskType>()
 const pendingTaskLabel = ref<string>()
 const pendingTaskIcon = ref<string>()
 const pendingTaskColor = ref<string>()
+
+// 字段选择对话框状态 (DAG 任务编排 - US2)
+const showFieldSelectorDialog = ref(false)
+const pendingConnection = ref<Connection | null>(null)
+const pendingSourceNodeData = ref<any>()
 
 /**
  * 验证连接是否有效
@@ -152,9 +168,44 @@ const isValidConnection = (
  * 所有连接都使用固定的 handle ID：
  * - 数据源/任务节点的输出: "output"
  * - 任务节点的输入: "input"
+ *
+ * T022: 连接到计算任务时弹出字段选择窗口
  */
 const onConnect = (connection: Connection) => {
-  // 创建连接 - 使用固定的 handle ID
+  const sourceNode = nodes.value.find(n => n.id === connection.source)
+  const targetNode = nodes.value.find(n => n.id === connection.target)
+
+  if (!sourceNode || !targetNode) {
+    logger.warn('[FlowCanvas] Cannot connect: node not found')
+    return
+  }
+
+  // T022: 如果目标节点是计算任务，且源节点是数据源，弹出字段选择窗口
+  const sourceData = sourceNode.data as NodeData
+  const targetData = targetNode.data as NodeData
+
+  // 检查是否为 DAG 计算任务节点
+  const isTargetDagTask = targetData.category === NodeCategory.COMPUTE_TASK &&
+    (targetData as any).computeType
+
+  // 检查是否为数据源节点（带有资产信息）
+  const isSourceDataSource = sourceData.category === NodeCategory.DATA_SOURCE &&
+    sourceData.assetInfo
+
+  if (isTargetDagTask && isSourceDataSource) {
+    // 保存连接信息，等待用户完成字段选择
+    pendingConnection.value = connection
+    pendingSourceNodeData.value = sourceData
+
+    showFieldSelectorDialog.value = true
+    logger.info('[FlowCanvas] Opening field selector for connection', {
+      source: sourceNode.id,
+      target: targetNode.id
+    })
+    return
+  }
+
+  // 其他连接直接创建
   const newEdge = createUniqueEdge({
     source: connection.source,
     target: connection.target,
@@ -414,6 +465,106 @@ function handleTechPathCancel() {
   pendingTaskIcon.value = undefined
   pendingTaskColor.value = undefined
   showTechPathDialog.value = false
+}
+
+/**
+ * 处理字段选择确认 (T022)
+ * 创建连接并保存字段配置到目标计算任务节点
+ */
+function handleFieldSelected(fieldMappings: any[]) {
+  if (!pendingConnection.value || !pendingSourceNodeData.value) {
+    logger.warn('[FlowCanvas] No pending connection data')
+    return
+  }
+
+  const connection = pendingConnection.value
+  const targetNode = nodes.value.find(n => n.id === connection.target)
+
+  if (!targetNode) {
+    logger.warn('[FlowCanvas] Target node not found')
+    return
+  }
+
+  // 保存字段配置到计算任务节点
+  const targetData = targetNode.data as any
+  if (!targetData.inputProviders) {
+    targetData.inputProviders = []
+  }
+
+  // 添加输入提供者配置
+  targetData.inputProviders.push({
+    sourceNodeId: connection.source,
+    sourceType: 'dataSource',
+    participantId: pendingSourceNodeData.value.assetInfo?.participantId || '',
+    dataset: pendingSourceNodeData.value.assetInfo?.dataInfo?.tableName || '',
+    fields: fieldMappings
+  })
+
+  // 构建 Join 条件
+  const joinFields = fieldMappings.filter(f => f.isJoinField)
+  if (joinFields.length > 0) {
+    // 按连接类型分组
+    const innerJoinFields = joinFields.filter(f => f.joinType === 'INNER')
+    const crossJoinFields = joinFields.filter(f => f.joinType === 'CROSS')
+
+    if (innerJoinFields.length > 0) {
+      targetData.joinConditions = targetData.joinConditions || []
+      targetData.joinConditions.push({
+        joinType: 'INNER',
+        operands: [{
+          participantId: pendingSourceNodeData.value.assetInfo?.participantId || '',
+          dataset: pendingSourceNodeData.value.assetInfo?.dataInfo?.tableName || '',
+          columnNames: innerJoinFields.map(f => f.columnName)
+        }]
+      })
+    }
+
+    if (crossJoinFields.length > 0) {
+      targetData.joinConditions = targetData.joinConditions || []
+      targetData.joinConditions.push({
+        joinType: 'CROSS',
+        operands: [{
+          participantId: pendingSourceNodeData.value.assetInfo?.participantId || '',
+          dataset: pendingSourceNodeData.value.assetInfo?.dataInfo?.tableName || '',
+          columnNames: crossJoinFields.map(f => f.columnName)
+        }]
+      })
+    }
+  }
+
+  // 创建连接 (T023: 用户确认后才创建连接)
+  const newEdge = createUniqueEdge({
+    source: connection.source,
+    target: connection.target,
+    sourceHandle: 'output',
+    targetHandle: 'input'
+  }, edges.value)
+  edges.value.push(newEdge)
+
+  logger.info('[FlowCanvas] Connection created with field configuration', {
+    source: connection.source,
+    target: connection.target,
+    fieldCount: fieldMappings.length,
+    joinFieldCount: joinFields.length
+  })
+
+  // 清理状态
+  pendingConnection.value = null
+  pendingSourceNodeData.value = null
+  showFieldSelectorDialog.value = false
+}
+
+/**
+ * 处理字段选择取消 (T023)
+ * 取消时不创建连接
+ */
+function handleFieldSelectorCancel() {
+  logger.info('[FlowCanvas] Field selector dialog cancelled - connection not created')
+
+  // 清理状态，不创建连接
+  pendingConnection.value = null
+  pendingSourceNodeData.value = null
+  showFieldSelectorDialog.value = false
 }
 
 /**
