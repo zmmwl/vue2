@@ -122,6 +122,45 @@
               </div>
             </div>
           </div>
+
+          <!-- 输出数据 (T032-T034) -->
+          <div class="info-section">
+            <h4 class="section-title">
+              输出数据
+              <span class="field-count">({{ outputConfigs.length }})</span>
+            </h4>
+            <div v-if="outputConfigs.length > 0" class="output-list">
+              <div
+                v-for="(output, idx) in outputConfigs"
+                :key="output.id"
+                class="output-card"
+              >
+                <div class="output-header">
+                  <span class="output-index">#{{ idx + 1 }}</span>
+                  <span class="output-participant">{{ output.participantId }}</span>
+                  <span class="output-dataset">{{ output.dataset }}</span>
+                </div>
+                <div class="output-body">
+                  <div class="output-fields">
+                    <span class="field-count-label">{{ output.outputFields.length }} 个字段:</span>
+                    <div class="field-chips">
+                      <span
+                        v-for="field in output.outputFields"
+                        :key="field.columnName"
+                        class="field-chip"
+                      >
+                        {{ field.columnAlias || field.columnName }}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div v-else class="empty-outputs">
+              <div class="empty-icon">📤</div>
+              <p>尚未配置输出数据</p>
+            </div>
+          </div>
         </template>
 
         <!-- 数据源节点 -->
@@ -263,6 +302,11 @@ const inputProviders = computed((): InputProvider[] => {
 // 获取 Join 条件列表
 const joinConditions = computed((): JoinCondition[] => {
   return (computeTaskData.value?.joinConditions as JoinCondition[]) || []
+})
+
+// 获取输出数据配置列表 (T032-T034)
+const outputConfigs = computed(() => {
+  return (computeTaskData.value?.outputs as any[]) || []
 })
 
 // ========== 数据源节点相关 ==========
@@ -829,5 +873,91 @@ watch(() => props.selectedNode, (node) => {
   color: var(--text-secondary);
   font-size: 11px;
   margin-left: 4px;
+}
+
+// ========== 输出数据节点样式 (T032-T034) ==========
+
+.output-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.output-card {
+  background: var(--glass-bg);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 10px;
+  overflow: hidden;
+  transition: all var(--transition-base) var(--easing-smooth);
+
+  &:hover {
+    border-color: rgba(82, 196, 26, 0.2);
+    box-shadow: 0 4px 12px rgba(82, 196, 26, 0.1);
+  }
+}
+
+.output-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: rgba(82, 196, 26, 0.05);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.output-index {
+  font-size: 11px;
+  font-weight: 700;
+  color: #52C41A;
+  padding: 2px 8px;
+  background: rgba(82, 196, 26, 0.15);
+  border-radius: 4px;
+  font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+}
+
+.output-participant {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.output-dataset {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+  background: rgba(0, 0, 0, 0.03);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.output-body {
+  padding: 12px 14px;
+}
+
+.output-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.empty-outputs {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 13px;
+
+  .empty-icon {
+    font-size: 40px;
+    margin-bottom: 12px;
+    opacity: 0.6;
+  }
+
+  p {
+    margin: 0;
+  }
 }
 </style>

@@ -33,6 +33,18 @@
       </div>
     </div>
 
+    <!-- DAG 节点：添加输出数据按钮 -->
+    <div v-if="isDagNode" class="output-action">
+      <button
+        class="add-output-btn"
+        @click.stop="onAddOutput"
+        title="添加输出数据"
+      >
+        <span class="btn-icon">+</span>
+        <span class="btn-text">输出</span>
+      </button>
+    </div>
+
     <!-- 固定的底部输出连接点 -->
     <Handle
       id="output"
@@ -45,7 +57,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, inject } from 'vue'
 import { Handle, Position } from '@vue-flow/core'
 import type { NodeProps } from '@vue-flow/core'
 import type { NodeData } from '@/types/nodes'
@@ -55,6 +67,9 @@ import { useVueFlow } from '@vue-flow/core'
 const props = defineProps<NodeProps<NodeData>>()
 
 const { edges } = useVueFlow()
+
+// Inject addOutput handler from FlowCanvas (T029)
+const addOutputHandler = inject<(nodeId: string) => void>('addOutputHandler', () => {})
 
 // 检查是否为 DAG 节点
 const isDagNode = computed(() => {
@@ -112,6 +127,13 @@ const isInputVisible = computed(() => {
 const isOutputVisible = computed(() => {
   return edges.value.some(edge => edge.source === props.id && edge.sourceHandle === 'output')
 })
+
+// 添加输出数据节点 (T029)
+function onAddOutput() {
+  if (addOutputHandler) {
+    addOutputHandler(props.id)
+  }
+}
 </script>
 
 <style scoped lang="scss">
@@ -269,6 +291,50 @@ const isOutputVisible = computed(() => {
   &.dag-node .node-card {
     border-left-width: 3px;
     border-left-color: v-bind('computeTypeColor');
+  }
+
+  // 输出操作区域
+  .output-action {
+    position: absolute;
+    bottom: -28px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10;
+  }
+
+  .add-output-btn {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    background: linear-gradient(135deg, #52C41A, #389E0D);
+    border: none;
+    border-radius: 12px;
+    color: white;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(82, 196, 26, 0.3);
+    transition: all 0.2s ease;
+
+    &:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 10px rgba(82, 196, 26, 0.4);
+      background: linear-gradient(135deg, #5DD826, #43A516);
+    }
+
+    &:active {
+      transform: translateY(0) scale(0.95);
+    }
+
+    .btn-icon {
+      font-size: 14px;
+      line-height: 1;
+    }
+
+    .btn-text {
+      line-height: 1;
+    }
   }
 }
 </style>

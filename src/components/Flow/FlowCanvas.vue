@@ -49,11 +49,20 @@
       @confirm="handleFieldSelected"
       @cancel="handleFieldSelectorCancel"
     />
+
+    <!-- 输出数据配置对话框 (T028-T030) -->
+    <OutputConfigSelector
+      v-model:visible="showOutputConfigDialog"
+      :recommended-enterprises="recommendedEnterprises"
+      :available-fields="availableOutputFields"
+      @confirm="handleOutputConfigConfirm"
+      @cancel="handleOutputConfigCancel"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, markRaw } from 'vue'
+import { ref, markRaw, provide } from 'vue'
 import { VueFlow, useVueFlow } from '@vue-flow/core'
 import { Background } from '@vue-flow/background'
 import { Controls } from '@vue-flow/controls'
@@ -65,10 +74,12 @@ import type { NodeData, AssetInfo, FieldInfo } from '@/types/nodes'
 import type { ComputeTaskNodeData } from '@/types/contracts'
 import DataSourceNode from '@/components/Nodes/DataSourceNode.vue'
 import ComputeTaskNode from '@/components/Nodes/ComputeTaskNode.vue'
+import OutputDataNode from '@/components/Nodes/OutputDataNode.vue'
 import FlowEdge from '@/components/Edges/FlowEdge.vue'
 import AssetSelectorDialog from '@/components/Dialogs/AssetSelectorDialog.vue'
 import TechPathSelector from '@/components/Modals/TechPathSelector.vue'
 import FieldSelector from '@/components/Modals/FieldSelector.vue'
+import OutputConfigSelector from '@/components/Modals/OutputConfigSelector.vue'
 import { createUniqueEdge } from '@/utils/edge-utils'
 import { getComputeType } from '@/utils/node-templates'
 import { logger } from '@/utils/logger'
@@ -88,7 +99,8 @@ const { project } = useVueFlow()
 // 注册自定义节点类型
 const nodeTypes = {
   data_source: markRaw(DataSourceNode),
-  compute_task: markRaw(ComputeTaskNode)
+  compute_task: markRaw(ComputeTaskNode),
+  output_data: markRaw(OutputDataNode)
 }
 
 // 注册自定义连接线类型
@@ -118,6 +130,16 @@ const pendingTaskColor = ref<string>()
 const showFieldSelectorDialog = ref(false)
 const pendingConnection = ref<Connection | null>(null)
 const pendingSourceNodeData = ref<any>()
+
+// 输出数据配置对话框状态 (T029-T031)
+const showOutputConfigDialog = ref(false)
+const pendingOutputTaskNodeId = ref<string>()
+
+// 可用输出字段列表（用于输出配置）
+const availableOutputFields = ref<Array<{ name: string; type: string; source: 'input' | 'model' }>>([])
+
+// 推荐企业列表（从当前任务的相关资源方获取）
+const recommendedEnterprises = ref<any[]>([])
 
 /**
  * 验证连接是否有效
@@ -218,6 +240,7 @@ const onConnect = (connection: Connection) => {
 /**
  * 处理节点变化（删除等）
  * 删除节点时，自动删除所有连接到该节点的连接线
+ * T031: 删除计算任务节点时，自动删除关联的输出数据节点
  */
 const onNodesChange = (changes: NodeChange[]) => {
   for (const change of changes) {
@@ -226,6 +249,24 @@ const onNodesChange = (changes: NodeChange[]) => {
       edges.value = edges.value.filter(
         edge => edge.source !== change.id && edge.target !== change.id
       )
+
+      // T031: 如果删除的是计算任务节点，找出并删除所有关联的输出数据节点
+      const removedNode = nodes.value.find(n => n.id === change.id)
+      if (removedNode) {
+        const nodeData = removedNode.data as any
+        // 检查是否是计算任务节点（有 outputs 数组）
+        if (nodeData.outputs && Array.isArray(nodeData.outputs)) {
+          // 找出所有关联的输出数据节点并删除
+          const outputNodeIds = nodeData.outputs.map((o: any) => o.outputNodeId)
+          if (outputNodeIds.length > 0) {
+            nodes.value = nodes.value.filter(n => !outputNodeIds.includes(n.id))
+            logger.info('[FlowCanvas] Auto-deleted output nodes for removed compute task', {
+              computeTaskNodeId: change.id,
+              deletedOutputNodeIds: outputNodeIds
+            })
+          }
+        }
+      }
     }
   }
 }
@@ -565,6 +606,171 @@ function handleFieldSelectorCancel() {
   pendingConnection.value = null
   pendingSourceNodeData.value = null
   showFieldSelectorDialog.value = false
+}
+
+/**
+ * 处理添加输出数据节点 (T029)
+ * 打开输出配置对话框
+ */
+function handleAddOutput(nodeId: string) {
+  const taskNode = nodes.value.find(n => n.id === nodeId)
+  if (!taskNode) {
+    logger.warn('[FlowCanvas] Task node not found', { nodeId })
+    return
+  }
+
+  const taskData = taskNode.data as any
+
+  // 收集可用输出字段（从输入数据提供者中获取）
+  const fields: Array<{ name: string; type: string; source: 'input' | 'model' }> = []
+
+  // 从输入提供者获取字段
+  if (taskData.inputProviders && Array.isArray(taskData.inputProviders)) {
+    for (const provider of taskData.inputProviders) {
+      if (provider.fields && Array.isArray(provider.fields)) {
+        for (const field of provider.fields) {
+          fields.push({
+            name: `${provider.participantId}.${provider.dataset}.${field.columnName}`,
+            type: field.columnType,
+            source: 'input' as const
+          })
+        }
+      }
+    }
+  }
+
+  // TODO: 从模型输出获取字段（需要模型配置后实现）
+
+  availableOutputFields.value = fields
+  pendingOutputTaskNodeId.value = nodeId
+
+  // 收集推荐企业（从当前任务的相关资源方获取）
+  const enterprises = new Map<string, { id: string; name: string; resourceType: number }>()
+
+  // 添加输入数据所属企业
+  if (taskData.inputProviders && Array.isArray(taskData.inputProviders)) {
+    for (const provider of taskData.inputProviders) {
+      const participantId = provider.participantId
+      if (!enterprises.has(participantId)) {
+        enterprises.set(participantId, {
+          id: participantId,
+          name: participantId, // 简化：实际应该从企业列表获取名称
+          resourceType: 3 // DATA 资源
+        })
+      }
+    }
+  }
+
+  // TODO: 添加模型、算力所属企业
+
+  recommendedEnterprises.value = Array.from(enterprises.values())
+
+  showOutputConfigDialog.value = true
+  logger.info('[FlowCanvas] Opening output config dialog', {
+    taskNodeId: nodeId,
+    availableFields: fields.length,
+    recommendedEnterprises: recommendedEnterprises.value.length
+  })
+}
+
+// Provide addOutput handler for child nodes (T029)
+provide('addOutputHandler', handleAddOutput)
+
+/**
+ * 处理输出配置确认 (T030)
+ * 创建输出数据节点并连接到计算任务节点
+ */
+function handleOutputConfigConfirm(config: { participantId: string; fields: Array<{ name: string; type: string; source: 'input' | 'model'; alias?: string }> }) {
+  if (!pendingOutputTaskNodeId.value) {
+    logger.warn('[FlowCanvas] No pending task node for output')
+    return
+  }
+
+  const taskNode = nodes.value.find(n => n.id === pendingOutputTaskNodeId.value)
+  if (!taskNode) {
+    logger.warn('[FlowCanvas] Task node not found', { nodeId: pendingOutputTaskNodeId.value })
+    return
+  }
+
+  const taskData = taskNode.data as any
+
+  // 计算输出节点位置（在计算任务节点下方）
+  const outputPosition = {
+    x: taskNode.position.x,
+    y: taskNode.position.y + 120
+  }
+
+  // 创建输出数据节点
+  const outputNodeId = `output_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+  const outputNode: Node = {
+    id: outputNodeId,
+    type: 'output_data',
+    position: outputPosition,
+    data: {
+      label: `输出-${config.participantId}`,
+      participantId: config.participantId,
+      parentTaskId: pendingOutputTaskNodeId.value,
+      dataset: `output_${Date.now()}`,
+      fields: config.fields.map(f => ({
+        source: f.source,
+        columnName: f.name,
+        columnAlias: f.alias || f.name,
+        columnType: f.type
+      })),
+      category: NodeCategory.OUTPUT_DATA
+    } as any
+  }
+
+  nodes.value.push(outputNode)
+
+  // 添加输出配置到计算任务节点
+  if (!taskData.outputs) {
+    taskData.outputs = []
+  }
+
+  taskData.outputs.push({
+    id: `output_config_${Date.now()}`,
+    participantId: config.participantId,
+    dataset: outputNode.data.dataset,
+    outputFields: config.fields.map(f => ({
+      source: f.source,
+      columnName: f.name,
+      columnAlias: f.alias || f.name,
+      columnType: f.type
+    })),
+    outputNodeId: outputNodeId
+  })
+
+  // 创建从计算任务到输出数据节点的连接
+  const newEdge = createUniqueEdge({
+    source: pendingOutputTaskNodeId.value,
+    target: outputNodeId,
+    sourceHandle: 'output',
+    targetHandle: 'input'
+  }, edges.value)
+  edges.value.push(newEdge)
+
+  logger.info('[FlowCanvas] Output data node created and connected', {
+    outputNodeId,
+    taskNodeId: pendingOutputTaskNodeId.value,
+    participantId: config.participantId,
+    fieldCount: config.fields.length
+  })
+
+  // 清理状态
+  pendingOutputTaskNodeId.value = undefined
+  showOutputConfigDialog.value = false
+}
+
+/**
+ * 处理输出配置取消
+ */
+function handleOutputConfigCancel() {
+  logger.info('[FlowCanvas] Output config dialog cancelled')
+
+  // 清理状态
+  pendingOutputTaskNodeId.value = undefined
+  showOutputConfigDialog.value = false
 }
 
 /**

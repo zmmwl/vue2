@@ -74,7 +74,8 @@ export type SelectedField = FieldInfo
 // ========== 节点类别枚举 ==========
 export enum NodeCategory {
   DATA_SOURCE = 'data_source',
-  COMPUTE_TASK = 'compute_task'
+  COMPUTE_TASK = 'compute_task',
+  OUTPUT_DATA = 'output_data'
 }
 
 // 计算任务类型枚举
