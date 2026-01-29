@@ -94,6 +94,8 @@ src/
 ## Active Technologies
 - TypeScript 5.9.3, Vue 3.5.24 + @vue-flow/core 1.48.1, Vite 7.2.4, Sass 1.97.2, Playwright 1.57.0 (001-data-asset-select)
 - 内存存储（Map 缓存） + JSON 文件导入导出 (001-data-asset-select)
+- TypeScript 5.9.3 + Vue 3.5.24 + @vue-flow/core 1.48.1, Vite 7.2.4, Monaco Editor (001-dag-task-orchestration)
+- 内存存储（刷新后数据丢失）+ 手动JSON导出 (001-dag-task-orchestration)
 
 ## Recent Changes
 - 001-data-asset-select: Added TypeScript 5.9.3, Vue 3.5.24 + @vue-flow/core 1.48.1, Vite 7.2.4, Sass 1.97.2, Playwright 1.57.0
