@@ -37,14 +37,18 @@
                 </div>
               </div>
 
-              <!-- 表达式编辑器 -->
+              <!-- 表达式编辑器 (T064: 使用 Monaco Editor) -->
               <div class="expression-editor">
-                <textarea
+                <MonacoEditor
                   v-model="expression"
-                  class="expression-textarea"
-                  placeholder="输入 Python 表达式，例如: input1.col_int * input2.col_int"
-                  @input="onExpressionChange"
-                ></textarea>
+                  language="python"
+                  :height="'150px'"
+                  :options="{
+                    placeholder: '输入 Python 表达式，例如: input1.col_int * input2.col_int',
+                    suggestOnTriggerCharacters: true,
+                    quickSuggestions: true
+                  }"
+                />
               </div>
 
               <!-- 表达式预览 -->
@@ -175,6 +179,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import type { EnterpriseOption } from '@/types/contracts'
+import MonacoEditor from './MonacoEditor.vue'
 
 interface ModelParameter {
   name: string
@@ -314,11 +319,6 @@ function initModelParameters() {
     fieldRef: '',
     fixedValue: param.fixedValue || ''
   }))
-}
-
-// 表达式变化
-function onExpressionChange() {
-  // 表达式验证逻辑可以后续添加
 }
 
 // 确认
@@ -556,26 +556,14 @@ watch(() => props.visible, (visible) => {
 
   .expression-editor {
     margin-bottom: 16px;
-  }
 
-  .expression-textarea {
-    width: 100%;
-    min-height: 120px;
-    padding: 12px;
-    font-size: 14px;
-    font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
-    border: 1px solid rgba(0, 0, 0, 0.1);
-    border-radius: 8px;
-    background: white;
-    color: var(--text-primary);
-    resize: vertical;
-    line-height: 1.5;
-    transition: var(--button-transition);
+    :deep(.monaco-editor-container) {
+      border-color: rgba(0, 0, 0, 0.1);
 
-    &:focus {
-      outline: none;
-      border-color: #13C2C2;
-      box-shadow: 0 0 0 2px rgba(19, 194, 194, 0.1);
+      &:focus-within {
+        border-color: #13C2C2;
+        box-shadow: 0 0 0 2px rgba(19, 194, 194, 0.1);
+      }
     }
   }
 

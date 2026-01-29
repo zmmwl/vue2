@@ -305,3 +305,79 @@ export const TECH_PATH_MAPPING: Record<ComputeTaskType, { software: string; tee:
 export function getComputeType(taskType: ComputeTaskType, techPath: 'software' | 'tee'): string {
   return TECH_PATH_MAPPING[taskType]?.[techPath] || taskType
 }
+
+// 计算模型节点模板
+// 符合 FR-018: 支持拖拽计算模型到计算任务节点
+export const MODEL_TEMPLATES: NodeTemplate[] = [
+  {
+    type: 'model',
+    label: 'MPC模型(表达式)',
+    category: NodeCategory.MODEL,
+    modelType: 'expression',
+    icon: '📝',
+    color: '#13C2C2',
+    description: 'Python表达式模型'
+  },
+  {
+    type: 'model',
+    label: 'MPC模型(CodeBin-V2)',
+    category: NodeCategory.MODEL,
+    modelType: 'codebin_v2',
+    icon: '📦',
+    color: '#13C2C2',
+    description: 'CodeBin V2版本'
+  },
+  {
+    type: 'model',
+    label: 'MPC模型(CodeBin-V3-1)',
+    category: NodeCategory.MODEL,
+    modelType: 'codebin_v3_1',
+    icon: '📦',
+    color: '#13C2C2',
+    description: 'CodeBin V3.1版本'
+  },
+  {
+    type: 'model',
+    label: 'MPC模型(CodeBin-V3-2)',
+    category: NodeCategory.MODEL,
+    modelType: 'codebin_v3_2',
+    icon: '📦',
+    color: '#13C2C2',
+    description: 'CodeBin V3.2版本'
+  },
+  {
+    type: 'model',
+    label: 'MPC模型(SPDZ)',
+    category: NodeCategory.MODEL,
+    modelType: 'spdz',
+    icon: '📦',
+    color: '#13C2C2',
+    description: 'SPDZ协议模型'
+  }
+]
+
+// 算力资源节点模板
+export const COMPUTE_RESOURCE_TEMPLATES: NodeTemplate[] = [
+  {
+    type: 'compute_resource',
+    label: 'TEE板卡算力',
+    category: NodeCategory.COMPUTE_RESOURCE,
+    resourceType: 'tee',
+    icon: '🔧',
+    color: '#FA8C16',
+    description: '可信执行环境算力'
+  }
+]
+
+// 本地任务节点模板
+export const LOCAL_TASK_TEMPLATES: NodeTemplate[] = [
+  {
+    type: 'local_task',
+    label: '本地结果处理任务',
+    category: NodeCategory.LOCAL_TASK,
+    localTaskType: 'concat',
+    icon: '🔗',
+    color: '#52C41A',
+    description: 'CONCAT 数据合并'
+  }
+]

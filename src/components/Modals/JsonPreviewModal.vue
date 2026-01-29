@@ -14,9 +14,13 @@
           <!-- 内容区 -->
           <div class="modal-body">
             <div class="json-info">
-              <span class="json-stat">版本: {{ jsonData?.version || '-' }}</span>
-              <span class="json-stat">节点: {{ jsonData?.nodes?.length || 0 }}</span>
-              <span class="json-stat">连线: {{ jsonData?.edges?.length || 0 }}</span>
+              <span
+                v-for="(stat, idx) in jsonStats"
+                :key="idx"
+                class="json-stat"
+              >
+                {{ stat }}
+              </span>
             </div>
             <pre class="json-content">{{ formattedJson }}</pre>
           </div>
@@ -42,11 +46,12 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { ExportedGraph } from '@/utils/exportUtils'
+import type { ExportJson } from '@/types/contracts'
 import { downloadJson } from '@/utils/exportUtils'
 
 interface Props {
   visible: boolean
-  jsonData: ExportedGraph | null
+  jsonData: ExportedGraph | ExportJson | null
 }
 
 interface Emits {
@@ -56,16 +61,48 @@ interface Emits {
 const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 
+// 判断JSON数据类型
+const isExportJson = computed(() => {
+  return props.jsonData && 'jobId' in props.jsonData && 'taskList' in props.jsonData
+})
+
 // 格式化的 JSON
 const formattedJson = computed(() => {
   if (!props.jsonData) return ''
   return JSON.stringify(props.jsonData, null, 2)
 })
 
+// JSON 统计信息
+const jsonStats = computed(() => {
+  if (!props.jsonData) return []
+
+  if (isExportJson.value) {
+    // ExportJson 格式的统计
+    const data = props.jsonData as ExportJson
+    return [
+      `作业ID: ${data.jobId.slice(-12)}`,
+      `任务: ${data.taskList.length}`,
+      `参与方: ${data.participantList.length}`,
+      `资产: ${data.assetDetailList.length}`
+    ]
+  } else {
+    // ExportedGraph 格式的统计
+    const data = props.jsonData as ExportedGraph
+    return [
+      `版本: ${data.version || '-'}`,
+      `节点: ${data.nodes?.length || 0}`,
+      `连线: ${data.edges?.length || 0}`
+    ]
+  }
+})
+
 // 下载 JSON
 function onDownload() {
   if (formattedJson.value) {
-    downloadJson(formattedJson.value)
+    const filename = isExportJson.value
+      ? `privacy-job-${(props.jsonData as ExportJson).jobId}.json`
+      : undefined
+    downloadJson(formattedJson.value, filename)
   }
 }
 

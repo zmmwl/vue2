@@ -25,6 +25,31 @@
       </div>
     </div>
 
+    <!-- 计算模型部分 -->
+    <div class="sidebar-section">
+      <div class="section-title">计算模型</div>
+      <div class="node-palette">
+        <div
+          v-for="template in MODEL_TEMPLATES"
+          :key="template.label"
+          class="palette-node"
+          draggable="true"
+          :data-testid="`palette-node-${template.label.replace(/\s+/g, '-').toLowerCase()}`"
+          @dragstart="onDragStart($event, template)"
+        >
+          <div class="palette-node-icon" :style="{ color: template.color }">
+            {{ template.icon }}
+          </div>
+          <div class="palette-node-content">
+            <div class="palette-node-label">{{ template.label }}</div>
+            <div v-if="template.description" class="palette-node-desc">
+              {{ template.description }}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- 计算任务部分 -->
     <div class="sidebar-section">
       <div class="section-title">计算任务</div>
@@ -53,7 +78,7 @@
 </template>
 
 <script setup lang="ts">
-import { DATA_SOURCE_TEMPLATES, COMPUTE_TASK_TEMPLATES } from '@/utils/node-templates'
+import { DATA_SOURCE_TEMPLATES, COMPUTE_TASK_TEMPLATES, MODEL_TEMPLATES } from '@/utils/node-templates'
 import type { NodeTemplate } from '@/types/nodes'
 
 /**

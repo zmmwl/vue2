@@ -2,15 +2,26 @@
   <div class="flow-detail-panel" data-testid="flow-detail-panel">
     <!-- 头部 -->
     <div class="detail-header">
-      <h3 class="detail-title">节点详情</h3>
-      <button
-        v-if="selectedNode && isConfigured"
-        class="edit-button"
-        @click="handleEdit"
-        aria-label="编辑配置"
-      >
-        重新配置
-      </button>
+      <div class="header-left">
+        <h3 class="detail-title">{{ viewMode === 'detail' ? '节点详情' : 'JSON预览' }}</h3>
+      </div>
+      <div class="header-right">
+        <button
+          v-if="viewMode === 'detail' && selectedNode && isConfigured"
+          class="edit-button"
+          @click="handleEdit"
+          aria-label="编辑配置"
+        >
+          重新配置
+        </button>
+        <button
+          class="view-toggle-button"
+          @click="toggleViewMode"
+          :aria-label="viewMode === 'detail' ? '切换到JSON预览' : '切换到节点详情'"
+        >
+          {{ viewMode === 'detail' ? '📄 JSON预览' : '📋 节点详情' }}
+        </button>
+      </div>
     </div>
 
     <!-- 内容区域 -->
@@ -22,12 +33,20 @@
       </div>
 
       <!-- 未配置节点 -->
-      <div v-else-if="!isConfigured" class="empty-state">
+      <div v-else-if="!isConfigured && viewMode === 'detail'" class="empty-state">
         <div class="empty-icon">⚠️</div>
         <p>该节点尚未配置数据资产</p>
         <button class="btn btn-primary" @click="handleEdit">
           立即配置
         </button>
+      </div>
+
+      <!-- JSON 预览模式 -->
+      <div v-else-if="viewMode === 'preview'" class="json-preview-container">
+        <div class="json-preview-info">
+          <span class="json-preview-note">💡 显示整个DAG图的导出JSON格式</span>
+        </div>
+        <pre class="json-preview-content">{{ JSON.stringify({ message: '请使用顶部导出按钮查看完整JSON' }, null, 2) }}</pre>
       </div>
 
       <!-- 已配置节点 - 显示详情 -->
@@ -428,7 +447,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, watch } from 'vue'
+import { computed, watch, ref } from 'vue'
 import type { Node } from '@vue-flow/core'
 import type { NodeData } from '@/types/nodes'
 import type { InputProvider, JoinCondition } from '@/types/contracts'
@@ -446,8 +465,11 @@ interface Emits {
 const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 
-// Get edges to find connected resource nodes
+// Get edges and nodes to find connected resource nodes
 const { edges, findNode } = useVueFlow()
+
+// 视图模式状态（详情 vs JSON预览）
+const viewMode = ref<'detail' | 'preview'>('detail')
 
 // 判断节点是否已配置
 const isConfigured = computed(() => {
@@ -576,6 +598,12 @@ function handleEdit() {
   emit('edit', props.selectedNode.id)
 }
 
+// 切换视图模式
+function toggleViewMode() {
+  viewMode.value = viewMode.value === 'detail' ? 'preview' : 'detail'
+  logger.info('[FlowDetailPanel] View mode changed', { mode: viewMode.value })
+}
+
 // 监听选中节点变化
 watch(() => props.selectedNode, (node) => {
   if (node) {
@@ -668,6 +696,40 @@ watch(() => props.selectedNode, (node) => {
   &:hover {
     background: linear-gradient(135deg, #0284C7, #0369A1);
     box-shadow: 0 4px 12px rgba(14, 165, 233, 0.35);
+    transform: translateY(-1px);
+  }
+
+  &:active {
+    transform: translateY(0) scale(0.98);
+  }
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.view-toggle-button {
+  padding: 8px 14px;
+  border-radius: var(--button-sm-radius);
+  font-size: 13px;
+  font-weight: 500;
+  background: white;
+  color: var(--text-secondary);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  transition: var(--button-transition);
+
+  &:hover {
+    background: rgba(14, 165, 233, 0.08);
+    border-color: var(--datasource-blue);
+    color: var(--datasource-blue);
     transform: translateY(-1px);
   }
 
@@ -1505,6 +1567,61 @@ watch(() => props.selectedNode, (node) => {
 
   p {
     margin: 0;
+  }
+}
+
+// ========== JSON 预览样式 ==========
+
+.json-preview-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.json-preview-info {
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  background: rgba(14, 165, 233, 0.08);
+  border: 1px solid rgba(14, 165, 233, 0.2);
+  border-radius: 8px;
+}
+
+.json-preview-note {
+  font-size: 13px;
+  color: var(--datasource-blue);
+  font-weight: 500;
+}
+
+.json-preview-content {
+  flex: 1;
+  margin: 0;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.03);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 8px;
+  font-size: 12px;
+  font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+  color: var(--text-primary);
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+
+  &::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.15);
+    border-radius: 4px;
+
+    &:hover {
+      background: rgba(0, 0, 0, 0.25);
+    }
   }
 }
 </style>

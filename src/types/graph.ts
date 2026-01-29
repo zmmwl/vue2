@@ -13,6 +13,9 @@ export interface DroppedNodeData {
   category: NodeCategory
   taskType?: string
   sourceType?: string
+  modelType?: string  // 模型类型（用于计算模型节点）
+  resourceType?: string  // 资源类型（用于算力资源节点）
+  localTaskType?: string  // 本地任务类型
   icon: string
   color: string
   description?: string

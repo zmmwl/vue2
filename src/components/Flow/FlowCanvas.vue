@@ -62,7 +62,7 @@
     <!-- 模型配置对话框 (T039-T041) -->
     <ModelSelector
       v-model:visible="showModelDialog"
-      modelType="expression"
+      :model-type="pendingModelType"
       :available-variables="getAvailableVariables()"
       @confirm="handleModelConfigConfirm"
       @cancel="handleModelConfigCancel"
@@ -112,7 +112,8 @@ import JsonPreviewModal from '@/components/Modals/JsonPreviewModal.vue'
 import { createUniqueEdge } from '@/utils/edge-utils'
 import { getComputeType } from '@/utils/node-templates'
 import { logger } from '@/utils/logger'
-import { exportGraph, importGraph, restoreNodes } from '@/utils/exportUtils'
+import { importGraph, restoreNodes, downloadJson } from '@/utils/exportUtils'
+import { convertDagToJson, validateExportConfig } from '@/utils/dag-export'
 import { assetCache } from '@/services/assetCache'
 
 interface Emits {
@@ -175,6 +176,7 @@ const recommendedEnterprises = ref<any[]>([])
 
 // 模型配置对话框状态 (T039-T041)
 const showModelDialog = ref(false)
+const pendingModelType = ref<string>('expression')  // 待配置的模型类型
 const pendingModelTaskNodeId = ref<string>()  // 待配置模型的计算任务节点 ID
 const pendingModelPosition = ref<{ x: number; y: number } | null>(null)  // 模型节点位置
 
@@ -574,9 +576,52 @@ const onNodesChange = (changes: NodeChange[]) => {
 
 /**
  * 处理连接线变化（删除等）
+ * T062: 删除模型连线时，清理计算任务节点中的模型配置
  */
-const onEdgesChange = (_changes: EdgeChange[]) => {
-  // 固定 handle 系统不需要在删除 edge 时做额外处理
+const onEdgesChange = (changes: EdgeChange[]) => {
+  for (const change of changes) {
+    if (change.type === 'remove' && change.id) {
+      const removedEdge = edges.value.find(e => e.id === change.id)
+
+      if (removedEdge) {
+        const sourceNodeType = nodes.value.find(n => n.id === removedEdge.source)?.type
+
+        // T062: 如果删除的是模型连线，清理目标计算任务节点中的模型配置
+        if (sourceNodeType === 'model' && removedEdge.targetHandle === 'model-input') {
+          const targetNode = nodes.value.find(n => n.id === removedEdge.target)
+          if (targetNode) {
+            const targetData = targetNode.data as any
+            if (targetData.models && Array.isArray(targetData.models)) {
+              // 移除与该模型连线相关的配置
+              targetData.models = targetData.models.filter((m: any) => m.sourceNodeId !== removedEdge.source)
+              logger.info('[FlowCanvas] Model edge removed, cleaned up model config', {
+                edgeId: change.id,
+                sourceNodeId: removedEdge.source,
+                targetNodeId: removedEdge.target
+              })
+            }
+          }
+        }
+
+        // T062: 如果删除的是算力资源连线，清理目标计算任务节点中的算力配置
+        if (sourceNodeType === 'compute_resource' && removedEdge.targetHandle === 'resource-input') {
+          const targetNode = nodes.value.find(n => n.id === removedEdge.target)
+          if (targetNode) {
+            const targetData = targetNode.data as any
+            if (targetData.computeProviders && Array.isArray(targetData.computeProviders)) {
+              // 移除与该算力资源连线相关的配置
+              targetData.computeProviders = targetData.computeProviders.filter((p: any) => p.sourceNodeId !== removedEdge.source)
+              logger.info('[FlowCanvas] Resource edge removed, cleaned up resource config', {
+                edgeId: change.id,
+                sourceNodeId: removedEdge.source,
+                targetNodeId: removedEdge.target
+              })
+            }
+          }
+        }
+      }
+    }
+  }
 }
 
 /**
@@ -591,6 +636,8 @@ const onDragOver = (event: DragEvent) => {
 
 /**
  * 处理拖放事件 - 放置节点
+ * T012: 计算任务节点弹出技术路径选择对话框
+ * T061: 模型节点需要检测是否拖拽到计算任务节点上
  */
 const onDrop = (event: DragEvent) => {
   const rawData = event.dataTransfer?.getData('application/vueflow')
@@ -639,11 +686,66 @@ const onDrop = (event: DragEvent) => {
       return
     }
 
+    // T061: 模型节点拖拽处理 - 检测是否拖拽到计算任务节点上
+    if (data.type === 'model') {
+      const projected = project({
+        x: event.offsetX,
+        y: event.offsetY
+      })
+
+      // 查找拖拽位置下方的节点
+      const targetNode = findNodeAtPosition(projected.x, projected.y)
+
+      if (targetNode && targetNode.type === 'compute_task') {
+        // 拖拽到计算任务节点上，打开模型配置对话框
+        pendingModelPosition.value = {
+          x: targetNode.position.x - 150,
+          y: targetNode.position.y
+        }
+        pendingModelTaskNodeId.value = targetNode.id
+        pendingModelType.value = data.modelType || 'expression'
+
+        showModelDialog.value = true
+
+        logger.info('[FlowCanvas] Model dragged to compute task, opening config dialog', {
+          taskNodeId: targetNode.id,
+          modelType: data.modelType
+        })
+      } else {
+        // 没有拖拽到计算任务节点上，直接创建模型节点
+        createNode(data, event)
+      }
+      return
+    }
+
     // 其他节点直接创建
     createNode(data, event)
   } catch (error) {
     logger.error('[FlowCanvas] Failed to parse dropped data', error)
   }
+}
+
+/**
+ * 查找指定位置下的节点
+ * 用于检测拖拽释放位置是否有节点
+ */
+function findNodeAtPosition(x: number, y: number): Node | null {
+  const threshold = 50 // 节点中心点的阈值距离
+
+  for (const node of nodes.value) {
+    const nodeCenterX = node.position.x + 100 // 假设节点宽度约200
+    const nodeCenterY = node.position.y + 30 // 假设节点高度约60
+
+    const distance = Math.sqrt(
+      Math.pow(x - nodeCenterX, 2) + Math.pow(y - nodeCenterY, 2)
+    )
+
+    if (distance < threshold) {
+      return node
+    }
+  }
+
+  return null
 }
 
 /**
@@ -1361,17 +1463,68 @@ function openEditDialog(nodeId: string) {
 
 /**
  * 导出任务图 (T063-T065)
+ * 支持两种导出格式：
+ * 1. 图结构格式（用于保存和加载）
+ * 2. 标准JSON格式（用于提交到后端服务）
  */
 function handleExport() {
   try {
-    const json = exportGraph(nodes.value, edges.value)
-    // 解析 JSON 用于预览
-    previewJsonData.value = JSON.parse(json)
+    // 验证配置
+    const validation = validateExportConfig(nodes.value, edges.value)
+
+    if (!validation.valid) {
+      logger.error('[FlowCanvas] Export validation failed', {
+        errors: validation.errors,
+        warnings: validation.warnings
+      })
+      // TODO: 显示错误提示给用户
+      alert(`导出验证失败：\n${validation.errors.join('\n')}`)
+      return
+    }
+
+    if (validation.warnings.length > 0) {
+      logger.warn('[FlowCanvas] Export warnings', { warnings: validation.warnings })
+    }
+
+    // 转换为标准JSON格式
+    const exportJson = convertDagToJson(nodes.value, edges.value)
+
+    // 设置预览数据
+    previewJsonData.value = exportJson
     showJsonPreview.value = true
-    logger.info('[FlowCanvas] JSON preview opened')
+
+    logger.info('[FlowCanvas] Export successful', {
+      jobId: exportJson.jobId,
+      taskCount: exportJson.taskList.length
+    })
   } catch (error) {
     logger.error('[FlowCanvas] Export failed', error)
-    // TODO: 显示错误提示
+    alert(`导出失败：${error instanceof Error ? error.message : '未知错误'}`)
+  }
+}
+
+/**
+ * 下载导出的JSON文件
+ */
+function downloadExportJson() {
+  try {
+    const validation = validateExportConfig(nodes.value, edges.value)
+
+    if (!validation.valid) {
+      alert(`配置验证失败，请修复以下问题：\n${validation.errors.join('\n')}`)
+      return
+    }
+
+    const exportJson = convertDagToJson(nodes.value, edges.value)
+    const json = JSON.stringify(exportJson, null, 2)
+    const filename = `privacy-job-${exportJson.jobId}.json`
+
+    downloadJson(json, filename)
+
+    logger.info('[FlowCanvas] JSON downloaded', { filename })
+  } catch (error) {
+    logger.error('[FlowCanvas] Download failed', error)
+    alert(`下载失败：${error instanceof Error ? error.message : '未知错误'}`)
   }
 }
 
@@ -1404,6 +1557,7 @@ async function handleImport(file: File) {
 defineExpose({
   openEditDialog,
   handleExport,
+  downloadExportJson,
   handleImport
 })
 </script>

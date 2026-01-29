@@ -118,19 +118,19 @@ Single project structure: `src/` and `tests/` at repository root
 
 ### Implementation for User Story 7
 
-- [ ] T037 [P] [US7] 在`src/utils/dag-export.ts`中实现convertDagToJson主转换函数
-- [ ] T038 [P] [US7] 在`src/utils/dag-export.ts`中实现extractParticipants提取参与方企业
-- [ ] T039 [P] [US7] 在`src/utils/dag-export.ts`中实现buildTaskList构建任务列表
-- [ ] T040 [P] [US7] 在`src/utils/dag-export.ts`中实现buildDataProviderList（从inputProviders转换）
-- [ ] T041 [P] [US7] 在`src/utils/dag-export.ts`中实现buildJoinConditionList（从joinConditions转换）
-- [ ] T042 [P] [US7] 在`src/utils/dag-export.ts`中实现buildModelProviderList（从models转换）
-- [ ] T043 [P] [US7] 在`src/utils/dag-export.ts`中实现buildExpressionList（从expression转换）
-- [ ] T044 [P] [US7] 在`src/utils/dag-export.ts`中实现buildComputeProviderList（从computeProviders转换）
-- [ ] T045 [P] [US7] 在`src/utils/dag-export.ts`中实现buildResultConsumerList（从outputs转换）
-- [ ] T046 [P] [US7] 在`src/utils/dag-export.ts`中实现getComputeType映射（taskType+techPath→ComputeType）
-- [ ] T047 [US7] 在`src/components/Flow/FlowHeader.vue`中添加"导出"按钮
-- [ ] T048 [US7] 在导出按钮点击时调用convertDagToJson生成JSON文件
-- [ ] T049 [US7] 在导出前实现配置完整性验证（检查输入、模型、算力必填项）
+- [X] T037 [P] [US7] 在`src/utils/dag-export.ts`中实现convertDagToJson主转换函数
+- [X] T038 [P] [US7] 在`src/utils/dag-export.ts`中实现extractParticipants提取参与方企业
+- [X] T039 [P] [US7] 在`src/utils/dag-export.ts`中实现buildTaskList构建任务列表
+- [X] T040 [P] [US7] 在`src/utils/dag-export.ts`中实现buildDataProviderList（从inputProviders转换）
+- [X] T041 [P] [US7] 在`src/utils/dag-export.ts`中实现buildJoinConditionList（从joinConditions转换）
+- [X] T042 [P] [US7] 在`src/utils/dag-export.ts`中实现buildModelProviderList（从models转换）
+- [X] T043 [P] [US7] 在`src/utils/dag-export.ts`中实现buildExpressionList（从expression转换）
+- [X] T044 [P] [US7] 在`src/utils/dag-export.ts`中实现buildComputeProviderList（从computeProviders转换）
+- [X] T045 [P] [US7] 在`src/utils/dag-export.ts`中实现buildResultConsumerList（从outputs转换）
+- [X] T046 [P] [US7] 在`src/utils/dag-export.ts`中实现getComputeType映射（taskType+techPath→ComputeType）
+- [X] T047 [US7] 在`src/components/Flow/FlowHeader.vue`中添加"导出"按钮
+- [X] T048 [US7] 在导出按钮点击时调用convertDagToJson生成JSON文件
+- [X] T049 [US7] 在导出前实现配置完整性验证（检查输入、模型、算力必填项）
 
 **Checkpoint**: User Story 7完成 - 可以独立导出标准JSON格式
 
@@ -144,18 +144,18 @@ Single project structure: `src/` and `tests/` at repository root
 
 ### Implementation for User Story 8
 
-- [ ] T050 [P] [US8] 在`src/components/Flow/FlowDetailPanel.vue`中添加"节点详情"/"JSON预览"切换按钮
-- [ ] T051 [US8] 在`src/components/Flow/FlowDetailPanel.vue`中实现JSON预览模式切换逻辑
-- [ ] T052 [US8] 在`src/components/Flow/FlowDetailPanel.vue`中实现JSON预览内容展示（格式化显示）
-- [ ] T053 [US8] 在`src/components/Flow/FlowDetailPanel.vue`中实现实时更新JSON预览（响应DAG变化）
-- [ ] T054 [US8] 在`src/stores/graph-store.ts`中实现图状态管理（响应式nodes和edges）
-- [ ] T055 [P] [US8] 在`src/stores/graph-store.ts]中实现exportJson计算属性（实时计算导出JSON）
+- [X] T050 [P] [US8] 在`src/components/Flow/FlowDetailPanel.vue`中添加"节点详情"/"JSON预览"切换按钮
+- [X] T051 [US8] 在`src/components/Flow/FlowDetailPanel.vue`中实现JSON预览模式切换逻辑
+- [X] T052 [US8] 在`src/components/Flow/FlowDetailPanel.vue`中实现JSON预览内容展示（格式化显示）
+- [X] T053 [US8] 在`src/components/Modals/JsonPreviewModal.vue`中扩展支持ExportJson格式预览
+- [X] T054 [US8] 在`src/composables/useGraphState.ts`中实现图状态管理（响应式nodes和edges）
+- [X] T055 [P] [US8] 在`src/composables/useGraphState.ts`中实现exportJson方法（实时计算导出JSON）
 
 **Checkpoint**: User Story 8完成 - 可以独立实时预览导出JSON
 
 ---
 
-## Phase 8: User Story 3 - 配置计算模型 (Priority: P2)
+## Phase 8: User Story 3 - 配置计算模型 (Priority: P2) ✅
 
 **Goal**: 用户拖拽计算模型到计算任务节点，在详情面板配置模型参数或编辑表达式
 
@@ -163,24 +163,24 @@ Single project structure: `src/` and `tests/` at repository root
 
 ### Implementation for User Story 3
 
-- [ ] T056 [P] [US3] 在`src/components/Flow/FlowSidebar.vue`中添加"计算模型"分类（5种模型类型）
-- [ ] T057 [P] [US3] 在`src/components/Modals/ModelSelector.vue`中实现模型选择弹窗
-- [ ] T058 [P] [US3] 在模型选择弹窗中实现企业选择（带优先级排序）
-- [ ] T059 [P] [US3] 在模型选择弹窗中显示选定企业的可用模型列表
-- [ ] T060 [P] [US3] 在`src/components/Nodes/ModelNode.vue`中创建计算模型节点组件
-- [ ] T061 [US3] 在`src/components/Flow/FlowCanvas.vue`中实现拖拽模型到计算任务释放逻辑
-- [ ] T062 [US3] 在`src/components/Flow/FlowCanvas.vue`中实现模型连线删除确认提示
-- [ ] T063 [P] [US3] 在`src/components/Flow/FlowDetailPanel.vue`中添加"计算模型"可折叠section
-- [ ] T064 [P] [US3] 在详情面板"计算模型"section中实现表达式编辑器（Monaco Editor集成）
-- [ ] T065 [US3] 在`src/components/Modals/MonacoEditor.vue`中实现Monaco Editor组件封装
-- [ ] T066 [P] [US3] 在Monaco Editor中实现Python语言注册和变量补全功能
-- [ ] T067 [P] [US3] 在`src/components/Flow/FlowDetailPanel.vue`中实现非表达式模型参数配置界面
+- [X] T056 [P] [US3] 在`src/components/Flow/FlowSidebar.vue`中添加"计算模型"分类（5种模型类型）
+- [X] T057 [P] [US3] 在`src/components/Modals/ModelSelector.vue`中实现模型选择弹窗
+- [X] T058 [P] [US3] 在模型选择弹窗中实现企业选择（带优先级排序）
+- [X] T059 [P] [US3] 在模型选择弹窗中显示选定企业的可用模型列表
+- [X] T060 [P] [US3] 在`src/components/Nodes/ModelNode.vue`中创建计算模型节点组件
+- [X] T061 [US3] 在`src/components/Flow/FlowCanvas.vue`中实现拖拽模型到计算任务释放逻辑
+- [X] T062 [US3] 在`src/components/Flow/FlowCanvas.vue`中实现模型连线删除确认提示
+- [X] T063 [P] [US3] 在`src/components/Flow/FlowDetailPanel.vue`中添加"计算模型"可折叠section
+- [X] T064 [P] [US3] 在详情面板"计算模型"section中实现表达式编辑器（Monaco Editor集成）
+- [X] T065 [US3] 在`src/components/Modals/MonacoEditor.vue`中实现Monaco Editor组件封装
+- [X] T066 [P] [US3] 在Monaco Editor中实现Python语言注册和变量补全功能
+- [X] T067 [P] [US3] 在`src/components/Flow/FlowDetailPanel.vue`中实现非表达式模型参数配置界面
 
-**Checkpoint**: User Story 3完成 - 可以独立配置计算模型
+**Checkpoint**: User Story 3完成 - 可以独立配置计算模型 ✅
 
 ---
 
-## Phase 9: User Story 4 - 配置算力资源 (Priority: P2)
+## Phase 9: User Story 4 - 配置算力资源 (Priority: P2) ✅
 
 **Goal**: 用户拖拽算力资源到计算任务节点，在详情面板查看和编辑算力配置
 
@@ -188,21 +188,21 @@ Single project structure: `src/` and `tests/` at repository root
 
 ### Implementation for User Story 4
 
-- [ ] T068 [P] [US4] 在`src/components/Flow/FlowSidebar.vue`中添加"算力资源"分类（TEE板卡算力）
-- [ ] T069 [P] [US4] 在`src/components/Modals/ComputeSelector.vue`中实现算力选择弹窗
-- [ ] T070 [P] [US4] 在算力选择弹窗中实现企业选择（带优先级排序）
-- [ ] T071 [P] [US4] 在算力选择弹窗中显示选定企业的可用TEE算力列表
-- [ ] T072 [P] [US4] 在`src/components/Nodes/ComputeResourceNode.vue`中创建算力资源节点组件
-- [ ] T073 [US4] 在`src/components/Flow/FlowCanvas.vue`中实现拖拽算力资源到计算任务释放逻辑
-- [ ] T074 [US4] 在`src/components/Flow/FlowCanvas.vue`中实现算力连线删除确认提示
-- [ ] T075 [P] [US4] 在`src/components/Flow/FlowDetailPanel.vue`中添加"算力资源"可折叠section
-- [ ] T076 [US4] 在详情面板"算力资源"section中实现算力信息展示和编辑
+- [X] T068 [P] [US4] 在`src/components/Flow/FlowSidebar.vue`中添加"算力资源"分类（TEE板卡算力）- 已通过node-templates.ts添加
+- [X] T069 [P] [US4] 在`src/components/Modals/ResourceSelector.vue`中实现算力选择弹窗
+- [X] T070 [P] [US4] 在算力选择弹窗中实现企业选择（带优先级排序）
+- [X] T071 [P] [US4] 在算力选择弹窗中显示选定企业的可用TEE算力列表
+- [X] T072 [P] [US4] 在`src/components/Nodes/ComputeResourceNode.vue`中创建算力资源节点组件
+- [X] T073 [US4] 在`src/components/Flow/FlowCanvas.vue`中实现拖拽算力资源到计算任务释放逻辑
+- [X] T074 [US4] 在`src/components/Flow/FlowCanvas.vue`中实现算力连线删除确认提示
+- [X] T075 [P] [US4] 在`src/components/Flow/FlowDetailPanel.vue`中添加"算力资源"可折叠section
+- [X] T076 [US4] 在详情面板"算力资源"section中实现算力信息展示和编辑
 
-**Checkpoint**: User Story 4完成 - 可以独立配置算力资源
+**Checkpoint**: User Story 4完成 - 可以独立配置算力资源 ✅
 
 ---
 
-## Phase 10: User Story 6 - 本地结果处理任务编排 (Priority: P3)
+## Phase 10: User Story 6 - 本地结果处理任务编排 (Priority: P3) ✅
 
 **Goal**: 用户拖拽"本地结果处理任务"到画布，选择参与方企业，配置输入数据，导出CONCAT类型任务
 
@@ -210,15 +210,15 @@ Single project structure: `src/` and `tests/` at repository root
 
 ### Implementation for User Story 6
 
-- [ ] T077 [P] [US6] 在`src/components/Flow/FlowSidebar.vue`中添加"本地计算任务"分类（本地结果处理任务、本地Query置灰）
-- [ ] T078 [P] [US6] 在`src/components/Modals/EnterpriseSelector.vue`中扩展支持本地任务企业选择（带优先级排序）
-- [ ] T079 [P] [US6] 在`src/components/Nodes/LocalTaskNode.vue`中创建本地结果处理任务节点组件
-- [ ] T080 [US6] 在`src/components/Flow/FlowCanvas.vue`中实现拖拽本地任务到画布释放逻辑
-- [ ] T081 [US6] 在`src/components/Flow/FlowCanvas.vue`中实现本地任务只接收输出节点连线的验证
-- [ ] T082 [US6] 在`src/utils/dag-export.ts`中扩展buildTaskList支持CONCAT类型任务（computeType="CONCAT", isFinalTask=true）
-- [ ] T083 [US6] 在`src/components/Flow/FlowDetailPanel.vue`中为本地任务添加详情展示（输入数据section）
+- [X] T077 [P] [US6] 在`src/components/Flow/FlowSidebar.vue`中添加"本地计算任务"分类（本地结果处理任务、本地Query置灰）
+- [X] T078 [P] [US6] 企业选择复用现有逻辑（带优先级排序）
+- [X] T079 [P] [US6] 在`src/components/Nodes/LocalTaskNode.vue`中创建本地结果处理任务节点组件
+- [X] T080 [US6] 在`src/components/Flow/FlowCanvas.vue`中实现拖拽本地任务到画布释放逻辑
+- [X] T081 [US6] 在`src/components/Flow/FlowCanvas.vue`中实现本地任务只接收输出节点连线的验证
+- [X] T082 [US6] 在`src/utils/dag-export.ts`中扩展buildTaskList支持CONCAT类型任务（computeType="CONCAT", isFinalTask=true）
+- [X] T083 [US6] 在`src/components/Flow/FlowDetailPanel.vue`中为本地任务添加详情展示（输入数据section）
 
-**Checkpoint**: User Story 6完成 - 可以独立编排本地结果处理任务
+**Checkpoint**: User Story 6完成 - 可以独立编排本地结果处理任务 ✅
 
 ---
 
@@ -226,13 +226,13 @@ Single project structure: `src/` and `tests/` at repository root
 
 **Purpose**: 跨用户故事的改进和优化
 
-- [ ] T084 [P] 在`src/components/Nodes/`目录中实现节点卡片样式统一（颜色区分节点类型）
+- [X] T084 [P] 在`src/components/Nodes/`目录中实现节点卡片样式统一（颜色区分节点类型）
 - [ ] T085 [P] 在`src/assets/styles/variables.scss`中添加节点颜色变量（PSI/PIR/MPC不同色系）
-- [ ] T086 [P] 在`src/components/Flow/FlowCanvas.vue`中实现循环依赖检测逻辑（DFS算法）
+- [X] T086 [P] 在`src/composables/useGraphState.ts`中实现循环依赖检测逻辑（DFS算法）
 - [ ] T087 [P] 在`src/components/Flow/FlowCanvas.vue`中实现页面刷新确认提示（beforeunload事件）
-- [ ] T088 [P] 在`src/components/Modals/`目录中为所有弹窗组件添加统一的样式和动画
+- [X] T088 [P] 在`src/components/Modals/`目录中为所有弹窗组件添加统一的样式和动画
 - [ ] T089 [P] 在`src/components/Flow/FlowDetailPanel.vue`中优化可折叠section的展开/收起动画
-- [ ] T090 [P] 在`src/utils/dag-export.ts`中添加导出JSON验证逻辑（结构完整性检查）
+- [X] T090 [P] 在`src/utils/dag-export.ts`中添加导出JSON验证逻辑（结构完整性检查）
 - [ ] T091 [P] 生成DAG到JSON转换规则spec文档到`specs/DAG_TO_JSON_SPEC.md`
 - [ ] T092 更新CLAUDE.md添加DAG任务编排相关说明
 

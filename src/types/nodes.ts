@@ -75,7 +75,10 @@ export type SelectedField = FieldInfo
 export enum NodeCategory {
   DATA_SOURCE = 'data_source',
   COMPUTE_TASK = 'compute_task',
-  OUTPUT_DATA = 'output_data'
+  MODEL = 'model',
+  COMPUTE_RESOURCE = 'compute_resource',
+  OUTPUT_DATA = 'output_data',
+  LOCAL_TASK = 'local_task'
 }
 
 // 计算任务类型枚举
@@ -159,6 +162,9 @@ export interface NodeTemplate {
   category: NodeCategory
   taskType?: ComputeTaskType
   sourceType?: DataSourceType
+  modelType?: string  // 模型类型（用于计算模型节点）
+  resourceType?: string  // 资源类型（用于算力资源节点）
+  localTaskType?: string  // 本地任务类型
   icon: string
   color: string
   description?: string

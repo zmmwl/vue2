@@ -12,6 +12,8 @@ import type {
   ValidationResult
 } from '@/types/contracts'
 import type { ExportJson } from '@/types/contracts'
+import { convertDagToJson, validateExportConfig } from '@/utils/dag-export'
+import { logger } from '@/utils/logger'
 
 /**
  * 图状态接口
@@ -216,13 +218,45 @@ export function useGraphState() {
   // ============ 导出操作 ============
 
   /**
-   * 导出为 JSON
-   * TODO: 实现完整的转换逻辑（Phase 6）
+   * 导出为标准JSON格式
    */
   const exportJson = (): ExportJson | null => {
-    // 暂时返回 null，完整实现在后续阶段
-    console.warn('exportJson 尚未实现，将在 Phase 6 完成')
-    return null
+    try {
+      const nodes = nodesArray.value
+      const edges = edgesArray.value
+
+      // 验证配置完整性
+      const validation = validateExportConfig(nodes, edges)
+
+      if (!validation.valid) {
+        logger.error('[useGraphState] Export validation failed', {
+          errors: validation.errors,
+          warnings: validation.warnings
+        })
+        // 即使有错误也尝试导出，但记录警告
+        if (validation.warnings.length > 0) {
+          logger.warn('[useGraphState] Export warnings', { warnings: validation.warnings })
+        }
+      } else if (validation.warnings.length > 0) {
+        logger.warn('[useGraphState] Export warnings', { warnings: validation.warnings })
+      }
+
+      // 执行转换
+      const result = convertDagToJson(nodes, edges)
+      return result
+    } catch (error) {
+      logger.error('[useGraphState] Export failed', error)
+      return null
+    }
+  }
+
+  /**
+   * 验证导出配置
+   */
+  const validateExport = () => {
+    const nodes = nodesArray.value
+    const edges = edgesArray.value
+    return validateExportConfig(nodes, edges)
   }
 
   // ============ 计算属性 ============
@@ -304,6 +338,7 @@ export function useGraphState() {
     setSelectedNode,
     setDetailViewMode,
     exportJson,
+    validateExport,
     validateTaskConfig
   }
 }
