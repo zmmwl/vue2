@@ -241,7 +241,7 @@ function checkAliasConflicts() {
   fieldConfigs.value.forEach(f => {
     if (!f.selected) return
 
-    const alias = f.columnAlias.trim() || f.columnName
+    const alias = (f.columnAlias?.trim() || f.columnName)
     if (!aliasMap.has(alias)) {
       aliasMap.set(alias, [])
     }

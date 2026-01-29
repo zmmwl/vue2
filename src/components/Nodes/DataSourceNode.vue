@@ -156,7 +156,7 @@ const isOutputVisible = computed(() => {
     border: 2px solid #ffffff;
     border-radius: 50%;
     transform: translateX(-50%);
-    opacity: 0;
+    opacity: 0.15;  // 改为 0.15 使 handle 始终可以接收事件
     transition: opacity 0.2s ease;
 
     &.is-visible {

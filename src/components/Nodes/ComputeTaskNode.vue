@@ -231,7 +231,7 @@ function onAddResource() {
     border-radius: 2px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
     transform: translateX(-50%);
-    opacity: 0;
+    opacity: 0.15;  // 改为 0.15 使 handle 始终可以接收事件
     transition: opacity 0.2s ease;
 
     &.is-visible {
@@ -254,7 +254,7 @@ function onAddResource() {
     border-radius: 2px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
     transform: translateY(-50%);
-    opacity: 0;
+    opacity: 0.15;  // 改为 0.15 使 handle 始终可以接收事件
     transition: opacity 0.2s ease;
 
     &.is-visible {
@@ -277,7 +277,7 @@ function onAddResource() {
     border-radius: 2px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
     transform: translateY(-50%) rotate(45deg);
-    opacity: 0;
+    opacity: 0.15;  // 改为 0.15 使 handle 始终可以接收事件
     transition: opacity 0.2s ease;
 
     &.is-visible {
@@ -299,7 +299,7 @@ function onAddResource() {
     border: 2px solid #ffffff;
     border-radius: 50%;
     transform: translateX(-50%);
-    opacity: 0;
+    opacity: 0.15;  // 改为 0.15 使 handle 始终可以接收事件
     transition: opacity 0.2s ease;
 
     &.is-visible {

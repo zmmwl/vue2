@@ -201,8 +201,26 @@ const isValidConnection = (
   connection: Connection,
   { sourceNode, targetNode }: { sourceNode: GraphNode; targetNode: GraphNode }
 ): boolean => {
+  // 检查节点是否存在（拖动过程中可能还未找到目标节点）
+  if (!sourceNode || !targetNode) {
+    return false
+  }
+
+  // 调试日志
+  console.log('[isValidConnection] 验证连接:', {
+    source: connection.source,
+    target: connection.target,
+    sourceHandle: connection.sourceHandle,
+    targetHandle: connection.targetHandle,
+    sourceNodeType: sourceNode.type,
+    targetNodeType: targetNode.type,
+    sourceCategory: (sourceNode.data as NodeData)?.category,
+    targetCategory: (targetNode.data as NodeData)?.category
+  })
+
   // 不允许连接到同一个节点
   if (connection.source === connection.target) {
+    console.warn('[isValidConnection] 拒绝：自连接')
     return false
   }
 
@@ -285,10 +303,18 @@ const isValidConnection = (
  * T054: 本地任务节点接受多个输入连接
  */
 const onConnect = (connection: Connection) => {
+  console.log('[onConnect] 连接事件触发:', {
+    source: connection.source,
+    target: connection.target,
+    sourceHandle: connection.sourceHandle,
+    targetHandle: connection.targetHandle
+  })
+
   const sourceNode = nodes.value.find(n => n.id === connection.source)
   const targetNode = nodes.value.find(n => n.id === connection.target)
 
   if (!sourceNode || !targetNode) {
+    console.error('[onConnect] 节点未找到:', { sourceNode: !!sourceNode, targetNode: !!targetNode })
     logger.warn('[FlowCanvas] Cannot connect: node not found')
     return
   }
@@ -296,6 +322,15 @@ const onConnect = (connection: Connection) => {
   const sourceData = sourceNode.data as NodeData
   const targetData = targetNode.data as NodeData
   const targetNodeType = targetNode.type
+
+  console.log('[onConnect] 节点数据:', {
+    sourceNodeType: sourceNode.type,
+    targetNodeType: targetNode.type,
+    sourceCategory: sourceData.category,
+    targetCategory: targetData.category,
+    hasAssetInfo: !!sourceData.assetInfo,
+    hasComputeType: !!(targetData as any).computeType
+  })
 
   // T038: 如果连接到模型输入 handle，直接创建连接
   if (connection.targetHandle === 'model-input') {
