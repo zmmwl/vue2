@@ -207,6 +207,7 @@ const showEnterpriseDialog = ref(false)
 const selectedParticipantId = ref<string>('')
 const pendingResourceType = ref<'model' | 'compute'>('model')
 const pendingModelOrComputeData = ref<DroppedNodeData | null>(null)
+const pendingTargetTaskNodeId = ref<string>('')  // 存储目标任务节点 ID
 
 // 模型选择对话框状态
 const showModelSelectorDialog = ref(false)
@@ -299,10 +300,12 @@ const isValidConnection = (
   // 规则 2: 数据源节点只能从输出 handle 连出，计算任务节点只能从输入 handle 连入
   // 在我们的实现中：
   // - 数据源节点只有输出 handle (id="output", type="source")
-  // - 计算任务节点有输入 handle (id="input", type="target") 和输出 handle (id="output", type="source")
-  // 所以我们需要验证：targetHandle 必须是 "input"（表示连接到目标节点的输入端）
-  if (connection.targetHandle !== 'input') {
-    console.warn('⚠️ 连接被拒绝：必须连接到目标节点的输入 handle (input)')
+  // - 计算任务节点有输入 handle (id="input", type="target") 和算力输入 handle (id="compute-input", type="target")
+  // - 算力节点有输出 handle (id="output", type="source")
+  // 所以我们需要验证：targetHandle 必须是 "input" 或 "compute-input"（表示连接到目标节点的输入端）
+  const validTargetHandles = ['input', 'compute-input']
+  if (!connection.targetHandle || !validTargetHandles.includes(connection.targetHandle)) {
+    console.warn('⚠️ 连接被拒绝：必须连接到目标节点的输入 handle (input 或 compute-input)')
     return false
   }
 
@@ -510,9 +513,10 @@ const onDrop = (event: DragEvent) => {
         const targetNode = nodes.value.find(n => n.id === nodeId)
 
         if (targetNode && targetNode.data?.category === NodeCategory.COMPUTE_TASK) {
-          // 拖拽到计算任务上
+          // 拖拽到计算任务上：保存目标任务节点 ID
           pendingModelOrComputeData.value = data
           pendingResourceType.value = 'model'
+          pendingTargetTaskNodeId.value = targetNode.id
 
           // 检查是否是表达式模型
           if (data.modelType === 'expression') {
@@ -543,6 +547,7 @@ const onDrop = (event: DragEvent) => {
           // 拖拽到计算任务上：弹出企业选择对话框
           pendingModelOrComputeData.value = data
           pendingResourceType.value = 'compute'
+          pendingTargetTaskNodeId.value = targetNode.id  // 保存目标任务节点 ID
           showEnterpriseDialog.value = true
         } else {
           logger.warn('[FlowCanvas] Compute resource nodes can only be dropped on compute task nodes')
@@ -1028,6 +1033,7 @@ function handleEnterpriseDialogCancel() {
   showEnterpriseDialog.value = false
   selectedParticipantId.value = ''
   pendingModelOrComputeData.value = null
+  pendingTargetTaskNodeId.value = ''
 }
 
 /**
@@ -1051,6 +1057,7 @@ function handleModelSelected(model: any) {
   showModelSelectorDialog.value = false
   selectedParticipantId.value = ''
   pendingModelOrComputeData.value = null
+  pendingTargetTaskNodeId.value = ''
 }
 
 /**
@@ -1061,6 +1068,7 @@ function handleModelSelectorCancel() {
   showModelSelectorDialog.value = false
   selectedParticipantId.value = ''
   pendingModelOrComputeData.value = null
+  pendingTargetTaskNodeId.value = ''
 }
 
 /**
@@ -1084,6 +1092,7 @@ function handleComputeSelected(compute: any) {
   showComputeSelectorDialog.value = false
   selectedParticipantId.value = ''
   pendingModelOrComputeData.value = null
+  pendingTargetTaskNodeId.value = ''
 }
 
 /**
@@ -1094,6 +1103,7 @@ function handleComputeSelectorCancel() {
   showComputeSelectorDialog.value = false
   selectedParticipantId.value = ''
   pendingModelOrComputeData.value = null
+  pendingTargetTaskNodeId.value = ''
 }
 
 /**
@@ -1176,10 +1186,8 @@ function createModelNode(
   participantId: string,
   expression?: string
 ) {
-  // 找到当前悬停的计算任务节点
-  const targetElement = document.querySelector('.vue-flow__node:hover') || document.querySelector('.vue-flow__node.selected')
-  const targetNodeId = targetElement?.getAttribute('data-id')
-  const targetTaskNode = nodes.value.find(n => n.id === targetNodeId)
+  // 使用保存的目标任务节点 ID
+  const targetTaskNode = nodes.value.find(n => n.id === pendingTargetTaskNodeId.value)
 
   if (!targetTaskNode) {
     logger.warn('[FlowCanvas] No target compute task node found')
@@ -1253,10 +1261,8 @@ function createComputeResourceNode(
   compute: any,
   participantId: string
 ) {
-  // 找到当前悬停的计算任务节点
-  const targetElement = document.querySelector('.vue-flow__node:hover') || document.querySelector('.vue-flow__node.selected')
-  const targetNodeId = targetElement?.getAttribute('data-id')
-  const targetTaskNode = nodes.value.find(n => n.id === targetNodeId)
+  // 使用保存的目标任务节点 ID
+  const targetTaskNode = nodes.value.find(n => n.id === pendingTargetTaskNodeId.value)
 
   if (!targetTaskNode) {
     logger.warn('[FlowCanvas] No target compute task node found')
@@ -1294,7 +1300,7 @@ function createComputeResourceNode(
     source: computeNodeId,
     target: targetTaskNode.id,
     sourceHandle: 'output',
-    targetHandle: 'input'
+    targetHandle: 'compute-input'
   }, edges.value)
   edges.value.push(computeEdge)
 

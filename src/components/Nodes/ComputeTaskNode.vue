@@ -1,6 +1,6 @@
 <template>
   <div class="compute-task-node" :class="{ selected }" :data-testid="`node-${data.taskType || data.label}`">
-    <!-- 固定的顶部输入连接点 -->
+    <!-- 顶部输入连接点（模型节点） -->
     <Handle
       id="input"
       type="target"
@@ -39,6 +39,14 @@
       添加输出
     </button>
 
+    <!-- 右侧算力输入连接点（算力节点） -->
+    <Handle
+      id="compute-input"
+      type="target"
+      :position="Position.Right"
+      :class="['compute-input-handle', { 'is-visible': isComputeInputVisible }]"
+    />
+
     <!-- 固定的底部输出连接点 -->
     <Handle
       id="output"
@@ -70,6 +78,11 @@ const isInputVisible = computed(() => {
 // 检查是否有输出连接
 const isOutputVisible = computed(() => {
   return edges.value.some(edge => edge.source === props.id && edge.sourceHandle === 'output')
+})
+
+// 检查是否有算力输入连接
+const isComputeInputVisible = computed(() => {
+  return edges.value.some(edge => edge.target === props.id && edge.targetHandle === 'compute-input')
 })
 
 // 技术路径标签
@@ -157,10 +170,34 @@ function handleAddOutput() {
     }
   }
 
+  // 算力输入 handle - 长方形（右侧）
+  .compute-input-handle {
+    width: 8px;
+    height: 24px;
+    background-color: #FA8C16;
+    border: 2px solid #ffffff;
+    border-radius: 2px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+    transform: translateY(-50%);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+
+    &.is-visible {
+      opacity: 1;
+    }
+
+    &:hover {
+      opacity: 1;
+      background-color: #1890ff;
+      transform: translateY(-50%) scale(1.1);
+    }
+  }
+
   // 鼠标悬停节点时显示所有 handle
   &:hover {
     .input-handle,
-    .output-handle {
+    .output-handle,
+    .compute-input-handle {
       opacity: 1;
     }
   }

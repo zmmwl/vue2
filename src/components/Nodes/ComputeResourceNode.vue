@@ -4,12 +4,12 @@
     :style="nodeStyle"
     @click="handleClick"
   >
-    <!-- 输入 Handle（左侧） -->
+    <!-- 输出 Handle（左侧，连接到任务节点右侧） -->
     <Handle
-      type="target"
+      id="output"
+      type="source"
       :position="Position.Left"
-      :id="HANDLE_IDS.input"
-      class="handle-input"
+      class="handle-output"
     />
 
     <!-- 节点内容 -->
@@ -25,14 +25,6 @@
         {{ resourceTypeLabel }}
       </div>
     </div>
-
-    <!-- 输出 Handle（右侧，连接到计算任务） -->
-    <Handle
-      type="source"
-      :position="Position.Right"
-      :id="HANDLE_IDS.output"
-      class="handle-output"
-    />
   </div>
 </template>
 
@@ -43,12 +35,6 @@ import type { NodeProps } from '@vue-flow/core'
 import type { ComputeResourceNodeData } from '@/types/nodes'
 
 const props = defineProps<NodeProps<ComputeResourceNodeData>>()
-
-// Handle ID 常量
-const HANDLE_IDS = {
-  input: 'input',
-  output: 'output'
-}
 
 // 节点标签
 const nodeLabel = computed(() => {
@@ -158,7 +144,6 @@ function handleClick() {
 }
 
 // Handle 样式
-:deep(.handle-input),
 :deep(.handle-output) {
   width: 12px;
   height: 12px;
@@ -173,16 +158,8 @@ function handleClick() {
     background: #FA8C16;
     border-color: #ffffff;
   }
-}
 
-:deep(.handle-input) {
   left: -7px;
-  top: 50%;
-  transform: translateY(-50%);
-}
-
-:deep(.handle-output) {
-  right: -7px;
   top: 50%;
   transform: translateY(-50%);
 }

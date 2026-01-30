@@ -7,11 +7,10 @@
     <!-- 输入 Handle（顶部） -->
     <Handle
       v-if="!isExpression"
+      id="input"
       type="target"
-      :position="undefined"
-      :id="HANDLE_IDS.input"
+      :position="Position.Top"
       class="handle-input"
-      style="top: -6px; left: 50%; transform: translateX(-50%);"
     />
 
     <!-- 节点内容 -->
@@ -31,31 +30,24 @@
       </div>
     </div>
 
-    <!-- 输出 Handle（右侧，连接到计算任务） -->
+    <!-- 输出 Handle（右侧，连接到任务节点左侧） -->
     <Handle
+      id="output"
       type="source"
-      :position="undefined"
-      :id="HANDLE_IDS.output"
+      :position="Position.Right"
       class="handle-output"
-      style="right: -6px; top: 50%; transform: translateY(-50%);"
     />
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { Handle } from '@vue-flow/core'
+import { Handle, Position } from '@vue-flow/core'
 import type { NodeProps } from '@vue-flow/core'
 import type { ModelNodeData } from '@/types/nodes'
 import { ModelType } from '@/types/nodes'
 
 const props = defineProps<NodeProps<ModelNodeData>>()
-
-// Handle ID 常量
-const HANDLE_IDS = {
-  input: 'input',
-  output: 'output'
-}
 
 // 是否为表达式模型
 const isExpression = computed(() => props.data?.type === 'expression')
