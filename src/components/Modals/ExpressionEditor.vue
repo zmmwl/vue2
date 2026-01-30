@@ -17,7 +17,7 @@
               <p class="info-hint">字段引用格式: <code>participantId.dataset.columnName</code></p>
             </div>
 
-            <!-- Monaco Editor 容器 -->
+            <!-- CodeMirror Editor 容器 -->
             <div ref="editorContainer" class="editor-container"></div>
 
             <!-- 错误提示 -->
@@ -45,6 +45,15 @@
 
 <script setup lang="ts">
 import { ref, watch, nextTick, onBeforeUnmount } from 'vue'
+import { EditorState, Compartment } from '@codemirror/state'
+import { EditorView, keymap, placeholder as placeholderExt } from '@codemirror/view'
+import { python } from '@codemirror/lang-python'
+import { oneDark } from '@codemirror/theme-one-dark'
+import { defaultKeymap, indentWithTab } from '@codemirror/commands'
+import { autocompletion } from '@codemirror/autocomplete'
+import { bracketMatching } from '@codemirror/language'
+import { searchKeymap, highlightSelectionMatches } from '@codemirror/search'
+import type { Extension } from '@codemirror/state'
 
 interface Props {
   modelValue: boolean
@@ -64,8 +73,9 @@ const emit = defineEmits<Emits>()
 
 // Editor 相关
 const editorContainer = ref<HTMLElement>()
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let editor: any = null
+let editorView: EditorView | null = null
+const languageCompartment = new Compartment()
+const themeCompartment = new Compartment()
 
 // 表达式
 const expression = ref(props.initialExpression || '')
@@ -74,41 +84,68 @@ const expression = ref(props.initialExpression || '')
 const errorMessage = ref('')
 
 /**
- * 初始化 Monaco Editor
+ * 创建编辑器扩展
+ */
+function createExtensions(): Extension[] {
+  return [
+    EditorView.theme({
+      '&': {
+        fontSize: '14px',
+        fontFamily: "'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace"
+      },
+      '.cm-scroller': {
+        overflow: 'auto'
+      },
+      '.cm-content': {
+        padding: '16px 0',
+        minHeight: '300px'
+      }
+    }),
+    EditorView.lineWrapping,
+    keymap.of([
+      ...defaultKeymap,
+      indentWithTab,
+      ...searchKeymap
+    ]),
+    autocompletion(),
+    bracketMatching(),
+    highlightSelectionMatches(),
+    placeholderExt('# 在此输入 Python 表达式...\n# 示例: companyA.salary * 0.8 + companyB.bonus'),
+    languageCompartment.of(python()),
+    themeCompartment.of(oneDark)
+  ]
+}
+
+/**
+ * 初始化 CodeMirror Editor
  */
 async function initEditor() {
   if (!editorContainer.value) return
 
   await nextTick()
 
-  // 动态导入 Monaco Editor
-  const monacoModule = await import('monaco-editor')
-  const monaco = monacoModule.default || monacoModule
-
   // 销毁已存在的 editor
-  if (editor) {
-    editor.dispose()
+  if (editorView) {
+    editorView.destroy()
   }
 
   // 创建 editor
-  editor = monaco.editor.create(editorContainer.value, {
-    value: expression.value,
-    language: 'python',
-    theme: 'vs-dark',
-    fontSize: 14,
-    fontFamily: "'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace",
-    minimap: { enabled: false },
-    scrollBeyondLastLine: false,
-    automaticLayout: true,
-    padding: { top: 16, bottom: 16 }
+  const state = EditorState.create({
+    doc: expression.value,
+    extensions: [
+      ...createExtensions(),
+      EditorView.updateListener.of((update) => {
+        if (update.docChanged) {
+          expression.value = update.state.doc.toString()
+          validateExpression()
+        }
+      })
+    ]
   })
 
-  // 监听内容变化
-  editor.onDidChangeModelContent(() => {
-    if (editor) {
-      expression.value = editor.getValue()
-      validateExpression()
-    }
+  editorView = new EditorView({
+    state,
+    parent: editorContainer.value
   })
 }
 
@@ -168,17 +205,17 @@ watch(() => props.modelValue, (newValue) => {
     initEditor()
   } else {
     // 对话框关闭时销毁 editor
-    if (editor) {
-      editor.dispose()
-      editor = null
+    if (editorView) {
+      editorView.destroy()
+      editorView = null
     }
   }
 })
 
 // 组件卸载前清理
 onBeforeUnmount(() => {
-  if (editor) {
-    editor.dispose()
+  if (editorView) {
+    editorView.destroy()
   }
 })
 </script>
@@ -294,6 +331,23 @@ onBeforeUnmount(() => {
   border: 1px solid #3e3e42;
   border-radius: 8px;
   overflow: hidden;
+
+  // CodeMirror 样式覆盖
+  :deep(.cm-editor) {
+    height: 100%;
+
+    &.cm-focused {
+      outline: none;
+    }
+
+    .cm-scroller {
+      overflow: auto;
+    }
+
+    .cm-line {
+      padding: 0 16px;
+    }
+  }
 }
 
 .error-message {
