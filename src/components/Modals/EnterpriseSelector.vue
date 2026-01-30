@@ -1,59 +1,62 @@
 <template>
-  <el-dialog
-    v-model="visible"
-    title="选择企业"
-    width="600px"
-    :close-on-click-modal="false"
-    @close="handleClose"
-  >
-    <div class="enterprise-selector">
-      <div v-if="sortedEnterprises.length === 0" class="empty-state">
-        <div class="empty-icon">📄</div>
-        <p>暂无可选企业</p>
-      </div>
-
-      <div v-else class="enterprise-list">
-        <div
-          v-for="enterprise in sortedEnterprises"
-          :key="enterprise.id"
-          class="enterprise-item"
-          :class="{ 'is-selected': selectedEnterpriseId === enterprise.id }"
-          @click="selectEnterprise(enterprise.id)"
-        >
-          <div class="enterprise-icon">
-            {{ enterprise.name.charAt(0) }}
+  <Teleport to="body">
+    <Transition name="modal">
+      <div v-if="modelValue" class="modal-overlay" @click="closeOnOverlay && handleCancel()">
+        <div class="modal-container enterprise-selector-modal" @click.stop>
+          <div class="modal-header">
+            <h3 class="modal-title">选择企业</h3>
+            <button class="modal-close" @click="handleCancel()">&times;</button>
           </div>
-          <div class="enterprise-info">
-            <div class="enterprise-name">{{ enterprise.name }}</div>
-            <div class="enterprise-type">
-              <span
-                class="type-tag"
-                :class="getResourceTypeClass(enterprise.resourceType)"
+
+          <div class="modal-body">
+            <div v-if="sortedEnterprises.length === 0" class="empty-state">
+              <div class="empty-icon">📄</div>
+              <p>暂无可选企业</p>
+            </div>
+
+            <div v-else class="enterprise-list">
+              <div
+                v-for="enterprise in sortedEnterprises"
+                :key="enterprise.id"
+                class="enterprise-item"
+                :class="{ 'is-selected': selectedEnterpriseId === enterprise.id }"
+                @click="selectEnterprise(enterprise.id)"
               >
-                {{ getResourceTypeName(enterprise.resourceType) }}
-              </span>
+                <div class="enterprise-icon">
+                  {{ enterprise.name.charAt(0) }}
+                </div>
+                <div class="enterprise-info">
+                  <div class="enterprise-name">{{ enterprise.name }}</div>
+                  <div class="enterprise-type">
+                    <span
+                      class="type-tag"
+                      :class="getResourceTypeClass(enterprise.resourceType)"
+                    >
+                      {{ getResourceTypeName(enterprise.resourceType) }}
+                    </span>
+                  </div>
+                </div>
+                <div v-if="selectedEnterpriseId === enterprise.id" class="check-icon">
+                  ✓
+                </div>
+              </div>
             </div>
           </div>
-          <div v-if="selectedEnterpriseId === enterprise.id" class="check-icon">
-            ✓
+
+          <div class="modal-footer">
+            <button class="btn btn-secondary" @click="handleCancel()">取消</button>
+            <button
+              class="btn btn-primary"
+              :disabled="!selectedEnterpriseId"
+              @click="handleConfirm()"
+            >
+              确认
+            </button>
           </div>
         </div>
       </div>
-    </div>
-
-    <template #footer>
-      <div class="dialog-footer">
-        <button class="btn btn-secondary" @click="handleCancel">取消</button>
-        <button
-          class="btn btn-primary"
-          :disabled="!selectedEnterpriseId"
-          @click="handleConfirm"
-        >
-          确认
-        </button>
-      </div>
-    </template>
-  </el-dialog>
+    </Transition>
+  </Teleport>
 </template>
 
 <script setup lang="ts">
@@ -64,6 +67,7 @@ import { ResourceTypePriority } from '@/types/nodes'
 interface Props {
   modelValue: boolean
   enterprises: EnterpriseOption[]
+  closeOnOverlay?: boolean
 }
 
 interface Emits {
@@ -72,11 +76,11 @@ interface Emits {
   (e: 'cancel'): void
 }
 
-const props = defineProps<Props>()
-const emit = defineEmits<Emits>()
+const props = withDefaults(defineProps<Props>(), {
+  closeOnOverlay: true
+})
 
-// 对话框可见性
-const visible = ref(false)
+const emit = defineEmits<Emits>()
 
 // 选中的企业 ID
 const selectedEnterpriseId = ref<string>('')
@@ -95,17 +99,9 @@ const sortedEnterprises = computed(() => {
 
 // 监听 modelValue 变化
 watch(() => props.modelValue, (newVal) => {
-  visible.value = newVal
   if (newVal) {
     // 重置选择
     selectedEnterpriseId.value = ''
-  }
-})
-
-// 监听 visible 变化
-watch(visible, (newVal) => {
-  if (!newVal) {
-    emit('update:modelValue', false)
   }
 })
 
@@ -170,41 +166,43 @@ function handleCancel() {
  * 处理关闭
  */
 function handleClose() {
-  visible.value = false
+  emit('update:modelValue', false)
   selectedEnterpriseId.value = ''
 }
 </script>
 
 <style scoped lang="scss">
-.enterprise-selector {
-  .empty-state {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 60px 20px;
-    color: #909399;
+.enterprise-selector-modal {
+  max-width: 600px;
+}
 
-    .empty-icon {
-      font-size: 48px;
-      margin-bottom: 16px;
-      opacity: 0.6;
-    }
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  color: #909399;
 
-    p {
-      margin: 0;
-      font-size: 14px;
-    }
+  .empty-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+    opacity: 0.6;
   }
 
-  .enterprise-list {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    max-height: 400px;
-    overflow-y: auto;
-    padding: 4px;
+  p {
+    margin: 0;
+    font-size: 14px;
   }
+}
+
+.enterprise-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 400px;
+  overflow-y: auto;
+  padding: 4px;
 }
 
 .enterprise-item {
@@ -287,53 +285,117 @@ function handleClose() {
 .check-icon {
   flex-shrink: 0;
   font-size: 20px;
+  color: #409eff;
 }
 
-.dialog-footer {
+// 模态框基础样式
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
   display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-container {
+  background-color: #ffffff;
+  border-radius: 8px;
+  width: 90%;
+  max-height: 90vh;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid #e8e8e8;
+}
+
+.modal-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #000000;
+}
+
+.modal-close {
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: none;
+  font-size: 24px;
+  color: #999999;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s;
+
+  &:hover {
+    background-color: #f5f5f5;
+    color: #000000;
+  }
+}
+
+.modal-body {
+  padding: 20px;
+  overflow-y: auto;
+  max-height: calc(90vh - 140px);
+}
+
+.modal-footer {
+  display: flex;
+  align-items: center;
   justify-content: flex-end;
-  gap: 8px;
+  gap: 12px;
+  padding: 16px 20px;
+  border-top: 1px solid #e8e8e8;
 }
 
 .btn {
-  padding: 8px 16px;
-  border-radius: 6px;
+  padding: 8px 20px;
+  border-radius: 4px;
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
-  border: none;
-  transition: all 0.2s ease;
+  transition: all 0.2s;
+  border: 1px solid transparent;
 
-  &.btn-secondary {
-    background: #f5f7fa;
-    color: #606266;
-    border: 1px solid #dcdfe6;
-
-    &:hover:not(:disabled) {
-      background: #ecf5ff;
-      border-color: #409eff;
-      color: #409eff;
-    }
-  }
-
-  &.btn-primary {
-    background: linear-gradient(135deg, #409eff, #66b1ff);
-    color: white;
-
-    &:hover:not(:disabled) {
-      background: linear-gradient(135deg, #66b1ff, #79bbff);
-      box-shadow: 0 2px 8px rgba(64, 158, 255, 0.3);
-    }
-
-    &:disabled {
-      background: #c0c4cc;
-      cursor: not-allowed;
-    }
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 }
 
-:deep(.el-dialog__body) {
-  padding: 16px 20px;
+.btn-secondary {
+  background-color: #ffffff;
+  border-color: #d9d9d9;
+  color: #000000;
+
+  &:hover:not(:disabled) {
+    border-color: #1890ff;
+    color: #1890ff;
+  }
+}
+
+.btn-primary {
+  background-color: #1890ff;
+  border-color: #1890ff;
+  color: #ffffff;
+
+  &:hover:not(:disabled) {
+    background-color: #40a9ff;
+    border-color: #40a9ff;
+  }
 }
 
 // 自定义滚动条
@@ -352,6 +414,25 @@ function handleClose() {
 
   &:hover {
     background: #c0c4cc;
+  }
+}
+
+// Transition 动画
+.modal-enter-active,
+.modal-leave-active {
+  transition: opacity 0.2s;
+
+  .modal-container {
+    transition: transform 0.2s;
+  }
+}
+
+.modal-enter-from,
+.modal-leave-to {
+  opacity: 0;
+
+  .modal-container {
+    transform: scale(0.9);
   }
 }
 </style>

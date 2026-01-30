@@ -1,101 +1,109 @@
 <template>
-  <el-dialog
-    v-model="visible"
-    title="配置输出数据"
-    width="800px"
-    :close-on-click-modal="false"
-    @close="handleClose"
-  >
-    <div class="output-config">
-      <!-- 企业选择 -->
-      <div class="config-section">
-        <div class="section-title">
-          <span>🏢</span>
-          <span>输出参与方企业</span>
-        </div>
-        <div class="enterprise-display">
-          <div class="enterprise-card" @click="showEnterpriseSelector = true">
-            <div class="enterprise-icon">
-              {{ selectedEnterpriseName?.charAt(0) || '?' }}
-            </div>
-            <div class="enterprise-info">
-              <div class="enterprise-name">
-                {{ selectedEnterpriseName || '请选择企业' }}
+  <Teleport to="body">
+    <Transition name="modal">
+      <div v-if="modelValue" class="modal-overlay" @click="closeOnOverlay && handleCancel()">
+        <div class="modal-container output-config-modal" @click.stop>
+          <div class="modal-header">
+            <h3 class="modal-title">配置输出数据</h3>
+            <button class="modal-close" @click="handleCancel()">&times;</button>
+          </div>
+
+          <div class="modal-body">
+            <div class="output-config">
+              <!-- 企业选择 -->
+              <div class="config-section">
+                <div class="section-title">
+                  <span>🏢</span>
+                  <span>输出参与方企业</span>
+                </div>
+                <div class="enterprise-display">
+                  <div class="enterprise-card" @click="showEnterpriseSelector = true">
+                    <div class="enterprise-icon">
+                      {{ selectedEnterpriseName?.charAt(0) || '?' }}
+                    </div>
+                    <div class="enterprise-info">
+                      <div class="enterprise-name">
+                        {{ selectedEnterpriseName || '请选择企业' }}
+                      </div>
+                      <div class="enterprise-hint">点击选择</div>
+                    </div>
+                    <span class="arrow-icon">→</span>
+                  </div>
+                </div>
               </div>
-              <div class="enterprise-hint">点击选择</div>
+
+              <!-- 数据集名称 -->
+              <div class="config-section">
+                <div class="section-title">
+                  <span>📄</span>
+                  <span>输出数据集名称</span>
+                </div>
+                <input
+                  v-model="datasetName"
+                  type="text"
+                  class="text-input"
+                  placeholder="请输入数据集名称"
+                />
+              </div>
+
+              <!-- 输出字段选择 -->
+              <div class="config-section">
+                <div class="section-title">
+                  <span>📋</span>
+                  <span>输出字段</span>
+                  <span class="field-count">({{ selectedFieldIds.size }})</span>
+                </div>
+                <div v-if="availableFields.length === 0" class="empty-fields">
+                  <span class="empty-icon">📄</span>
+                  <p>暂无可选字段</p>
+                  <p class="empty-hint">请先配置计算任务的输入数据</p>
+                </div>
+                <div v-else class="fields-list">
+                  <div
+                    v-for="field in availableFields"
+                    :key="field.id"
+                    class="field-item"
+                    :class="{ 'is-selected': isFieldSelected(field.id) }"
+                    @click="toggleField(field.id)"
+                  >
+                    <input
+                      :id="`field-${field.id}`"
+                      type="checkbox"
+                      :checked="isFieldSelected(field.id)"
+                      @change="toggleField(field.id)"
+                    />
+                    <div class="field-info">
+                      <div class="field-name">{{ field.name }}</div>
+                      <div class="field-source">{{ field.source }}</div>
+                    </div>
+                    <div class="field-type">{{ field.type }}</div>
+                  </div>
+                </div>
+              </div>
             </div>
-            <span class="arrow-icon">→</span>
+          </div>
+
+          <div class="modal-footer">
+            <button class="btn btn-secondary" @click="handleCancel()">取消</button>
+            <button
+              class="btn btn-primary"
+              :disabled="!isValid"
+              @click="handleConfirm()"
+            >
+              确认
+            </button>
           </div>
         </div>
       </div>
+    </Transition>
+  </Teleport>
 
-      <!-- 数据集名称 -->
-      <div class="config-section">
-        <div class="section-title">
-          <span>📄</span>
-          <span>输出数据集名称</span>
-        </div>
-        <el-input
-          v-model="datasetName"
-          placeholder="请输入数据集名称"
-          clearable
-        />
-      </div>
-
-      <!-- 输出字段选择 -->
-      <div class="config-section">
-        <div class="section-title">
-          <span>📋</span>
-          <span>输出字段</span>
-          <span class="field-count">({{ selectedFieldIds.size }})</span>
-        </div>
-        <div v-if="availableFields.length === 0" class="empty-fields">
-          <span class="empty-icon">📄</span>
-          <p>暂无可选字段</p>
-          <p class="empty-hint">请先配置计算任务的输入数据</p>
-        </div>
-        <div v-else class="fields-list">
-          <div
-            v-for="field in availableFields"
-            :key="field.id"
-            class="field-item"
-            :class="{ 'is-selected': isFieldSelected(field.id) }"
-            @click="toggleField(field.id)"
-          >
-            <el-checkbox
-              :model-value="isFieldSelected(field.id)"
-              @change="toggleField(field.id)"
-            />
-            <div class="field-info">
-              <div class="field-name">{{ field.name }}</div>
-              <div class="field-source">{{ field.source }}</div>
-            </div>
-            <div class="field-type">{{ field.type }}</div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 企业选择器弹窗 -->
-    <EnterpriseSelector
-      v-model="showEnterpriseSelector"
-      :enterprises="enterprises"
-      @confirm="handleEnterpriseSelected"
-    />
-
-    <template #footer>
-      <div class="dialog-footer">
-        <el-button @click="handleCancel">取消</el-button>
-        <el-button
-          type="primary"
-          :disabled="!isValid"
-          @click="handleConfirm"
-        >
-          确认
-        </el-button>
-      </div>
-    </template>
-  </el-dialog>
+  <!-- 企业选择器弹窗 -->
+  <EnterpriseSelector
+    v-model="showEnterpriseSelector"
+    :enterprises="enterprises"
+    @confirm="handleEnterpriseSelected"
+  />
 </template>
 
 <script setup lang="ts">
@@ -121,6 +129,7 @@ interface Props {
     dataset: string
     fields: OutputField[]
   }
+  closeOnOverlay?: boolean
 }
 
 interface Emits {
@@ -135,13 +144,11 @@ interface Emits {
 
 const props = withDefaults(defineProps<Props>(), {
   modelOutputFields: () => [],
-  initialConfig: undefined
+  initialConfig: undefined,
+  closeOnOverlay: true
 })
 
 const emit = defineEmits<Emits>()
-
-// 对话框可见性
-const visible = ref(false)
 
 // 企业选择器显示状态
 const showEnterpriseSelector = ref(false)
@@ -176,16 +183,8 @@ const isValid = computed(() => {
 
 // 监听 modelValue 变化
 watch(() => props.modelValue, (newVal) => {
-  visible.value = newVal
   if (newVal) {
     initializeConfig()
-  }
-})
-
-// 监听 visible 变化
-watch(visible, (newVal) => {
-  if (!newVal) {
-    emit('update:modelValue', false)
   }
 })
 
@@ -282,7 +281,7 @@ function handleCancel() {
  * 处理关闭
  */
 function handleClose() {
-  visible.value = false
+  emit('update:modelValue', false)
   selectedEnterpriseId.value = ''
   datasetName.value = ''
   selectedFieldIds.value.clear()
@@ -290,6 +289,10 @@ function handleClose() {
 </script>
 
 <style scoped lang="scss">
+.output-config-modal {
+  max-width: 800px;
+}
+
 .output-config {
   .config-section {
     margin-bottom: 24px;
@@ -316,6 +319,25 @@ function handleClose() {
       padding: 2px 8px;
       background: #f5f7fa;
       border-radius: 4px;
+    }
+  }
+
+  .text-input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #dcdfe6;
+    border-radius: 6px;
+    font-size: 14px;
+    transition: all 0.2s;
+
+    &:focus {
+      outline: none;
+      border-color: #409eff;
+      box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.1);
+    }
+
+    &::placeholder {
+      color: #c0c4cc;
     }
   }
 
@@ -430,6 +452,12 @@ function handleClose() {
       background: #f0f9ff;
       border-color: #409eff;
     }
+
+    input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      cursor: pointer;
+    }
   }
 
   .field-info {
@@ -460,14 +488,114 @@ function handleClose() {
   }
 }
 
-.dialog-footer {
+// 模态框基础样式
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
   display: flex;
-  justify-content: flex-end;
-  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
 }
 
-:deep(.el-dialog__body) {
+.modal-container {
+  background-color: #ffffff;
+  border-radius: 8px;
+  width: 90%;
+  max-height: 90vh;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   padding: 16px 20px;
+  border-bottom: 1px solid #e8e8e8;
+}
+
+.modal-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #000000;
+}
+
+.modal-close {
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: none;
+  font-size: 24px;
+  color: #999999;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s;
+
+  &:hover {
+    background-color: #f5f5f5;
+    color: #000000;
+  }
+}
+
+.modal-body {
+  padding: 20px;
+  overflow-y: auto;
+  max-height: calc(90vh - 140px);
+}
+
+.modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 16px 20px;
+  border-top: 1px solid #e8e8e8;
+}
+
+.btn {
+  padding: 8px 20px;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 1px solid transparent;
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.btn-secondary {
+  background-color: #ffffff;
+  border-color: #d9d9d9;
+  color: #000000;
+
+  &:hover:not(:disabled) {
+    border-color: #1890ff;
+    color: #1890ff;
+  }
+}
+
+.btn-primary {
+  background-color: #1890ff;
+  border-color: #1890ff;
+  color: #ffffff;
+
+  &:hover:not(:disabled) {
+    background-color: #40a9ff;
+    border-color: #40a9ff;
+  }
 }
 
 // 自定义滚动条
@@ -486,6 +614,25 @@ function handleClose() {
 
   &:hover {
     background: #c0c4cc;
+  }
+}
+
+// Transition 动画
+.modal-enter-active,
+.modal-leave-active {
+  transition: opacity 0.2s;
+
+  .modal-container {
+    transition: transform 0.2s;
+  }
+}
+
+.modal-enter-from,
+.modal-leave-to {
+  opacity: 0;
+
+  .modal-container {
+    transform: scale(0.9);
   }
 }
 </style>
