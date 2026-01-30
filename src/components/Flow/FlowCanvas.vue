@@ -112,7 +112,7 @@ import { VueFlow, useVueFlow } from '@vue-flow/core'
 import { Background } from '@vue-flow/background'
 import { Controls } from '@vue-flow/controls'
 import { MiniMap } from '@vue-flow/minimap'
-import type { Node, Edge, Connection, EdgeChange, NodeChange, GraphNode } from '@vue-flow/core'
+import type { Node, Connection, EdgeChange, NodeChange, GraphNode } from '@vue-flow/core'
 import type { DroppedNodeData } from '@/types/graph'
 import { NodeCategory, ComputeTaskType, TechPath, ResourceTypePriority } from '@/types/nodes'
 import type { NodeData, AssetInfo, FieldInfo, FieldMapping, ComputeTaskNodeData, OutputField } from '@/types/nodes'
@@ -141,6 +141,7 @@ import { assetCache } from '@/services/assetCache'
 import { buildJoinConditions } from '@/utils/join-builder'
 import { MOCK_ENTERPRISES } from '@/utils/mock-data'
 import { sortEnterprisesByPriority } from '@/utils/enterprise-sorter'
+import { useGraphState } from '@/composables/useGraphState'
 
 interface Emits {
   (e: 'node-selected', node: Node<NodeData> | null): void
@@ -148,6 +149,9 @@ interface Emits {
 }
 
 const emit = defineEmits<Emits>()
+
+// 使用共享的图状态管理
+const { nodes, edges, addNode, addEdge, setNodes, setEdges } = useGraphState()
 
 // 获取坐标投影函数（将屏幕坐标转换为画布坐标）
 const { project } = useVueFlow()
@@ -166,10 +170,6 @@ const nodeTypes = {
 const edgeTypes = {
   default: markRaw(FlowEdge)
 }
-
-// 节点和连接线数据
-const nodes = ref<Node[]>([])
-const edges = ref<Edge[]>([])
 
 // 数据资产选择对话框状态
 const showAssetDialog = ref(false)
@@ -382,7 +382,7 @@ const onConnect = (connection: Connection) => {
       sourceHandle: 'output',
       targetHandle: 'input'
     }, edges.value)
-    edges.value.push(newEdge)
+    addEdge(newEdge)
   }
 }
 
@@ -403,7 +403,7 @@ const onNodesChange = (changes: NodeChange[]) => {
           // 收集需要删除的输出节点ID
           const outputNodeIds = nodeData.outputs.map(output => output.outputNodeId)
           // 级联删除输出节点
-          nodes.value = nodes.value.filter(n => !outputNodeIds.includes(n.id))
+          setNodes(nodes.value.filter(n => !outputNodeIds.includes(n.id)))
           logger.info('[FlowCanvas] Cascade deleted output nodes', {
             taskId: change.id,
             outputNodeCount: outputNodeIds.length
@@ -412,9 +412,9 @@ const onNodesChange = (changes: NodeChange[]) => {
       }
 
       // 删除所有与该节点相关的连接线
-      edges.value = edges.value.filter(
+      setEdges(edges.value.filter(
         edge => edge.source !== change.id && edge.target !== change.id
-      )
+      ))
     }
   }
 }
@@ -436,7 +436,7 @@ const onEdgesChange = (changes: EdgeChange[]) => {
           const targetData = targetNode.data as NodeData
           if (targetData.category === NodeCategory.OUTPUT_DATA) {
             // 删除输出节点
-            nodes.value = nodes.value.filter(n => n.id !== targetNode.id)
+            setNodes(nodes.value.filter(n => n.id !== targetNode.id))
 
             // 从父任务的 outputs 数组中移除该输出配置
             const sourceNode = nodes.value.find(n => n.id === removedEdge.source)
@@ -509,7 +509,7 @@ const onDrop = (event: DragEvent) => {
         const nodeId = targetNodeElement.getAttribute('data-id')
         const targetNode = nodes.value.find(n => n.id === nodeId)
 
-        if (targetNode && targetNode.data.category === NodeCategory.COMPUTE_TASK) {
+        if (targetNode && targetNode.data?.category === NodeCategory.COMPUTE_TASK) {
           // 拖拽到计算任务上
           pendingModelOrComputeData.value = data
           pendingResourceType.value = 'model'
@@ -539,7 +539,7 @@ const onDrop = (event: DragEvent) => {
         const nodeId = targetNodeElement.getAttribute('data-id')
         const targetNode = nodes.value.find(n => n.id === nodeId)
 
-        if (targetNode && targetNode.data.category === NodeCategory.COMPUTE_TASK) {
+        if (targetNode && targetNode.data?.category === NodeCategory.COMPUTE_TASK) {
           // 拖拽到计算任务上：弹出企业选择对话框
           pendingModelOrComputeData.value = data
           pendingResourceType.value = 'compute'
@@ -604,7 +604,7 @@ function createNode(
     } as NodeData
   }
 
-  nodes.value.push(newNode)
+  addNode(newNode)
   logger.info('[FlowCanvas] Node created', {
     nodeId: newNode.id,
     type: newNode.type,
@@ -846,8 +846,8 @@ async function handleImport(file: File) {
     const data = await importGraph(file)
 
     // 恢复节点和边
-    nodes.value = restoreNodes(data.nodes)
-    edges.value = data.edges || []
+    setNodes(restoreNodes(data.nodes))
+    setEdges(data.edges || [])
 
     // 重建缓存
     assetCache.rebuildFromNodes(nodes.value)
@@ -945,7 +945,7 @@ function handleOutputConfigConfirmed(config: {
     } as any
   }
 
-  nodes.value.push(outputNode)
+  addNode(outputNode)
 
   // 创建从计算任务到输出节点的连接
   const outputEdge = createUniqueEdge({
@@ -1120,7 +1120,7 @@ function handleExpressionConfirmed(expression: string) {
   const targetTaskNode = nodes.value.find(n => n.id === targetNodeId)
 
   if (targetTaskNode) {
-    createModelNode(pendingExpressionData.value, expressionModel, targetTaskNode.data.label as string, expression)
+    createModelNode(pendingExpressionData.value, expressionModel, targetTaskNode.data?.label as string, expression)
   }
 
   // 清理状态
@@ -1212,7 +1212,7 @@ function createModelNode(
     } as any
   }
 
-  nodes.value.push(modelNode)
+  addNode(modelNode)
 
   // 创建从模型节点到计算任务的连接
   const modelEdge = createUniqueEdge({
@@ -1287,7 +1287,7 @@ function createComputeResourceNode(
     } as any
   }
 
-  nodes.value.push(computeNode)
+  addNode(computeNode)
 
   // 创建从算力节点到计算任务的连接
   const computeEdge = createUniqueEdge({
@@ -1349,7 +1349,7 @@ function createLocalTaskNode(data: DroppedNodeData, participantId: string) {
     } as any
   }
 
-  nodes.value.push(localTaskNode)
+  addNode(localTaskNode)
   logger.info('[FlowCanvas] Local task node created', {
     nodeId: localTaskNode.id,
     participantId
