@@ -10,7 +10,15 @@
         ref="flowCanvasRef"
         @node-selected="handleNodeSelected"
       />
+      <!-- 可拖拽的分隔条 -->
+      <div
+        class="resize-handle"
+        @mousedown="startResize"
+      >
+        <div class="resize-handle-line"></div>
+      </div>
       <FlowDetailPanel
+        :panel-width="detailPanelWidth"
         :selected-node="selectedNode"
         :export-json="exportJson"
         :view-mode="detailViewMode"
@@ -30,7 +38,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onUnmounted } from 'vue'
 import type { Node } from '@vue-flow/core'
 import type { NodeData } from '@/types/nodes'
 import FlowHeader from '@/components/Flow/FlowHeader.vue'
@@ -47,6 +55,14 @@ const fileInputRef = ref<HTMLInputElement>()
 
 // 使用图状态管理
 const { nodes, selectedNodeId, exportJson, detailViewMode, selectNode, setDetailViewMode } = useGraphState()
+
+// 详情面板宽度（像素）
+const MIN_PANEL_WIDTH = 300
+const MAX_PANEL_WIDTH = 800
+const DEFAULT_PANEL_WIDTH = 400
+
+const detailPanelWidth = ref(DEFAULT_PANEL_WIDTH)
+const isResizing = ref(false)
 
 // 当前选中的节点
 const selectedNode = computed(() => {
@@ -114,6 +130,51 @@ async function handleFileChange(event: Event) {
     target.value = ''
   }
 }
+
+/**
+ * 开始调整面板大小
+ */
+function startResize(event: MouseEvent) {
+  isResizing.value = true
+  event.preventDefault()
+
+  const startX = event.clientX
+  const startWidth = detailPanelWidth.value
+
+  function onMouseMove(e: MouseEvent) {
+    if (!isResizing.value) return
+
+    const deltaX = startX - e.clientX
+    const newWidth = startWidth + deltaX
+
+    // 限制宽度范围
+    detailPanelWidth.value = Math.max(
+      MIN_PANEL_WIDTH,
+      Math.min(MAX_PANEL_WIDTH, newWidth)
+    )
+  }
+
+  function onMouseUp() {
+    isResizing.value = false
+    document.removeEventListener('mousemove', onMouseMove)
+    document.removeEventListener('mouseup', onMouseUp)
+    document.body.style.cursor = ''
+    document.body.style.userSelect = ''
+  }
+
+  document.addEventListener('mousemove', onMouseMove)
+  document.addEventListener('mouseup', onMouseUp)
+  document.body.style.cursor = 'ew-resize'
+  document.body.style.userSelect = 'none'
+}
+
+// 组件卸载时清理
+onUnmounted(() => {
+  if (isResizing.value) {
+    document.body.style.cursor = ''
+    document.body.style.userSelect = ''
+  }
+})
 </script>
 
 <style scoped lang="scss">
@@ -129,5 +190,41 @@ async function handleFileChange(event: Event) {
   display: flex;
   flex: 1;
   overflow: hidden;
+  position: relative;
+}
+
+// 可拖拽的分隔条
+.resize-handle {
+  position: relative;
+  width: 6px;
+  cursor: ew-resize;
+  background: transparent;
+  flex-shrink: 0;
+  z-index: 10;
+
+  &:hover {
+    background: rgba(24, 144, 255, 0.1);
+  }
+
+  &:active {
+    background: rgba(24, 144, 255, 0.2);
+  }
+}
+
+.resize-handle-line {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: transparent;
+  transform: translateX(-50%);
+  transition: background 0.2s ease;
+  border-radius: 1px;
+
+  .resize-handle:hover &,
+  .resize-handle:active & {
+    background: #1890ff;
+  }
 }
 </style>

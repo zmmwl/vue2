@@ -1,5 +1,5 @@
 <template>
-  <div class="flow-detail-panel" data-testid="flow-detail-panel">
+  <div class="flow-detail-panel" :style="{ width: panelWidth + 'px' }" data-testid="flow-detail-panel">
     <!-- 头部 -->
     <div class="detail-header">
       <div class="header-left">
@@ -309,6 +309,7 @@ import CollapsibleSection from './CollapsibleSection.vue'
 import JsonPreviewPanel from './JsonPreviewPanel.vue'
 
 interface Props {
+  panelWidth?: number
   selectedNode: Node<NodeData> | null
   exportJson: ExportJson | null
   viewMode: 'detail' | 'preview'
@@ -319,7 +320,9 @@ interface Emits {
   (e: 'viewModeChange', mode: 'detail' | 'preview'): void
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+  panelWidth: 400
+})
 const emit = defineEmits<Emits>()
 
 // 判断是否为数据源节点
@@ -493,6 +496,7 @@ watch(() => props.selectedNode, (node) => {
   flex-direction: column;
   overflow: hidden;
   box-shadow: -4px 0 16px rgba(0, 0, 0, 0.05);
+  flex-shrink: 0;
 }
 
 .detail-header {
