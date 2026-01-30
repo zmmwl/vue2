@@ -1,6 +1,7 @@
 /**
  * 图状态管理 Composable
  * 使用 Vue 3 Composition API 管理画布状态
+ * 使用模块级单例状态，确保所有组件共享同一状态
  */
 
 import { ref, computed } from 'vue'
@@ -19,26 +20,42 @@ export interface GraphState {
   detailViewMode: 'detail' | 'preview'
 }
 
+// ============ 模块级单例状态 ============
+// 所有组件共享同一状态实例
+
+// 节点和连线数据
+const nodes = ref<Node<NodeData>[]>([])
+const edges = ref<Edge[]>([])
+
+// 当前选中的节点ID
+const selectedNodeId = ref<string | null>(null)
+
+// 详情面板视图模式
+const detailViewMode = ref<'detail' | 'preview'>('detail')
+
+// 获取当前选中的节点
+const selectedNode = computed(() => {
+  if (!selectedNodeId.value) return null
+  return nodes.value.find(node => node.id === selectedNodeId.value) || null
+})
+
+// 导出 JSON（响应式计算）
+const exportJson = computed<ExportJson | null>(() => {
+  if (nodes.value.length === 0) return null
+
+  try {
+    return convertDagToJson(nodes.value, edges.value)
+  } catch (error) {
+    console.error('Failed to convert DAG to JSON:', error)
+    return null
+  }
+})
+
 /**
  * 图状态管理 Composable
+ * 返回共享的状态和方法
  */
 export function useGraphState() {
-  // 节点和连线数据
-  const nodes = ref<Node<NodeData>[]>([])
-  const edges = ref<Edge[]>([])
-
-  // 当前选中的节点ID
-  const selectedNodeId = ref<string | null>(null)
-
-  // 详情面板视图模式
-  const detailViewMode = ref<'detail' | 'preview'>('detail')
-
-  // 获取当前选中的节点
-  const selectedNode = computed(() => {
-    if (!selectedNodeId.value) return null
-    return nodes.value.find(node => node.id === selectedNodeId.value) || null
-  })
-
   /**
    * 设置节点列表
    */
@@ -138,23 +155,8 @@ export function useGraphState() {
     selectedNodeId.value = null
   }
 
-  /**
-   * 导出 JSON（响应式计算）
-   * 实时将画布状态转换为标准 JSON 格式
-   */
-  const exportJson = computed<ExportJson | null>(() => {
-    if (nodes.value.length === 0) return null
-
-    try {
-      return convertDagToJson(nodes.value, edges.value)
-    } catch (error) {
-      console.error('Failed to convert DAG to JSON:', error)
-      return null
-    }
-  })
-
   return {
-    // 状态
+    // 状态（共享引用）
     nodes,
     edges,
     selectedNodeId,
