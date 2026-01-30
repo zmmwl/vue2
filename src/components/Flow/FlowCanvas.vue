@@ -297,16 +297,26 @@ const isValidConnection = (
     return false
   }
 
-  // 规则 2: 数据源节点只能从输出 handle 连出，计算任务节点只能从输入 handle 连入
-  // 在我们的实现中：
-  // - 数据源节点只有输出 handle (id="output", type="source")
-  // - 计算任务节点有输入 handle (id="input", type="target") 和算力输入 handle (id="compute-input", type="target")
-  // - 算力节点有输出 handle (id="output", type="source")
-  // 所以我们需要验证：targetHandle 必须是 "input" 或 "compute-input"（表示连接到目标节点的输入端）
-  const validTargetHandles = ['input', 'compute-input']
-  if (!connection.targetHandle || !validTargetHandles.includes(connection.targetHandle)) {
-    console.warn('⚠️ 连接被拒绝：必须连接到目标节点的输入 handle (input 或 compute-input)')
-    return false
+  // 规则 2: 连接到计算任务节点时，根据源节点类型自动修正 targetHandle
+  if (targetData.category === NodeCategory.COMPUTE_TASK) {
+    // 根据源节点类型确定正确的 targetHandle
+    let correctHandle: string
+    if (sourceData.category === NodeCategory.DATA_SOURCE || sourceData.category === NodeCategory.OUTPUT_DATA) {
+      correctHandle = 'data-input' // 顶部
+    } else if (sourceData.category === NodeCategory.MODEL) {
+      correctHandle = 'input' // 左侧
+    } else if (sourceData.category === NodeCategory.COMPUTE_RESOURCE) {
+      correctHandle = 'compute-input' // 右侧
+    } else {
+      correctHandle = connection.targetHandle || 'data-input'
+    }
+
+    // 直接修改 connection 对象的 targetHandle
+    // 这样 Vue Flow 在后续处理和渲染时会使用正确的 handle
+    if (connection.targetHandle !== correctHandle) {
+      // TypeScript 不允许直接修改 Connection 的属性，所以需要类型断言
+      ;(connection as any).targetHandle = correctHandle
+    }
   }
 
   // 规则 3: 连接必须从源节点的输出 handle 开始
@@ -322,7 +332,10 @@ const isValidConnection = (
  * 处理连接事件
  * 所有连接都使用固定的 handle ID：
  * - 数据源/任务节点的输出: "output"
- * - 任务节点的输入: "input"
+ * - 任务节点的输入: 根据源节点类型自动选择
+ *   - 数据源节点 → "data-input" (顶部)
+ *   - 模型节点 → "input" (左侧)
+ *   - 算力节点 → "compute-input" (右侧)
  */
 const onConnect = (connection: Connection) => {
   const sourceNode = nodes.value.find(n => n.id === connection.source)
@@ -336,11 +349,32 @@ const onConnect = (connection: Connection) => {
   const sourceData = sourceNode.data as NodeData
   const targetData = targetNode.data as ComputeTaskNodeData
 
+  // 根据源节点类型自动设置正确的 targetHandle
+  let correctedTargetHandle = connection.targetHandle
+  if (targetData.category === NodeCategory.COMPUTE_TASK) {
+    if (sourceData.category === NodeCategory.DATA_SOURCE || sourceData.category === NodeCategory.OUTPUT_DATA) {
+      // 数据源/输出节点连接到计算任务的顶部 data-input handle
+      correctedTargetHandle = 'data-input'
+    } else if (sourceData.category === NodeCategory.MODEL) {
+      // 模型节点连接到计算任务的左侧 input handle
+      correctedTargetHandle = 'input'
+    } else if (sourceData.category === NodeCategory.COMPUTE_RESOURCE) {
+      // 算力节点连接到计算任务的右侧 compute-input handle
+      correctedTargetHandle = 'compute-input'
+    }
+  }
+
+  // 创建修正后的连接对象
+  const correctedConnection: Connection = {
+    ...connection,
+    targetHandle: correctedTargetHandle
+  }
+
   // 检查是否连接到计算任务节点
   if (targetData.category === NodeCategory.COMPUTE_TASK) {
-    // 保存待处理的连接
-    pendingConnection.value = connection
-    pendingConnectionSource.value = connection.source
+    // 保存待处理的连接（使用修正后的连接）
+    pendingConnection.value = correctedConnection
+    pendingConnectionSource.value = correctedConnection.source
     pendingSourceType.value = sourceData.category === NodeCategory.DATA_SOURCE ? 'dataSource' : 'outputData'
 
     // 获取源节点的字段信息
@@ -380,10 +414,10 @@ const onConnect = (connection: Connection) => {
   } else {
     // 直接创建连接（非计算任务节点）
     const newEdge = createUniqueEdge({
-      source: connection.source,
-      target: connection.target,
-      sourceHandle: 'output',
-      targetHandle: 'input'
+      source: correctedConnection.source,
+      target: correctedConnection.target,
+      sourceHandle: correctedConnection.sourceHandle || 'output',
+      targetHandle: correctedConnection.targetHandle || 'input'
     }, edges.value)
     addEdge(newEdge)
   }

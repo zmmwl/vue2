@@ -1,11 +1,19 @@
 <template>
   <div class="compute-task-node" :class="{ selected }" :data-testid="`node-${data.taskType || data.label}`">
-    <!-- 顶部输入连接点（模型节点） -->
+    <!-- 顶部数据源输入连接点 -->
     <Handle
-      id="input"
+      id="data-input"
       type="target"
       :position="Position.Top"
       :style="{ left: '50%' }"
+      :class="['data-input-handle', { 'is-visible': isDataInputVisible }]"
+    />
+
+    <!-- 左侧输入连接点（模型节点） -->
+    <Handle
+      id="input"
+      type="target"
+      :position="Position.Left"
       :class="['input-handle', { 'is-visible': isInputVisible }]"
     />
 
@@ -85,6 +93,11 @@ const isComputeInputVisible = computed(() => {
   return edges.value.some(edge => edge.target === props.id && edge.targetHandle === 'compute-input')
 })
 
+// 检查是否有数据源输入连接
+const isDataInputVisible = computed(() => {
+  return edges.value.some(edge => edge.target === props.id && edge.targetHandle === 'data-input')
+})
+
 // 技术路径标签
 const techPathLabel = computed(() => {
   const taskData = props.data as ComputeTaskNodeData
@@ -125,8 +138,8 @@ function handleAddOutput() {
 .compute-task-node {
   position: relative;
 
-  // 输入 handle - 长方形（顶部）
-  .input-handle {
+  // 数据源输入 handle - 长方形（顶部）
+  .data-input-handle {
     width: 24px;
     height: 8px;
     background-color: #52c41a;
@@ -145,6 +158,29 @@ function handleAddOutput() {
       opacity: 1;
       background-color: #1890ff;
       transform: translateX(-50%) scale(1.1);
+    }
+  }
+
+  // 输入 handle - 长方形（左侧）
+  .input-handle {
+    width: 8px;
+    height: 24px;
+    background-color: #52c41a;
+    border: 2px solid #ffffff;
+    border-radius: 2px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+    transform: translateY(-50%);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+
+    &.is-visible {
+      opacity: 1;
+    }
+
+    &:hover {
+      opacity: 1;
+      background-color: #1890ff;
+      transform: translateY(-50%) scale(1.1);
     }
   }
 
@@ -195,6 +231,7 @@ function handleAddOutput() {
 
   // 鼠标悬停节点时显示所有 handle
   &:hover {
+    .data-input-handle,
     .input-handle,
     .output-handle,
     .compute-input-handle {
