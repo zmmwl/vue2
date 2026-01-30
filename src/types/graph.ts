@@ -10,13 +10,14 @@ export interface FlowGraphData {
 // 拖拽事件数据
 export interface DroppedNodeData {
   label: string
-  category: NodeCategory
+  category: NodeCategory | string  // 允许字符串以支持自定义category
   taskType?: string
   sourceType?: string
   icon: string
   color: string
   description?: string
   type: string
+  modelType?: string  // 模型类型（用于模型节点）
 }
 
 // 流程验证结果

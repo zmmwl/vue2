@@ -18,8 +18,26 @@
         <div v-if="data.description" class="node-description">
           {{ data.description }}
         </div>
+        <!-- 显示技术路径和计算类型信息 -->
+        <div v-if="techPathLabel" class="node-meta">
+          {{ techPathLabel }}
+        </div>
+        <!-- 显示输入数据源数量 -->
+        <div v-if="inputProvidersCount > 0" class="node-meta">
+          输入: {{ inputProvidersCount }} 个数据源
+        </div>
+        <!-- 显示输出数量 -->
+        <div v-if="outputsCount > 0" class="node-meta">
+          输出: {{ outputsCount }} 个
+        </div>
       </div>
     </div>
+
+    <!-- 添加输出按钮 -->
+    <button class="add-output-btn" @click="handleAddOutput" @mousedown.stop>
+      <span>+</span>
+      添加输出
+    </button>
 
     <!-- 固定的底部输出连接点 -->
     <Handle
@@ -36,8 +54,9 @@
 import { computed } from 'vue'
 import { Handle, Position } from '@vue-flow/core'
 import type { NodeProps } from '@vue-flow/core'
-import type { NodeData } from '@/types/nodes'
+import type { NodeData, ComputeTaskNodeData } from '@/types/nodes'
 import { useVueFlow } from '@vue-flow/core'
+import { TechPath } from '@/types/nodes'
 
 const props = defineProps<NodeProps<NodeData>>()
 
@@ -52,6 +71,41 @@ const isInputVisible = computed(() => {
 const isOutputVisible = computed(() => {
   return edges.value.some(edge => edge.source === props.id && edge.sourceHandle === 'output')
 })
+
+// 技术路径标签
+const techPathLabel = computed(() => {
+  const taskData = props.data as ComputeTaskNodeData
+  if (taskData.techPath === TechPath.TEE) {
+    return '硬件 TEE'
+  } else if (taskData.techPath === TechPath.SOFTWARE) {
+    return '软件密码学'
+  }
+  return ''
+})
+
+// 输入数据源数量
+const inputProvidersCount = computed(() => {
+  const taskData = props.data as ComputeTaskNodeData
+  return taskData.inputProviders?.length || 0
+})
+
+// 输出数量
+const outputsCount = computed(() => {
+  const taskData = props.data as ComputeTaskNodeData
+  return taskData.outputs?.length || 0
+})
+
+/**
+ * 处理添加输出按钮点击
+ */
+function handleAddOutput() {
+  // 触发自定义事件，由父组件处理
+  const event = new CustomEvent('add-output', {
+    detail: { nodeId: props.id },
+    bubbles: true
+  })
+  document.dispatchEvent(event)
+}
 </script>
 
 <style scoped lang="scss">
@@ -163,6 +217,13 @@ const isOutputVisible = computed(() => {
     white-space: nowrap;
   }
 
+  .node-meta {
+    font-size: 11px;
+    color: #999999;
+    line-height: 1.3;
+    margin-top: 2px;
+  }
+
   &.selected .node-card {
     border-color: #1890ff;
     box-shadow: 0 2px 8px rgba(24, 144, 255, 0.2);
@@ -170,6 +231,43 @@ const isOutputVisible = computed(() => {
 
   &:hover .node-card {
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.12);
+  }
+
+  // 添加输出按钮
+  .add-output-btn {
+    position: absolute;
+    bottom: -36px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 12px;
+    background: linear-gradient(135deg, #52C41A, #73d13d);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(82, 196, 26, 0.25);
+    transition: all 0.2s ease;
+    z-index: 10;
+    white-space: nowrap;
+
+    &:hover {
+      background: linear-gradient(135deg, #73d13d, #95de64);
+      box-shadow: 0 4px 10px rgba(82, 196, 26, 0.35);
+      transform: translateX(-50%) translateY(-2px);
+    }
+
+    &:active {
+      transform: translateX(-50%) translateY(0) scale(0.98);
+    }
+
+    .el-icon {
+      font-size: 14px;
+    }
   }
 }
 </style>

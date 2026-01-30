@@ -31,27 +31,116 @@
       @confirm="handleAssetSelected"
       @cancel="handleDialogCancel"
     />
+
+    <!-- 技术路径选择对话框 -->
+    <TechPathSelector
+      v-model="showTechPathDialog"
+      :compute-type="pendingComputeType"
+      @confirm="handleTechPathSelected"
+      @cancel="handleTechPathCancel"
+    />
+
+    <!-- 字段选择对话框 -->
+    <FieldSelector
+      v-model="showFieldSelectorDialog"
+      :source-node-id="pendingConnectionSource || ''"
+      :source-name="pendingSourceName || ''"
+      :source-type="pendingSourceType || ''"
+      :participant-id="pendingParticipantId || ''"
+      :dataset="pendingDataset || ''"
+      :available-fields="pendingAvailableFields || []"
+      @confirm="handleFieldSelected"
+      @cancel="handleFieldSelectorCancel"
+    />
+
+    <!-- 输出配置对话框 -->
+    <OutputConfig
+      v-model="showOutputConfigDialog"
+      :task-id="pendingOutputTaskId || ''"
+      :enterprises="availableEnterprises"
+      :input-fields="availableInputFields"
+      :model-output-fields="availableModelFields"
+      :initial-config="pendingOutputConfig"
+      @confirm="handleOutputConfigConfirmed"
+      @cancel="handleOutputConfigCancelled"
+    />
+
+    <!-- 企业选择对话框（用于模型和算力） -->
+    <EnterpriseSelector
+      v-model="showEnterpriseDialog"
+      :enterprises="availableEnterprises"
+      @confirm="handleEnterpriseSelected"
+      @cancel="handleEnterpriseDialogCancel"
+    />
+
+    <!-- 模型选择对话框 -->
+    <ModelSelector
+      v-model="showModelSelectorDialog"
+      :participant-id="selectedParticipantId || ''"
+      @confirm="handleModelSelected"
+      @cancel="handleModelSelectorCancel"
+    />
+
+    <!-- 算力选择对话框 -->
+    <ComputeSelector
+      v-model="showComputeSelectorDialog"
+      :participant-id="selectedParticipantId || ''"
+      @confirm="handleComputeSelected"
+      @cancel="handleComputeSelectorCancel"
+    />
+
+    <!-- 表达式编辑对话框 -->
+    <ExpressionEditor
+      v-model="showExpressionEditorDialog"
+      :initial-expression="pendingExpression || ''"
+      @confirm="handleExpressionConfirmed"
+      @cancel="handleExpressionEditorCancel"
+    />
+
+    <!-- 本地任务企业选择对话框 -->
+    <LocalTaskEnterpriseSelector
+      v-model="showLocalTaskEnterpriseDialog"
+      @confirm="handleLocalTaskEnterpriseSelected"
+      @cancel="handleLocalTaskEnterpriseCancel"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, markRaw } from 'vue'
+import { ref, markRaw, onMounted, onUnmounted, computed } from 'vue'
 import { VueFlow, useVueFlow } from '@vue-flow/core'
 import { Background } from '@vue-flow/background'
 import { Controls } from '@vue-flow/controls'
 import { MiniMap } from '@vue-flow/minimap'
 import type { Node, Edge, Connection, EdgeChange, NodeChange, GraphNode } from '@vue-flow/core'
 import type { DroppedNodeData } from '@/types/graph'
-import { NodeCategory } from '@/types/nodes'
-import type { NodeData, AssetInfo, FieldInfo } from '@/types/nodes'
+import { NodeCategory, ComputeTaskType, TechPath, ResourceTypePriority } from '@/types/nodes'
+import type { NodeData, AssetInfo, FieldInfo, FieldMapping, ComputeTaskNodeData, OutputField } from '@/types/nodes'
 import DataSourceNode from '@/components/Nodes/DataSourceNode.vue'
 import ComputeTaskNode from '@/components/Nodes/ComputeTaskNode.vue'
+import OutputDataNode from '@/components/Nodes/OutputDataNode.vue'
+import ModelNode from '@/components/Nodes/ModelNode.vue'
+import ComputeResourceNode from '@/components/Nodes/ComputeResourceNode.vue'
+import LocalTaskNode from '@/components/Nodes/LocalTaskNode.vue'
 import FlowEdge from '@/components/Edges/FlowEdge.vue'
 import AssetSelectorDialog from '@/components/Dialogs/AssetSelectorDialog.vue'
+import TechPathSelector from '@/components/Modals/TechPathSelector.vue'
+import FieldSelector from '@/components/Modals/FieldSelector.vue'
+import OutputConfig from '@/components/Modals/OutputConfig.vue'
+import EnterpriseSelector from '@/components/Modals/EnterpriseSelector.vue'
+import ModelSelector from '@/components/Modals/ModelSelector.vue'
+import ComputeSelector from '@/components/Modals/ComputeSelector.vue'
+import ExpressionEditor from '@/components/Modals/ExpressionEditor.vue'
+import LocalTaskEnterpriseSelector from '@/components/Modals/LocalTaskEnterpriseSelector.vue'
 import { createUniqueEdge } from '@/utils/edge-utils'
 import { logger } from '@/utils/logger'
-import { exportGraph, downloadJson, importGraph, restoreNodes } from '@/utils/exportUtils'
+import { downloadJsonFile } from '@/utils/file-downloader'
+import { convertDagToJson } from '@/utils/dag-export'
+import { importGraph, restoreNodes } from '@/utils/exportUtils'
 import { assetCache } from '@/services/assetCache'
+import { buildJoinConditions } from '@/utils/join-builder'
+import { MOCK_ENTERPRISES } from '@/utils/mock-data'
+import { sortEnterprisesByPriority } from '@/utils/enterprise-sorter'
 
 interface Emits {
   (e: 'node-selected', node: Node<NodeData> | null): void
@@ -66,7 +155,11 @@ const { project } = useVueFlow()
 // 注册自定义节点类型
 const nodeTypes = {
   data_source: markRaw(DataSourceNode),
-  compute_task: markRaw(ComputeTaskNode)
+  compute_task: markRaw(ComputeTaskNode),
+  outputData: markRaw(OutputDataNode),
+  modelNode: markRaw(ModelNode),
+  computeResource: markRaw(ComputeResourceNode),
+  localTask: markRaw(LocalTaskNode)
 }
 
 // 注册自定义连接线类型
@@ -84,6 +177,99 @@ const editingNodeId = ref<string>()
 const editingNodeAssetInfo = ref<AssetInfo>()
 const editingNodeSelectedFields = ref<string[]>()
 const pendingNodePosition = ref<{ x: number; y: number } | null>(null)
+
+// 技术路径选择对话框状态
+const showTechPathDialog = ref(false)
+const pendingComputeType = ref<ComputeTaskType>(ComputeTaskType.PSI)
+const pendingNodeData = ref<DroppedNodeData | null>(null)
+
+// 字段选择对话框状态
+const showFieldSelectorDialog = ref(false)
+const pendingConnection = ref<Connection | null>(null)
+const pendingConnectionSource = ref<string>('')
+const pendingSourceName = ref<string>('')
+const pendingSourceType = ref<string>('')
+const pendingParticipantId = ref<string>('')
+const pendingDataset = ref<string>('')
+const pendingAvailableFields = ref<FieldInfo[]>([])
+
+// 输出配置对话框状态
+const showOutputConfigDialog = ref(false)
+const pendingOutputTaskId = ref<string>('')
+const pendingOutputConfig = ref<{
+  participantId: string
+  dataset: string
+  fields: OutputField[]
+} | undefined>(undefined)
+
+// 企业选择对话框状态（用于模型和算力）
+const showEnterpriseDialog = ref(false)
+const selectedParticipantId = ref<string>('')
+const pendingResourceType = ref<'model' | 'compute'>('model')
+const pendingModelOrComputeData = ref<DroppedNodeData | null>(null)
+
+// 模型选择对话框状态
+const showModelSelectorDialog = ref(false)
+
+// 算力选择对话框状态
+const showComputeSelectorDialog = ref(false)
+
+// 表达式编辑对话框状态
+const showExpressionEditorDialog = ref(false)
+const pendingExpression = ref<string>('')
+const pendingExpressionData = ref<DroppedNodeData | null>(null)
+
+// 本地任务企业选择对话框状态
+const showLocalTaskEnterpriseDialog = ref(false)
+const pendingLocalTaskData = ref<DroppedNodeData | null>(null)
+
+/**
+ * 获取可用的企业列表（按优先级排序）
+ */
+const availableEnterprises = computed(() => {
+  // 将 MOCK_ENTERPRISES 转换为 EnterpriseOption 格式
+  const enterpriseOptions = MOCK_ENTERPRISES.map(ent => ({
+    id: ent.participantId,
+    name: ent.entityName,
+    resourceType: ResourceTypePriority.OTHER
+  }))
+  return sortEnterprisesByPriority(enterpriseOptions)
+})
+
+/**
+ * 获取可用的输入字段（来自所有输入数据源）
+ */
+const availableInputFields = computed(() => {
+  if (!pendingOutputTaskId.value) return []
+
+  const taskNode = nodes.value.find(n => n.id === pendingOutputTaskId.value)
+  if (!taskNode) return []
+
+  const taskData = taskNode.data as ComputeTaskNodeData
+  const fields: Array<{ id: string; name: string; type: string; source: string }> = []
+
+  // 从 inputProviders 提取字段
+  taskData.inputProviders?.forEach((provider) => {
+    provider.fields.forEach(field => {
+      fields.push({
+        id: `input-${field.columnName}`,
+        name: field.columnName,
+        type: field.columnType,
+        source: `${provider.participantId}.${provider.dataset}`
+      })
+    })
+  })
+
+  return fields
+})
+
+/**
+ * 获取可用的模型输出字段
+ */
+const availableModelFields = computed(() => {
+  // TODO: 当实现模型配置后，从模型中提取输出字段
+  return []
+})
 
 /**
  * 验证连接是否有效
@@ -136,23 +322,95 @@ const isValidConnection = (
  * - 任务节点的输入: "input"
  */
 const onConnect = (connection: Connection) => {
-  // 创建连接 - 使用固定的 handle ID
-  const newEdge = createUniqueEdge({
-    source: connection.source,
-    target: connection.target,
-    sourceHandle: 'output',
-    targetHandle: 'input'
-  }, edges.value)
-  edges.value.push(newEdge)
+  const sourceNode = nodes.value.find(n => n.id === connection.source)
+  const targetNode = nodes.value.find(n => n.id === connection.target)
+
+  if (!sourceNode || !targetNode) {
+    logger.warn('[FlowCanvas] Source or target node not found for connection')
+    return
+  }
+
+  const sourceData = sourceNode.data as NodeData
+  const targetData = targetNode.data as ComputeTaskNodeData
+
+  // 检查是否连接到计算任务节点
+  if (targetData.category === NodeCategory.COMPUTE_TASK) {
+    // 保存待处理的连接
+    pendingConnection.value = connection
+    pendingConnectionSource.value = connection.source
+    pendingSourceType.value = sourceData.category === NodeCategory.DATA_SOURCE ? 'dataSource' : 'outputData'
+
+    // 获取源节点的字段信息
+    if (sourceData.category === NodeCategory.DATA_SOURCE && sourceData.assetInfo) {
+      // 数据源节点
+      pendingSourceName.value = sourceData.assetInfo.assetName
+      pendingParticipantId.value = sourceData.assetInfo.participantId
+      pendingDataset.value = sourceData.assetInfo.assetId
+      pendingAvailableFields.value = sourceData.assetInfo.dataInfo.fieldList.map(field => ({
+        name: field.name,
+        dataType: field.dataType,
+        dataLength: field.dataLength,
+        description: field.description
+      }))
+    } else if (sourceData.category === NodeCategory.OUTPUT_DATA) {
+      // 输出节点 - 从父任务的输出配置获取字段
+      const outputData = sourceData as any
+      pendingSourceName.value = outputData.dataset || '输出数据'
+      pendingParticipantId.value = outputData.participantId || ''
+      pendingDataset.value = outputData.dataset || ''
+
+      // 获取输出字段
+      const outputFields = outputData.fields || []
+      pendingAvailableFields.value = outputFields.map((field: any) => ({
+        name: field.columnName,
+        dataType: field.columnType,
+        description: field.columnAlias
+      }))
+    } else {
+      logger.warn('[FlowCanvas] Unsupported source node type for field selection')
+      return
+    }
+
+    // 打开字段选择对话框
+    showFieldSelectorDialog.value = true
+    logger.info('[FlowCanvas] Opening field selector dialog for connection')
+  } else {
+    // 直接创建连接（非计算任务节点）
+    const newEdge = createUniqueEdge({
+      source: connection.source,
+      target: connection.target,
+      sourceHandle: 'output',
+      targetHandle: 'input'
+    }, edges.value)
+    edges.value.push(newEdge)
+  }
 }
 
 /**
  * 处理节点变化（删除等）
  * 删除节点时，自动删除所有连接到该节点的连接线
+ * 删除计算任务节点时，级联删除关联的输出节点
  */
 const onNodesChange = (changes: NodeChange[]) => {
   for (const change of changes) {
     if (change.type === 'remove' && change.id) {
+      const removedNode = nodes.value.find(n => n.id === change.id)
+
+      // 如果删除的是计算任务节点，级联删除其输出节点
+      if (removedNode) {
+        const nodeData = removedNode.data as ComputeTaskNodeData
+        if (nodeData.category === NodeCategory.COMPUTE_TASK && nodeData.outputs) {
+          // 收集需要删除的输出节点ID
+          const outputNodeIds = nodeData.outputs.map(output => output.outputNodeId)
+          // 级联删除输出节点
+          nodes.value = nodes.value.filter(n => !outputNodeIds.includes(n.id))
+          logger.info('[FlowCanvas] Cascade deleted output nodes', {
+            taskId: change.id,
+            outputNodeCount: outputNodeIds.length
+          })
+        }
+      }
+
       // 删除所有与该节点相关的连接线
       edges.value = edges.value.filter(
         edge => edge.source !== change.id && edge.target !== change.id
@@ -163,9 +421,42 @@ const onNodesChange = (changes: NodeChange[]) => {
 
 /**
  * 处理连接线变化（删除等）
+ * 删除输出节点的连线时，自动删除该输出节点
  */
-const onEdgesChange = (_changes: EdgeChange[]) => {
-  // 固定 handle 系统不需要在删除 edge 时做额外处理
+const onEdgesChange = (changes: EdgeChange[]) => {
+  for (const change of changes) {
+    if (change.type === 'remove' && change.id) {
+      // 查找被删除的边
+      const removedEdge = edges.value.find(e => e.id === change.id)
+
+      if (removedEdge) {
+        // 检查是否是从计算任务到输出节点的连接
+        const targetNode = nodes.value.find(n => n.id === removedEdge.target)
+        if (targetNode) {
+          const targetData = targetNode.data as NodeData
+          if (targetData.category === NodeCategory.OUTPUT_DATA) {
+            // 删除输出节点
+            nodes.value = nodes.value.filter(n => n.id !== targetNode.id)
+
+            // 从父任务的 outputs 数组中移除该输出配置
+            const sourceNode = nodes.value.find(n => n.id === removedEdge.source)
+            if (sourceNode) {
+              const sourceData = sourceNode.data as ComputeTaskNodeData
+              if (sourceData.outputs) {
+                sourceData.outputs = sourceData.outputs.filter(
+                  output => output.outputNodeId !== targetNode.id
+                )
+                logger.info('[FlowCanvas] Auto-deleted output node on edge removal', {
+                  outputNodeId: targetNode.id,
+                  parentTaskId: sourceNode.id
+                })
+              }
+            }
+          }
+        }
+      }
+    }
+  }
 }
 
 /**
@@ -188,27 +479,86 @@ const onDrop = (event: DragEvent) => {
   try {
     const data: DroppedNodeData = JSON.parse(rawData)
 
-    // 只对数据源节点弹出选择对话框
-    if (data.category !== NodeCategory.DATA_SOURCE) {
-      // 非数据源节点直接创建
-      createNode(data, event)
-      return
-    }
-
-    // 数据源节点：保存位置信息，弹出对话框
+    // 计算位置
     const projected = project({
       x: event.offsetX,
       y: event.offsetY
     })
-
     pendingNodePosition.value = {
       x: projected.x - 100,
       y: projected.y - 30
     }
 
-    // 打开选择对话框
-    showAssetDialog.value = true
-    logger.info('[FlowCanvas] Opening asset selector dialog for new node')
+    // 处理不同类型的节点
+    if (data.category === NodeCategory.DATA_SOURCE) {
+      // 数据源节点：弹出资产选择对话框
+      showAssetDialog.value = true
+      logger.info('[FlowCanvas] Opening asset selector dialog for new node')
+    } else if (data.category === NodeCategory.COMPUTE_TASK) {
+      // 计算任务节点：弹出技术路径选择对话框
+      pendingNodeData.value = data
+      pendingComputeType.value = (data.taskType as ComputeTaskType) || ComputeTaskType.PSI
+      showTechPathDialog.value = true
+      logger.info('[FlowCanvas] Opening tech path selector dialog for compute task')
+    } else if (data.category === 'model') {
+      // 模型节点：检查是否拖拽到计算任务节点上
+      const targetElement = document.elementFromPoint(event.clientX, event.clientY)
+      const targetNodeElement = targetElement?.closest('.vue-flow__node')
+
+      if (targetNodeElement) {
+        const nodeId = targetNodeElement.getAttribute('data-id')
+        const targetNode = nodes.value.find(n => n.id === nodeId)
+
+        if (targetNode && targetNode.data.category === NodeCategory.COMPUTE_TASK) {
+          // 拖拽到计算任务上
+          pendingModelOrComputeData.value = data
+          pendingResourceType.value = 'model'
+
+          // 检查是否是表达式模型
+          if (data.modelType === 'expression') {
+            // 表达式模型：直接创建，不需要企业选择
+            pendingExpressionData.value = data
+            pendingExpression.value = ''
+            showExpressionEditorDialog.value = true
+          } else {
+            // 其他模型：弹出企业选择对话框
+            showEnterpriseDialog.value = true
+          }
+        } else {
+          logger.warn('[FlowCanvas] Model nodes can only be dropped on compute task nodes')
+        }
+      } else {
+        logger.warn('[FlowCanvas] No target node found for model drop')
+      }
+    } else if (data.category === 'computeResource') {
+      // 算力资源节点：检查是否拖拽到计算任务节点上
+      const targetElement = document.elementFromPoint(event.clientX, event.clientY)
+      const targetNodeElement = targetElement?.closest('.vue-flow__node')
+
+      if (targetNodeElement) {
+        const nodeId = targetNodeElement.getAttribute('data-id')
+        const targetNode = nodes.value.find(n => n.id === nodeId)
+
+        if (targetNode && targetNode.data.category === NodeCategory.COMPUTE_TASK) {
+          // 拖拽到计算任务上：弹出企业选择对话框
+          pendingModelOrComputeData.value = data
+          pendingResourceType.value = 'compute'
+          showEnterpriseDialog.value = true
+        } else {
+          logger.warn('[FlowCanvas] Compute resource nodes can only be dropped on compute task nodes')
+        }
+      } else {
+        logger.warn('[FlowCanvas] No target node found for compute resource drop')
+      }
+    } else if (data.category === 'localTask') {
+      // 本地任务节点：弹出企业选择对话框
+      pendingLocalTaskData.value = data
+      showLocalTaskEnterpriseDialog.value = true
+      logger.info('[FlowCanvas] Opening local task enterprise selector dialog')
+    } else {
+      // 其他节点类型直接创建
+      createNode(data, event)
+    }
   } catch (error) {
     logger.error('[FlowCanvas] Failed to parse dropped data', error)
   }
@@ -217,7 +567,11 @@ const onDrop = (event: DragEvent) => {
 /**
  * 创建节点
  */
-function createNode(data: DroppedNodeData, event: DragEvent | { x: number; y: number }) {
+function createNode(
+  data: DroppedNodeData,
+  event: DragEvent | { x: number; y: number },
+  techPath?: TechPath
+) {
   const position = 'offsetX' in event
     ? (() => {
         const projected = project({ x: event.offsetX, y: event.offsetY })
@@ -239,12 +593,23 @@ function createNode(data: DroppedNodeData, event: DragEvent | { x: number; y: nu
       sourceType: data.sourceType,
       icon: data.icon,
       color: data.color,
-      description: data.description
-    }
+      description: data.description,
+      // DAG任务编排相关字段
+      techPath: techPath,
+      inputProviders: [],
+      joinConditions: [],
+      models: [],
+      computeProviders: [],
+      outputs: []
+    } as NodeData
   }
 
   nodes.value.push(newNode)
-  logger.info('[FlowCanvas] Node created', { nodeId: newNode.id, type: newNode.type })
+  logger.info('[FlowCanvas] Node created', {
+    nodeId: newNode.id,
+    type: newNode.type,
+    techPath: techPath
+  })
 }
 
 /**
@@ -307,6 +672,123 @@ function handleDialogCancel() {
 }
 
 /**
+ * 处理技术路径选择确认
+ */
+function handleTechPathSelected(techPath: TechPath) {
+  logger.info('[FlowCanvas] Tech path selected', { techPath })
+
+  if (pendingNodeData.value) {
+    // 创建计算任务节点
+    createNode(pendingNodeData.value, { x: 0, y: 0 }, techPath)
+  }
+
+  // 清理状态
+  pendingNodeData.value = null
+  pendingNodePosition.value = null
+  showTechPathDialog.value = false
+}
+
+/**
+ * 处理技术路径选择取消
+ */
+function handleTechPathCancel() {
+  logger.info('[FlowCanvas] Tech path selector dialog cancelled')
+
+  // 清理状态
+  pendingNodeData.value = null
+  pendingNodePosition.value = null
+  showTechPathDialog.value = false
+}
+
+/**
+ * 处理字段选择确认
+ */
+function handleFieldSelected(selection: {
+  sourceNodeId: string
+  sourceType: 'dataSource' | 'outputData'
+  participantId: string
+  dataset: string
+  fields: FieldMapping[]
+}) {
+  logger.info('[FlowCanvas] Field selection confirmed', {
+    sourceNodeId: selection.sourceNodeId,
+    fieldCount: selection.fields.length
+  })
+
+  if (!pendingConnection.value) {
+    logger.warn('[FlowCanvas] No pending connection to apply field selection')
+    return
+  }
+
+  // 创建连接
+  const newEdge = createUniqueEdge({
+    source: pendingConnection.value.source,
+    target: pendingConnection.value.target,
+    sourceHandle: 'output',
+    targetHandle: 'input'
+  }, edges.value)
+  edges.value.push(newEdge)
+
+  // 更新目标计算任务节点的输入配置
+  const targetNode = nodes.value.find(n => n.id === pendingConnection.value!.target)
+  if (targetNode) {
+    const taskData = targetNode.data as ComputeTaskNodeData
+
+    // 初始化 inputProviders 数组
+    if (!taskData.inputProviders) {
+      taskData.inputProviders = []
+    }
+
+    // 添加新的输入提供者
+    const newInputProvider = {
+      sourceNodeId: selection.sourceNodeId,
+      sourceType: selection.sourceType,
+      participantId: selection.participantId,
+      dataset: selection.dataset,
+      fields: selection.fields
+    }
+
+    taskData.inputProviders.push(newInputProvider)
+
+    // 构建 Join 条件
+    taskData.joinConditions = buildJoinConditions(taskData.inputProviders)
+
+    logger.info('[FlowCanvas] Input provider added to task', {
+      taskId: targetNode.id,
+      inputProviderCount: taskData.inputProviders.length,
+      joinConditionsCount: taskData.joinConditions.length
+    })
+  }
+
+  // 清理状态
+  clearFieldSelectorState()
+}
+
+/**
+ * 处理字段选择取消
+ */
+function handleFieldSelectorCancel() {
+  logger.info('[FlowCanvas] Field selector dialog cancelled')
+
+  // 清理状态，不创建连接
+  clearFieldSelectorState()
+}
+
+/**
+ * 清理字段选择器状态
+ */
+function clearFieldSelectorState() {
+  pendingConnection.value = null
+  pendingConnectionSource.value = ''
+  pendingSourceName.value = ''
+  pendingSourceType.value = ''
+  pendingParticipantId.value = ''
+  pendingDataset.value = ''
+  pendingAvailableFields.value = []
+  showFieldSelectorDialog.value = false
+}
+
+/**
  * 处理节点点击事件
  */
 function onNodeClick(event: any) {
@@ -344,9 +826,12 @@ function openEditDialog(nodeId: string) {
  */
 function handleExport() {
   try {
-    const json = exportGraph(nodes.value, edges.value)
-    downloadJson(json)
-    logger.info('[FlowCanvas] Export successful')
+    const json = convertDagToJson(nodes.value, edges.value)
+    downloadJsonFile(json)
+    logger.info('[FlowCanvas] Export successful', {
+      jobId: json.jobId,
+      taskCount: json.taskList.length
+    })
   } catch (error) {
     logger.error('[FlowCanvas] Export failed', error)
     // TODO: 显示错误提示
@@ -378,11 +863,516 @@ async function handleImport(file: File) {
   }
 }
 
+/**
+ * 处理添加输出按钮点击
+ */
+function handleAddOutput(event: Event) {
+  const customEvent = event as CustomEvent
+  const { nodeId } = customEvent.detail
+
+  const taskNode = nodes.value.find(n => n.id === nodeId)
+  if (!taskNode) {
+    logger.warn('[FlowCanvas] Task node not found for output addition', { nodeId })
+    return
+  }
+
+  const taskData = taskNode.data as ComputeTaskNodeData
+
+  // 检查是否已配置输入数据
+  if (!taskData.inputProviders || taskData.inputProviders.length === 0) {
+    logger.warn('[FlowCanvas] Cannot add output: no input providers configured')
+    // TODO: 显示提示信息
+    return
+  }
+
+  // 设置待处理的输出任务
+  pendingOutputTaskId.value = nodeId
+  pendingOutputConfig.value = undefined
+
+  // 打开输出配置对话框
+  showOutputConfigDialog.value = true
+  logger.info('[FlowCanvas] Opening output config dialog', { taskId: nodeId })
+}
+
+/**
+ * 处理输出配置确认
+ */
+function handleOutputConfigConfirmed(config: {
+  participantId: string
+  dataset: string
+  fields: OutputField[]
+}) {
+  logger.info('[FlowCanvas] Output config confirmed', {
+    taskId: pendingOutputTaskId.value,
+    participantId: config.participantId,
+    fieldCount: config.fields.length
+  })
+
+  if (!pendingOutputTaskId.value) {
+    logger.warn('[FlowCanvas] No pending task for output configuration')
+    return
+  }
+
+  const taskNode = nodes.value.find(n => n.id === pendingOutputTaskId.value)
+  if (!taskNode) {
+    logger.warn('[FlowCanvas] Task node not found for output configuration')
+    return
+  }
+
+  const taskData = taskNode.data as ComputeTaskNodeData
+
+  // 在计算任务下方创建输出节点
+  const outputNodeId = `output_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+  const outputPosition = {
+    x: taskNode.position.x,
+    y: taskNode.position.y + 150
+  }
+
+  const outputNode: Node = {
+    id: outputNodeId,
+    type: 'outputData',
+    position: outputPosition,
+    data: {
+      label: config.dataset,
+      category: NodeCategory.OUTPUT_DATA,
+      color: '#52C41A',
+      icon: 'download',
+      description: `输出到 ${config.participantId}`,
+      parentTaskId: pendingOutputTaskId.value,
+      participantId: config.participantId,
+      dataset: config.dataset,
+      fields: config.fields
+    } as any
+  }
+
+  nodes.value.push(outputNode)
+
+  // 创建从计算任务到输出节点的连接
+  const outputEdge = createUniqueEdge({
+    source: pendingOutputTaskId.value,
+    target: outputNodeId,
+    sourceHandle: 'output',
+    targetHandle: 'input'
+  }, edges.value)
+  edges.value.push(outputEdge)
+
+  // 更新计算任务的 outputs 数组
+  if (!taskData.outputs) {
+    taskData.outputs = []
+  }
+
+  taskData.outputs.push({
+    id: `output_config_${Date.now()}`,
+    participantId: config.participantId,
+    dataset: config.dataset,
+    outputFields: config.fields,
+    outputNodeId: outputNodeId
+  })
+
+  logger.info('[FlowCanvas] Output node created and linked', {
+    outputNodeId,
+    parentTaskId: pendingOutputTaskId.value,
+    edgeId: outputEdge.id
+  })
+
+  // 清理状态
+  clearOutputConfigState()
+}
+
+/**
+ * 处理输出配置取消
+ */
+function handleOutputConfigCancelled() {
+  logger.info('[FlowCanvas] Output config dialog cancelled')
+
+  // 清理状态
+  clearOutputConfigState()
+}
+
+/**
+ * 清理输出配置状态
+ */
+function clearOutputConfigState() {
+  pendingOutputTaskId.value = ''
+  pendingOutputConfig.value = undefined
+  showOutputConfigDialog.value = false
+}
+
+/**
+ * 处理企业选择确认（用于模型和算力）
+ */
+function handleEnterpriseSelected(participantId: string) {
+  logger.info('[FlowCanvas] Enterprise selected for resource', {
+    participantId,
+    resourceType: pendingResourceType.value
+  })
+
+  selectedParticipantId.value = participantId
+
+  if (pendingResourceType.value === 'model') {
+    // 打开模型选择对话框
+    showModelSelectorDialog.value = true
+    showEnterpriseDialog.value = false
+  } else {
+    // 打开算力选择对话框
+    showComputeSelectorDialog.value = true
+    showEnterpriseDialog.value = false
+  }
+}
+
+/**
+ * 处理企业选择对话框取消
+ */
+function handleEnterpriseDialogCancel() {
+  logger.info('[FlowCanvas] Enterprise selector dialog cancelled')
+  showEnterpriseDialog.value = false
+  selectedParticipantId.value = ''
+  pendingModelOrComputeData.value = null
+}
+
+/**
+ * 处理模型选择确认
+ */
+function handleModelSelected(model: any) {
+  logger.info('[FlowCanvas] Model selected', {
+    modelId: model.id,
+    participantId: selectedParticipantId.value
+  })
+
+  if (!pendingModelOrComputeData.value) {
+    logger.warn('[FlowCanvas] No pending model data')
+    return
+  }
+
+  // 创建模型节点
+  createModelNode(pendingModelOrComputeData.value, model, selectedParticipantId.value)
+
+  // 清理状态
+  showModelSelectorDialog.value = false
+  selectedParticipantId.value = ''
+  pendingModelOrComputeData.value = null
+}
+
+/**
+ * 处理模型选择取消
+ */
+function handleModelSelectorCancel() {
+  logger.info('[FlowCanvas] Model selector dialog cancelled')
+  showModelSelectorDialog.value = false
+  selectedParticipantId.value = ''
+  pendingModelOrComputeData.value = null
+}
+
+/**
+ * 处理算力选择确认
+ */
+function handleComputeSelected(compute: any) {
+  logger.info('[FlowCanvas] Compute resource selected', {
+    computeId: compute.id,
+    participantId: selectedParticipantId.value
+  })
+
+  if (!pendingModelOrComputeData.value) {
+    logger.warn('[FlowCanvas] No pending compute data')
+    return
+  }
+
+  // 创建算力节点
+  createComputeResourceNode(pendingModelOrComputeData.value, compute, selectedParticipantId.value)
+
+  // 清理状态
+  showComputeSelectorDialog.value = false
+  selectedParticipantId.value = ''
+  pendingModelOrComputeData.value = null
+}
+
+/**
+ * 处理算力选择取消
+ */
+function handleComputeSelectorCancel() {
+  logger.info('[FlowCanvas] Compute selector dialog cancelled')
+  showComputeSelectorDialog.value = false
+  selectedParticipantId.value = ''
+  pendingModelOrComputeData.value = null
+}
+
+/**
+ * 处理表达式确认
+ */
+function handleExpressionConfirmed(expression: string) {
+  logger.info('[FlowCanvas] Expression confirmed')
+
+  if (!pendingExpressionData.value) {
+    logger.warn('[FlowCanvas] No pending expression data')
+    return
+  }
+
+  // 创建表达式模型节点
+  const expressionModel = {
+    id: 'expression_' + Date.now(),
+    name: '表达式',
+    type: 'expression'
+  }
+
+  // 获取目标计算任务节点
+  const targetElement = document.querySelector('.vue-flow__node.selected')
+  const targetNodeId = targetElement?.getAttribute('data-id')
+  const targetTaskNode = nodes.value.find(n => n.id === targetNodeId)
+
+  if (targetTaskNode) {
+    createModelNode(pendingExpressionData.value, expressionModel, targetTaskNode.data.label as string, expression)
+  }
+
+  // 清理状态
+  showExpressionEditorDialog.value = false
+  pendingExpression.value = ''
+  pendingExpressionData.value = null
+}
+
+/**
+ * 处理表达式编辑取消
+ */
+function handleExpressionEditorCancel() {
+  logger.info('[FlowCanvas] Expression editor dialog cancelled')
+  showExpressionEditorDialog.value = false
+  pendingExpression.value = ''
+  pendingExpressionData.value = null
+}
+
+/**
+ * 处理本地任务企业选择确认
+ */
+function handleLocalTaskEnterpriseSelected(participantId: string) {
+  logger.info('[FlowCanvas] Local task enterprise selected', { participantId })
+
+  if (!pendingLocalTaskData.value) {
+    logger.warn('[FlowCanvas] No pending local task data')
+    return
+  }
+
+  // 创建本地任务节点
+  createLocalTaskNode(pendingLocalTaskData.value, participantId)
+
+  // 清理状态
+  showLocalTaskEnterpriseDialog.value = false
+  pendingLocalTaskData.value = null
+}
+
+/**
+ * 处理本地任务企业选择取消
+ */
+function handleLocalTaskEnterpriseCancel() {
+  logger.info('[FlowCanvas] Local task enterprise selector dialog cancelled')
+  showLocalTaskEnterpriseDialog.value = false
+  pendingLocalTaskData.value = null
+}
+
+/**
+ * 创建模型节点
+ */
+function createModelNode(
+  data: DroppedNodeData,
+  model: any,
+  participantId: string,
+  expression?: string
+) {
+  // 找到当前悬停的计算任务节点
+  const targetElement = document.querySelector('.vue-flow__node:hover') || document.querySelector('.vue-flow__node.selected')
+  const targetNodeId = targetElement?.getAttribute('data-id')
+  const targetTaskNode = nodes.value.find(n => n.id === targetNodeId)
+
+  if (!targetTaskNode) {
+    logger.warn('[FlowCanvas] No target compute task node found')
+    return
+  }
+
+  const taskData = targetTaskNode.data as ComputeTaskNodeData
+
+  // 在计算任务左侧创建模型节点
+  const modelNodeId = `model_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+  const modelPosition = {
+    x: targetTaskNode.position.x - 200,
+    y: targetTaskNode.position.y
+  }
+
+  const modelNode: Node = {
+    id: modelNodeId,
+    type: 'modelNode',
+    position: modelPosition,
+    data: {
+      label: model.name,
+      category: 'model',
+      color: '#8B5CF6',
+      icon: '📦',
+      type: data.modelType || model.type,
+      participantId: participantId,
+      modelId: model.id,
+      expression: expression,
+      parameters: []
+    } as any
+  }
+
+  nodes.value.push(modelNode)
+
+  // 创建从模型节点到计算任务的连接
+  const modelEdge = createUniqueEdge({
+    source: modelNodeId,
+    target: targetTaskNode.id,
+    sourceHandle: 'output',
+    targetHandle: 'input'
+  }, edges.value)
+  edges.value.push(modelEdge)
+
+  // 更新计算任务的 models 数组
+  if (!taskData.models) {
+    taskData.models = []
+  }
+
+  taskData.models.push({
+    type: data.modelType || model.type,
+    id: model.id,
+    name: model.name,
+    participantId: participantId,
+    expression: expression,
+    parameters: [],
+    modelNodeId: modelNodeId
+  })
+
+  logger.info('[FlowCanvas] Model node created and linked', {
+    modelNodeId,
+    parentTaskId: targetTaskNode.id,
+    edgeId: modelEdge.id
+  })
+}
+
+/**
+ * 创建算力资源节点
+ */
+function createComputeResourceNode(
+  _data: DroppedNodeData,
+  compute: any,
+  participantId: string
+) {
+  // 找到当前悬停的计算任务节点
+  const targetElement = document.querySelector('.vue-flow__node:hover') || document.querySelector('.vue-flow__node.selected')
+  const targetNodeId = targetElement?.getAttribute('data-id')
+  const targetTaskNode = nodes.value.find(n => n.id === targetNodeId)
+
+  if (!targetTaskNode) {
+    logger.warn('[FlowCanvas] No target compute task node found')
+    return
+  }
+
+  const taskData = targetTaskNode.data as ComputeTaskNodeData
+
+  // 在计算任务右侧创建算力节点
+  const computeNodeId = `compute_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+  const computePosition = {
+    x: targetTaskNode.position.x + 350,
+    y: targetTaskNode.position.y
+  }
+
+  const computeNode: Node = {
+    id: computeNodeId,
+    type: 'computeResource',
+    position: computePosition,
+    data: {
+      label: compute.name,
+      category: 'computeResource',
+      color: '#FA8C16',
+      icon: '⚡',
+      participantId: participantId,
+      resourceId: compute.id,
+      resourceType: compute.type
+    } as any
+  }
+
+  nodes.value.push(computeNode)
+
+  // 创建从算力节点到计算任务的连接
+  const computeEdge = createUniqueEdge({
+    source: computeNodeId,
+    target: targetTaskNode.id,
+    sourceHandle: 'output',
+    targetHandle: 'input'
+  }, edges.value)
+  edges.value.push(computeEdge)
+
+  // 更新计算任务的 computeProviders 数组
+  if (!taskData.computeProviders) {
+    taskData.computeProviders = []
+  }
+
+  taskData.computeProviders.push({
+    participantId: participantId,
+    id: compute.id,
+    type: compute.type,
+    groupId: compute.groupId || '',
+    groupName: compute.groupName || '',
+    nodeId: compute.nodeId || '',
+    cardSerial: compute.cardSerial || '',
+    cardModel: compute.cardModel || '',
+    resourceNodeId: computeNodeId
+  })
+
+  logger.info('[FlowCanvas] Compute resource node created and linked', {
+    computeNodeId,
+    parentTaskId: targetTaskNode.id,
+    edgeId: computeEdge.id
+  })
+}
+
+/**
+ * 创建本地任务节点
+ */
+function createLocalTaskNode(data: DroppedNodeData, participantId: string) {
+  const position = pendingNodePosition.value || { x: 100, y: 100 }
+
+  const localTaskNode: Node = {
+    id: `localTask_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    type: 'localTask',
+    position: {
+      x: position.x,
+      y: position.y
+    },
+    data: {
+      label: data.label,
+      category: 'localTask',
+      computeType: 'CONCAT',
+      icon: data.icon,
+      color: data.color,
+      description: data.description,
+      participantId: participantId,
+      inputProviders: [],
+      joinConditions: [],
+      outputs: []
+    } as any
+  }
+
+  nodes.value.push(localTaskNode)
+  logger.info('[FlowCanvas] Local task node created', {
+    nodeId: localTaskNode.id,
+    participantId
+  })
+
+  // 清理状态
+  pendingNodePosition.value = null
+}
+
 // 暴露方法供父组件调用
 defineExpose({
   openEditDialog,
   handleExport,
   handleImport
+})
+
+// 生命周期：注册全局事件监听器
+onMounted(() => {
+  document.addEventListener('add-output', handleAddOutput)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('add-output', handleAddOutput)
 })
 </script>
 

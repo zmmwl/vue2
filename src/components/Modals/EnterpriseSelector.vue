@@ -1,0 +1,357 @@
+<template>
+  <el-dialog
+    v-model="visible"
+    title="选择企业"
+    width="600px"
+    :close-on-click-modal="false"
+    @close="handleClose"
+  >
+    <div class="enterprise-selector">
+      <div v-if="sortedEnterprises.length === 0" class="empty-state">
+        <div class="empty-icon">📄</div>
+        <p>暂无可选企业</p>
+      </div>
+
+      <div v-else class="enterprise-list">
+        <div
+          v-for="enterprise in sortedEnterprises"
+          :key="enterprise.id"
+          class="enterprise-item"
+          :class="{ 'is-selected': selectedEnterpriseId === enterprise.id }"
+          @click="selectEnterprise(enterprise.id)"
+        >
+          <div class="enterprise-icon">
+            {{ enterprise.name.charAt(0) }}
+          </div>
+          <div class="enterprise-info">
+            <div class="enterprise-name">{{ enterprise.name }}</div>
+            <div class="enterprise-type">
+              <span
+                class="type-tag"
+                :class="getResourceTypeClass(enterprise.resourceType)"
+              >
+                {{ getResourceTypeName(enterprise.resourceType) }}
+              </span>
+            </div>
+          </div>
+          <div v-if="selectedEnterpriseId === enterprise.id" class="check-icon">
+            ✓
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <template #footer>
+      <div class="dialog-footer">
+        <button class="btn btn-secondary" @click="handleCancel">取消</button>
+        <button
+          class="btn btn-primary"
+          :disabled="!selectedEnterpriseId"
+          @click="handleConfirm"
+        >
+          确认
+        </button>
+      </div>
+    </template>
+  </el-dialog>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, watch } from 'vue'
+import type { EnterpriseOption } from '@/types/nodes'
+import { ResourceTypePriority } from '@/types/nodes'
+
+interface Props {
+  modelValue: boolean
+  enterprises: EnterpriseOption[]
+}
+
+interface Emits {
+  (e: 'update:modelValue', value: boolean): void
+  (e: 'confirm', enterpriseId: string): void
+  (e: 'cancel'): void
+}
+
+const props = defineProps<Props>()
+const emit = defineEmits<Emits>()
+
+// 对话框可见性
+const visible = ref(false)
+
+// 选中的企业 ID
+const selectedEnterpriseId = ref<string>('')
+
+// 按资源类型优先级排序的企业列表
+const sortedEnterprises = computed(() => {
+  return [...props.enterprises].sort((a, b) => {
+    // 首先按资源类型优先级排序
+    if (a.resourceType !== b.resourceType) {
+      return b.resourceType - a.resourceType
+    }
+    // 相同优先级按名称字母序排序
+    return a.name.localeCompare(b.name, 'zh-CN')
+  })
+})
+
+// 监听 modelValue 变化
+watch(() => props.modelValue, (newVal) => {
+  visible.value = newVal
+  if (newVal) {
+    // 重置选择
+    selectedEnterpriseId.value = ''
+  }
+})
+
+// 监听 visible 变化
+watch(visible, (newVal) => {
+  if (!newVal) {
+    emit('update:modelValue', false)
+  }
+})
+
+/**
+ * 选择企业
+ */
+function selectEnterprise(enterpriseId: string) {
+  selectedEnterpriseId.value = enterpriseId
+}
+
+/**
+ * 获取资源类型标签样式类
+ */
+function getResourceTypeClass(type: ResourceTypePriority): string {
+  switch (type) {
+    case ResourceTypePriority.DATA:
+      return 'type-success'
+    case ResourceTypePriority.MODEL:
+      return 'type-warning'
+    case ResourceTypePriority.COMPUTE:
+      return 'type-info'
+    default:
+      return 'type-primary'
+  }
+}
+
+/**
+ * 获取资源类型名称
+ */
+function getResourceTypeName(type: ResourceTypePriority): string {
+  switch (type) {
+    case ResourceTypePriority.DATA:
+      return '数据资源企业'
+    case ResourceTypePriority.MODEL:
+      return '模型所属企业'
+    case ResourceTypePriority.COMPUTE:
+      return '算力所属企业'
+    default:
+      return '其他企业'
+  }
+}
+
+/**
+ * 处理确认
+ */
+function handleConfirm() {
+  if (!selectedEnterpriseId.value) return
+
+  emit('confirm', selectedEnterpriseId.value)
+  handleClose()
+}
+
+/**
+ * 处理取消
+ */
+function handleCancel() {
+  emit('cancel')
+  handleClose()
+}
+
+/**
+ * 处理关闭
+ */
+function handleClose() {
+  visible.value = false
+  selectedEnterpriseId.value = ''
+}
+</script>
+
+<style scoped lang="scss">
+.enterprise-selector {
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+    color: #909399;
+
+    .empty-icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+      opacity: 0.6;
+    }
+
+    p {
+      margin: 0;
+      font-size: 14px;
+    }
+  }
+
+  .enterprise-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-height: 400px;
+    overflow-y: auto;
+    padding: 4px;
+  }
+}
+
+.enterprise-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: #f5f7fa;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: #ecf5ff;
+    border-color: #b3d8ff;
+  }
+
+  &.is-selected {
+    background: #f0f9ff;
+    border-color: #409eff;
+  }
+}
+
+.enterprise-icon {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #409eff, #66b1ff);
+  color: white;
+  border-radius: 8px;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.enterprise-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.enterprise-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #303133;
+  margin-bottom: 4px;
+}
+
+.enterprise-type {
+  .type-tag {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: 500;
+
+    &.type-success {
+      background: linear-gradient(135deg, #E6F7FF, #BAE7FF);
+      color: #1890FF;
+    }
+
+    &.type-warning {
+      background: linear-gradient(135deg, #FFF7E6, #FFD591);
+      color: #FA8C16;
+    }
+
+    &.type-info {
+      background: linear-gradient(135deg, #E6FFFB, #87E8DE);
+      color: #13C2C2;
+    }
+
+    &.type-primary {
+      background: linear-gradient(135deg, #F9F0FF, #D3ADF7);
+      color: #722ED1;
+    }
+  }
+}
+
+.check-icon {
+  flex-shrink: 0;
+  font-size: 20px;
+}
+
+.dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.btn {
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s ease;
+
+  &.btn-secondary {
+    background: #f5f7fa;
+    color: #606266;
+    border: 1px solid #dcdfe6;
+
+    &:hover:not(:disabled) {
+      background: #ecf5ff;
+      border-color: #409eff;
+      color: #409eff;
+    }
+  }
+
+  &.btn-primary {
+    background: linear-gradient(135deg, #409eff, #66b1ff);
+    color: white;
+
+    &:hover:not(:disabled) {
+      background: linear-gradient(135deg, #66b1ff, #79bbff);
+      box-shadow: 0 2px 8px rgba(64, 158, 255, 0.3);
+    }
+
+    &:disabled {
+      background: #c0c4cc;
+      cursor: not-allowed;
+    }
+  }
+}
+
+:deep(.el-dialog__body) {
+  padding: 16px 20px;
+}
+
+// 自定义滚动条
+.enterprise-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.enterprise-list::-webkit-scrollbar-track {
+  background: #f5f7fa;
+  border-radius: 3px;
+}
+
+.enterprise-list::-webkit-scrollbar-thumb {
+  background: #dcdfe6;
+  border-radius: 3px;
+
+  &:hover {
+    background: #c0c4cc;
+  }
+}
+</style>

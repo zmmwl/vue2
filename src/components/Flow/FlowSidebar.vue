@@ -30,9 +30,10 @@
       <div class="section-title">计算任务</div>
       <div class="node-palette">
         <div
-          v-for="template in COMPUTE_TASK_TEMPLATES"
+          v-for="template in filteredComputeTaskTemplates"
           :key="template.label"
           class="palette-node"
+          :class="{ 'is-disabled': template.taskType === ComputeTaskType.FL }"
           draggable="true"
           :data-testid="`palette-node-${template.label.replace(/\s+/g, '-').toLowerCase()}`"
           @dragstart="onDragStart($event, template)"
@@ -46,6 +47,93 @@
               {{ template.description }}
             </div>
           </div>
+          <div v-if="template.taskType === ComputeTaskType.FL" class="badge-coming-soon">
+            待上线
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 计算模型部分 -->
+    <div class="sidebar-section">
+      <div class="section-title">计算模型</div>
+      <div class="node-palette">
+        <div
+          v-for="template in MODEL_TEMPLATES"
+          :key="template.label"
+          class="palette-node"
+          draggable="true"
+          :data-testid="`palette-node-${template.label.replace(/\s+/g, '-').toLowerCase()}`"
+          @dragstart="onDragStartModel($event, template)"
+        >
+          <div class="palette-node-icon" :style="{ color: template.color }">
+            {{ template.icon }}
+          </div>
+          <div class="palette-node-content">
+            <div class="palette-node-label">{{ template.label }}</div>
+            <div v-if="template.description" class="palette-node-desc">
+              {{ template.description }}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 算力资源部分 -->
+    <div class="sidebar-section">
+      <div class="section-title">算力资源</div>
+      <div class="node-palette">
+        <div
+          v-for="template in RESOURCE_TEMPLATES"
+          :key="template.label"
+          class="palette-node"
+          draggable="true"
+          :data-testid="`palette-node-${template.label.replace(/\s+/g, '-').toLowerCase()}`"
+          @dragstart="onDragStartResource($event, template)"
+        >
+          <div class="palette-node-icon" :style="{ color: template.color }">
+            {{ template.icon }}
+          </div>
+          <div class="palette-node-content">
+            <div class="palette-node-label">{{ template.label }}</div>
+            <div v-if="template.description" class="palette-node-desc">
+              {{ template.description }}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 本地计算任务部分 -->
+    <div class="sidebar-section">
+      <div class="section-title">本地计算任务</div>
+      <div class="node-palette">
+        <div
+          class="palette-node"
+          draggable="true"
+          data-testid="palette-node-local-result-task"
+          @dragstart="onDragStartLocalTask"
+        >
+          <div class="palette-node-icon" style="color: #722ED1">
+            🔄
+          </div>
+          <div class="palette-node-content">
+            <div class="palette-node-label">本地结果处理</div>
+            <div class="palette-node-desc">拼接多个任务的输出结果</div>
+          </div>
+        </div>
+        <div
+          class="palette-node is-disabled"
+          data-testid="palette-node-local-query"
+        >
+          <div class="palette-node-icon" style="color: #999999">
+            📊
+          </div>
+          <div class="palette-node-content">
+            <div class="palette-node-label">本地 Query</div>
+            <div class="palette-node-desc">本地数据查询处理</div>
+          </div>
+          <div class="badge-coming-soon">待上线</div>
         </div>
       </div>
     </div>
@@ -53,15 +141,81 @@
 </template>
 
 <script setup lang="ts">
-import { DATA_SOURCE_TEMPLATES, COMPUTE_TASK_TEMPLATES } from '@/utils/node-templates'
+import { computed } from 'vue'
+import { DATA_SOURCE_TEMPLATES, COMPUTE_TASK_TEMPLATES, MODEL_TEMPLATES, RESOURCE_TEMPLATES } from '@/utils/node-templates'
 import type { NodeTemplate } from '@/types/nodes'
+import { ComputeTaskType } from '@/types/nodes'
+
+// 过滤计算任务模板（联邦学习置灰但不隐藏）
+const filteredComputeTaskTemplates = computed(() => {
+  return COMPUTE_TASK_TEMPLATES
+})
 
 /**
  * 处理拖拽开始事件
  */
 const onDragStart = (event: DragEvent, template: NodeTemplate) => {
   if (event.dataTransfer) {
+    // 联邦学习暂时不可用
+    if (template.taskType === ComputeTaskType.FL) {
+      event.preventDefault()
+      return
+    }
     event.dataTransfer.setData('application/vueflow', JSON.stringify(template))
+    event.dataTransfer.effectAllowed = 'move'
+  }
+}
+
+/**
+ * 处理模型拖拽开始事件
+ */
+const onDragStartModel = (event: DragEvent, template: NodeTemplate) => {
+  if (event.dataTransfer) {
+    // 确定模型类型
+    let modelType = 'CodeBin-V2'
+    if (template.label.includes('表达式')) {
+      modelType = 'expression'
+    } else if (template.label.includes('V3.1')) {
+      modelType = 'CodeBin-V3-1'
+    } else if (template.label.includes('V3.2')) {
+      modelType = 'CodeBin-V3-2'
+    } else if (template.label.includes('SPDZ')) {
+      modelType = 'SPDZ'
+    }
+
+    const data = {
+      ...template,
+      modelType
+    }
+    event.dataTransfer.setData('application/vueflow', JSON.stringify(data))
+    event.dataTransfer.effectAllowed = 'move'
+  }
+}
+
+/**
+ * 处理算力资源拖拽开始事件
+ */
+const onDragStartResource = (event: DragEvent, template: NodeTemplate) => {
+  if (event.dataTransfer) {
+    event.dataTransfer.setData('application/vueflow', JSON.stringify(template))
+    event.dataTransfer.effectAllowed = 'move'
+  }
+}
+
+/**
+ * 处理本地任务拖拽
+ */
+const onDragStartLocalTask = (event: DragEvent) => {
+  if (event.dataTransfer) {
+    const localTaskTemplate: NodeTemplate = {
+      type: 'localTask',
+      label: '本地结果处理',
+      category: 'localTask' as any,
+      icon: '🔄',
+      color: '#722ED1',
+      description: '拼接多个任务的输出结果'
+    }
+    event.dataTransfer.setData('application/vueflow', JSON.stringify(localTaskTemplate))
     event.dataTransfer.effectAllowed = 'move'
   }
 }
@@ -245,5 +399,44 @@ const onDragStart = (event: DragEvent, template: NodeTemplate) => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.palette-node.is-disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: rgba(0, 0, 0, 0.02);
+
+  &:hover {
+    background: rgba(0, 0, 0, 0.02);
+    border-color: rgba(0, 0, 0, 0.05);
+    transform: none;
+    box-shadow: none;
+
+    .palette-node-icon {
+      background: rgba(0, 0, 0, 0.04);
+      transform: none;
+    }
+
+    .palette-node-label {
+      color: var(--text-primary);
+    }
+  }
+
+  &:active {
+    transform: none;
+  }
+}
+
+.badge-coming-soon {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  padding: 2px 6px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #ffffff;
+  background: linear-gradient(135deg, #999999, #777777);
+  border-radius: 4px;
+  pointer-events: none;
 }
 </style>

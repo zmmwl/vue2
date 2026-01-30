@@ -12,7 +12,10 @@
       />
       <FlowDetailPanel
         :selected-node="selectedNode"
+        :export-json="exportJson"
+        :view-mode="detailViewMode"
         @edit="handleEditAsset"
+        @view-mode-change="handleViewModeChange"
       />
     </div>
     <!-- 隐藏的文件输入用于导入 -->
@@ -27,13 +30,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import type { Node } from '@vue-flow/core'
 import type { NodeData } from '@/types/nodes'
 import FlowHeader from '@/components/Flow/FlowHeader.vue'
 import FlowSidebar from '@/components/Flow/FlowSidebar.vue'
 import FlowCanvas from '@/components/Flow/FlowCanvas.vue'
 import FlowDetailPanel from '@/components/Flow/FlowDetailPanel.vue'
+import { useGraphState } from '@/composables/useGraphState'
 import { logger } from '@/utils/logger'
 
 // FlowCanvas 组件引用
@@ -41,18 +45,32 @@ const flowCanvasRef = ref<InstanceType<typeof FlowCanvas>>()
 // 文件输入引用
 const fileInputRef = ref<HTMLInputElement>()
 
+// 使用图状态管理
+const { nodes, selectedNodeId, exportJson, detailViewMode, selectNode, setDetailViewMode } = useGraphState()
+
 // 当前选中的节点
-const selectedNode = ref<Node<NodeData> | null>(null)
+const selectedNode = computed(() => {
+  if (!selectedNodeId.value) return null
+  return nodes.value.find(node => node.id === selectedNodeId.value) || null
+})
 
 /**
  * 处理节点选中事件
  */
 function handleNodeSelected(node: Node<NodeData> | null) {
-  selectedNode.value = node
+  selectNode(node?.id || null)
   logger.info('[FlowEditor] Node selected', {
     nodeId: node?.id,
     hasAssetInfo: !!node?.data?.assetInfo
   })
+}
+
+/**
+ * 处理视图模式切换
+ */
+function handleViewModeChange(mode: 'detail' | 'preview') {
+  setDetailViewMode(mode)
+  logger.info('[FlowEditor] View mode changed', { mode })
 }
 
 /**

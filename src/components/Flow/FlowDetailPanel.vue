@@ -2,27 +2,54 @@
   <div class="flow-detail-panel" data-testid="flow-detail-panel">
     <!-- 头部 -->
     <div class="detail-header">
-      <h3 class="detail-title">节点详情</h3>
-      <button
-        v-if="selectedNode && isConfigured"
-        class="edit-button"
-        @click="handleEdit"
-        aria-label="编辑配置"
-      >
-        重新配置
-      </button>
+      <div class="header-left">
+        <h3 class="detail-title">{{ viewMode === 'detail' ? '节点详情' : 'JSON预览' }}</h3>
+      </div>
+      <div class="header-right">
+        <!-- 视图切换按钮 -->
+        <div class="view-toggle">
+          <button
+            class="toggle-button"
+            :class="{ active: viewMode === 'detail' }"
+            @click="handleViewModeChange('detail')"
+          >
+            节点详情
+          </button>
+          <button
+            class="toggle-button"
+            :class="{ active: viewMode === 'preview' }"
+            @click="handleViewModeChange('preview')"
+          >
+            JSON预览
+          </button>
+        </div>
+        <button
+          v-if="viewMode === 'detail' && selectedNode && isDataSourceNode && isConfigured"
+          class="edit-button"
+          @click="handleEdit"
+          aria-label="编辑配置"
+        >
+          重新配置
+        </button>
+      </div>
     </div>
 
     <!-- 内容区域 -->
     <div class="detail-content">
+      <!-- JSON预览模式 -->
+      <template v-if="viewMode === 'preview'">
+        <JsonPreviewPanel :json="exportJson" />
+      </template>
+
+      <!-- 节点详情模式 -->
       <!-- 未选中节点 -->
       <div v-if="!selectedNode" class="empty-state">
         <div class="empty-icon">📋</div>
         <p>请选择一个节点查看详情</p>
       </div>
 
-      <!-- 未配置节点 -->
-      <div v-else-if="!isConfigured" class="empty-state">
+      <!-- 数据源节点 - 未配置 -->
+      <div v-else-if="isDataSourceNode && !isConfigured" class="empty-state">
         <div class="empty-icon">⚠️</div>
         <p>该节点尚未配置数据资产</p>
         <button class="btn btn-primary" @click="handleEdit">
@@ -30,8 +57,8 @@
         </button>
       </div>
 
-      <!-- 已配置节点 - 显示详情 -->
-      <div v-else class="detail-info">
+      <!-- 数据源节点 - 已配置 -->
+      <div v-else-if="isDataSourceNode && isConfigured" class="detail-info">
         <!-- 基本信息 -->
         <div class="info-section">
           <h4 class="section-title">基本信息</h4>
@@ -101,6 +128,172 @@
           </div>
         </div>
       </div>
+
+      <!-- 计算任务节点 -->
+      <div v-else-if="isComputeTaskNode" class="detail-info">
+        <!-- 任务基本信息 -->
+        <div class="info-section">
+          <h4 class="section-title">任务信息</h4>
+          <div class="info-grid">
+            <div class="info-item">
+              <span class="info-label">任务名称</span>
+              <span class="info-value">{{ selectedNode?.data?.label || '-' }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">计算类型</span>
+              <span class="info-value">{{ taskTypeLabel || '-' }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">技术路径</span>
+              <span class="info-value">{{ techPathLabel || '-' }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 输入数据 -->
+        <CollapsibleSection title="输入数据" :count="inputProvidersCount">
+          <div v-if="!inputProviders || inputProviders.length === 0" class="empty-inputs">
+            <div class="empty-icon">📊</div>
+            <p>暂无输入数据</p>
+            <p class="empty-hint">从数据源节点拖拽连线到此任务</p>
+          </div>
+          <div v-else class="input-providers-list">
+            <div
+              v-for="(provider, index) in inputProviders"
+              :key="index"
+              class="provider-card"
+            >
+              <div class="provider-header">
+                <span class="provider-index">{{ index + 1 }}</span>
+                <span class="provider-name">{{ provider.participantId }}</span>
+                <span class="provider-dataset">{{ provider.dataset }}</span>
+              </div>
+              <div class="provider-fields">
+                <div class="fields-header">
+                  <span>字段 ({{ provider.fields.length }})</span>
+                </div>
+                <div class="fields-list">
+                  <div
+                    v-for="field in provider.fields"
+                    :key="field.columnName"
+                    class="field-chip"
+                    :class="{ 'is-join': field.isJoinField }"
+                  >
+                    <span class="field-alias">{{ field.columnAlias || field.columnName }}</span>
+                    <span v-if="field.isJoinField" class="join-badge">{{ field.joinType }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </CollapsibleSection>
+
+        <!-- Join 条件 -->
+        <CollapsibleSection v-if="joinConditions && joinConditions.length > 0" title="Join 条件" :count="joinConditions.length">
+          <div class="join-conditions-list">
+            <div
+              v-for="(condition, index) in joinConditions"
+              :key="index"
+              class="join-condition-card"
+            >
+              <div class="condition-type">{{ condition.joinType }}</div>
+              <div class="condition-operands">
+                <div
+                  v-for="(operand, opIndex) in condition.operands"
+                  :key="opIndex"
+                  class="operand-item"
+                >
+                  <span class="operand-participant">{{ operand.participantId }}</span>
+                  <span class="operand-dataset">{{ operand.dataset }}</span>
+                  <span class="operand-fields">{{ operand.columnNames.join(', ') }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </CollapsibleSection>
+
+        <!-- 计算模型 -->
+        <CollapsibleSection title="计算模型" :count="modelsCount">
+          <div v-if="!models || models.length === 0" class="empty-inputs">
+            <div class="empty-icon">📦</div>
+            <p>暂无计算模型</p>
+            <p class="empty-hint">从左侧拖拽模型到此任务</p>
+          </div>
+          <div v-else class="models-list">
+            <div
+              v-for="(model, index) in models"
+              :key="index"
+              class="model-card"
+            >
+              <div class="model-header">
+                <span class="model-icon">📦</span>
+                <span class="model-type">{{ modelTypeLabel(model) }}</span>
+                <span class="model-participant">{{ model.participantId }}</span>
+              </div>
+              <div v-if="model.type === 'expression'" class="model-expression">
+                {{ expressionPreview(model) }}
+              </div>
+              <div v-else class="model-params">
+                <span class="params-count">{{ model.parameters?.length || 0 }} 个参数</span>
+              </div>
+            </div>
+          </div>
+        </CollapsibleSection>
+
+        <!-- 算力资源 -->
+        <CollapsibleSection title="算力资源" :count="computeProvidersCount">
+          <div v-if="!computeProviders || computeProviders.length === 0" class="empty-inputs">
+            <div class="empty-icon">⚡</div>
+            <p>暂无算力资源</p>
+            <p class="empty-hint">从左侧拖拽算力到此任务</p>
+          </div>
+          <div v-else class="compute-list">
+            <div
+              v-for="(compute, index) in computeProviders"
+              :key="index"
+              class="compute-card"
+            >
+              <div class="compute-header">
+                <span class="compute-icon">⚡</span>
+                <span class="compute-name">{{ compute.id }}</span>
+                <span class="compute-participant">{{ compute.participantId }}</span>
+              </div>
+              <div class="compute-type">{{ compute.type }}</div>
+            </div>
+          </div>
+        </CollapsibleSection>
+
+        <!-- 输出数据 -->
+        <CollapsibleSection title="输出数据" :count="outputsCount">
+          <div v-if="!outputs || outputs.length === 0" class="empty-inputs">
+            <div class="empty-icon">📤</div>
+            <p>暂无输出配置</p>
+            <p class="empty-hint">点击任务节点下方的"添加输出"按钮</p>
+          </div>
+          <div v-else class="outputs-list">
+            <div
+              v-for="(output, index) in outputs"
+              :key="index"
+              class="output-card"
+            >
+              <div class="output-header">
+                <span class="output-index">{{ index + 1 }}</span>
+                <span class="output-participant">{{ output.participantId }}</span>
+              </div>
+              <div class="output-dataset">{{ output.dataset }}</div>
+              <div class="output-fields">
+                <span class="fields-count">{{ output.outputFields?.length || 0 }} 个字段</span>
+              </div>
+            </div>
+          </div>
+        </CollapsibleSection>
+      </div>
+
+      <!-- 其他节点类型 -->
+      <div v-else class="empty-state">
+        <div class="empty-icon">ℹ️</div>
+        <p>该节点类型暂不支持详情查看</p>
+      </div>
     </div>
   </div>
 </template>
@@ -108,21 +301,38 @@
 <script setup lang="ts">
 import { computed, watch } from 'vue'
 import type { Node } from '@vue-flow/core'
-import type { NodeData } from '@/types/nodes'
+import type { NodeData, ComputeTaskNodeData } from '@/types/nodes'
+import type { ExportJson } from '@/types/export'
+import { NodeCategory, TechPath } from '@/types/nodes'
 import { logger } from '@/utils/logger'
+import CollapsibleSection from './CollapsibleSection.vue'
+import JsonPreviewPanel from './JsonPreviewPanel.vue'
 
 interface Props {
   selectedNode: Node<NodeData> | null
+  exportJson: ExportJson | null
+  viewMode: 'detail' | 'preview'
 }
 
 interface Emits {
   (e: 'edit', nodeId: string): void
+  (e: 'viewModeChange', mode: 'detail' | 'preview'): void
 }
 
 const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 
-// 判断节点是否已配置
+// 判断是否为数据源节点
+const isDataSourceNode = computed(() => {
+  return props.selectedNode?.data?.category === NodeCategory.DATA_SOURCE
+})
+
+// 判断是否为计算任务节点
+const isComputeTaskNode = computed(() => {
+  return props.selectedNode?.data?.category === NodeCategory.COMPUTE_TASK
+})
+
+// 判断数据源节点是否已配置
 const isConfigured = computed(() => {
   return !!(props.selectedNode?.data?.assetInfo && props.selectedNode?.data?.selectedFields)
 })
@@ -148,6 +358,90 @@ const selectedFieldList = computed(() => {
   return allFields.filter(field => selectedSet.has(field.name))
 })
 
+// 计算任务节点相关
+const taskData = computed(() => {
+  if (!isComputeTaskNode.value) return null
+  return props.selectedNode?.data as ComputeTaskNodeData
+})
+
+// 任务类型标签
+const taskTypeLabel = computed(() => {
+  if (!taskData.value) return ''
+  const typeMap: Record<string, string> = {
+    'PSI': '隐私集合求交',
+    'PIR': '隐私信息检索',
+    'MPC': '多方安全计算',
+    'FL': '联邦学习',
+    'CONCAT': '结果拼接'
+  }
+  return typeMap[taskData.value.taskType || ''] || ''
+})
+
+// 技术路径标签
+const techPathLabel = computed(() => {
+  if (!taskData.value?.techPath) return ''
+  return taskData.value.techPath === TechPath.TEE ? '硬件 TEE' : '软件密码学'
+})
+
+// 输入数据提供者列表
+const inputProviders = computed(() => {
+  return taskData.value?.inputProviders || []
+})
+
+// 输入数据提供者数量
+const inputProvidersCount = computed(() => inputProviders.value.length)
+
+// Join 条件列表
+const joinConditions = computed(() => {
+  return taskData.value?.joinConditions || []
+})
+
+// 计算模型列表
+const models = computed(() => {
+  return taskData.value?.models || []
+})
+
+// 计算模型数量
+const modelsCount = computed(() => models.value.length)
+
+// 算力资源列表
+const computeProviders = computed(() => {
+  return taskData.value?.computeProviders || []
+})
+
+// 算力资源数量
+const computeProvidersCount = computed(() => computeProviders.value.length)
+
+// 输出列表
+const outputs = computed(() => {
+  return taskData.value?.outputs || []
+})
+
+// 输出数量
+const outputsCount = computed(() => outputs.value.length)
+
+/**
+ * 获取模型类型标签
+ */
+function modelTypeLabel(model: any): string {
+  const typeMap: Record<string, string> = {
+    'expression': '表达式',
+    'CodeBin-V2': 'CodeBin-V2',
+    'CodeBin-V3-1': 'CodeBin-V3.1',
+    'CodeBin-V3-2': 'CodeBin-V3.2',
+    'SPDZ': 'SPDZ'
+  }
+  return typeMap[model.type || ''] || model.type || '未知类型'
+}
+
+/**
+ * 获取表达式预览
+ */
+function expressionPreview(model: any): string {
+  const expr = model.expression || ''
+  return expr.length > 50 ? expr.substring(0, 50) + '...' : expr
+}
+
 // 处理编辑按钮点击
 function handleEdit() {
   if (!props.selectedNode) return
@@ -156,11 +450,18 @@ function handleEdit() {
   emit('edit', props.selectedNode.id)
 }
 
+// 处理视图模式切换
+function handleViewModeChange(mode: 'detail' | 'preview') {
+  logger.info('[FlowDetailPanel] View mode change', { mode })
+  emit('viewModeChange', mode)
+}
+
 // 监听选中节点变化
 watch(() => props.selectedNode, (node) => {
   if (node) {
     logger.debug('[FlowDetailPanel] Node selected', {
       nodeId: node.id,
+      nodeType: node.data?.category,
       isConfigured: isConfigured.value
     })
   }
@@ -219,6 +520,47 @@ watch(() => props.selectedNode, (node) => {
       transparent 100%
     );
     opacity: 0.3;
+  }
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+// 视图切换按钮
+.view-toggle {
+  display: flex;
+  background: rgba(0, 0, 0, 0.04);
+  border-radius: 8px;
+  padding: 2px;
+}
+
+.toggle-button {
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &.active {
+    background: white;
+    color: var(--datasource-blue);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+
+  &:hover:not(.active) {
+    color: var(--text-primary);
   }
 }
 
@@ -486,5 +828,379 @@ watch(() => props.selectedNode, (node) => {
   background: var(--info-card-bg);
   border-radius: var(--info-card-radius);
   border: 1px dashed rgba(0, 0, 0, 0.1);
+}
+
+// 空输入状态
+.empty-inputs {
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--text-secondary);
+
+  .empty-icon {
+    font-size: 48px;
+    margin-bottom: 12px;
+    opacity: 0.6;
+  }
+
+  p {
+    margin: 8px 0;
+    font-size: 14px;
+  }
+
+  .empty-hint {
+    font-size: 12px;
+    color: var(--text-secondary);
+    opacity: 0.8;
+  }
+}
+
+// 输入提供者列表
+.input-providers-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.provider-card {
+  background: var(--glass-bg);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 8px;
+  padding: 12px;
+  transition: all var(--transition-base) var(--easing-smooth);
+
+  &:hover {
+    border-color: rgba(14, 165, 233, 0.2);
+    box-shadow: 0 2px 8px rgba(14, 165, 233, 0.08);
+  }
+}
+
+.provider-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+
+  .provider-index {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, var(--datasource-blue), #38BDF8);
+    color: white;
+    border-radius: 50%;
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .provider-name {
+    flex: 1;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .provider-dataset {
+    font-size: 12px;
+    color: var(--text-secondary);
+    padding: 2px 8px;
+    background: rgba(0, 0, 0, 0.04);
+    border-radius: 4px;
+  }
+}
+
+.provider-fields {
+  .fields-header {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+  }
+
+  .fields-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .field-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    background: rgba(0, 0, 0, 0.04);
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    border-radius: 6px;
+    font-size: 12px;
+    transition: all var(--transition-base) var(--easing-smooth);
+
+    &:hover {
+      background: rgba(14, 165, 233, 0.08);
+      border-color: rgba(14, 165, 233, 0.2);
+    }
+
+    &.is-join {
+      background: linear-gradient(135deg, #E6F7FF, #BAE7FF);
+      border-color: rgba(24, 144, 255, 0.3);
+    }
+
+    .field-alias {
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+
+    .join-badge {
+      font-size: 10px;
+      padding: 2px 6px;
+      background: rgba(24, 144, 255, 0.2);
+      color: #1890FF;
+      border-radius: 4px;
+      font-weight: 600;
+    }
+  }
+}
+
+// Join 条件列表
+.join-conditions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.join-condition-card {
+  background: var(--glass-bg);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 8px;
+  padding: 12px;
+  transition: all var(--transition-base) var(--easing-smooth);
+
+  &:hover {
+    border-color: rgba(24, 144, 255, 0.2);
+    box-shadow: 0 2px 8px rgba(24, 144, 255, 0.08);
+  }
+
+  .condition-type {
+    display: inline-block;
+    padding: 4px 12px;
+    background: linear-gradient(135deg, #E6F7FF, #BAE7FF);
+    color: #1890FF;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    margin-bottom: 10px;
+  }
+
+  .condition-operands {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .operand-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: rgba(0, 0, 0, 0.02);
+    border-radius: 6px;
+    font-size: 12px;
+
+    .operand-participant {
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .operand-dataset {
+      color: var(--text-secondary);
+    }
+
+    .operand-fields {
+      flex: 1;
+      color: var(--text-secondary);
+      font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+      font-size: 11px;
+    }
+  }
+}
+
+// 计算模型列表
+.models-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.model-card {
+  background: var(--glass-bg);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 8px;
+  padding: 12px;
+  transition: all var(--transition-base) var(--easing-smooth);
+
+  &:hover {
+    border-color: rgba(139, 92, 246, 0.2);
+    box-shadow: 0 2px 8px rgba(139, 92, 246, 0.08);
+  }
+}
+
+.model-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+
+  .model-icon {
+    font-size: 18px;
+  }
+
+  .model-type {
+    flex: 1;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .model-participant {
+    font-size: 11px;
+    color: var(--text-secondary);
+    padding: 2px 8px;
+    background: rgba(0, 0, 0, 0.04);
+    border-radius: 4px;
+  }
+}
+
+.model-expression {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-family: 'Monaco', 'Menlo', monospace;
+  background: rgba(0, 0, 0, 0.02);
+  padding: 8px;
+  border-radius: 4px;
+  line-height: 1.4;
+  word-break: break-all;
+}
+
+.model-params {
+  .params-count {
+    font-size: 11px;
+    color: var(--text-secondary);
+    font-weight: 500;
+  }
+}
+
+// 算力资源列表
+.compute-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.compute-card {
+  background: var(--glass-bg);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 8px;
+  padding: 12px;
+  transition: all var(--transition-base) var(--easing-smooth);
+
+  &:hover {
+    border-color: rgba(250, 140, 22, 0.2);
+    box-shadow: 0 2px 8px rgba(250, 140, 22, 0.08);
+  }
+}
+
+.compute-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+
+  .compute-icon {
+    font-size: 18px;
+  }
+
+  .compute-name {
+    flex: 1;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .compute-participant {
+    font-size: 11px;
+    color: var(--text-secondary);
+    padding: 2px 8px;
+    background: rgba(0, 0, 0, 0.04);
+    border-radius: 4px;
+  }
+}
+
+.compute-type {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+// 输出列表
+.outputs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.output-card {
+  background: var(--glass-bg);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 8px;
+  padding: 12px;
+  transition: all var(--transition-base) var(--easing-smooth);
+
+  &:hover {
+    border-color: rgba(82, 196, 26, 0.2);
+    box-shadow: 0 2px 8px rgba(82, 196, 26, 0.08);
+  }
+}
+
+.output-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+
+  .output-index {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #52C41A, #389e0d);
+    color: white;
+    border-radius: 50%;
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .output-participant {
+    flex: 1;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+}
+
+.output-dataset {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+
+.output-fields {
+  .fields-count {
+    font-size: 11px;
+    color: var(--text-secondary);
+    font-weight: 500;
+  }
 }
 </style>

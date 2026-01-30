@@ -74,7 +74,11 @@ export type SelectedField = FieldInfo
 // ========== 节点类别枚举 ==========
 export enum NodeCategory {
   DATA_SOURCE = 'data_source',
-  COMPUTE_TASK = 'compute_task'
+  COMPUTE_TASK = 'compute_task',
+  MODEL = 'model',
+  COMPUTE_RESOURCE = 'computeResource',
+  OUTPUT_DATA = 'outputData',
+  LOCAL_TASK = 'localTask'
 }
 
 // 计算任务类型枚举
@@ -155,10 +159,184 @@ export interface ComputeTaskNode extends Node {
 export interface NodeTemplate {
   type: string
   label: string
-  category: NodeCategory
+  category: NodeCategory | string  // 允许字符串以支持自定义category
   taskType?: ComputeTaskType
   sourceType?: DataSourceType
   icon: string
   color: string
   description?: string
+  modelType?: string  // 模型类型（用于模型节点）
+}
+
+// ========== DAG任务编排相关类型 ==========
+
+/** 技术路径枚举 */
+export enum TechPath {
+  SOFTWARE = 'software',  // 软件密码学
+  TEE = 'tee'             // 硬件 TEE
+}
+
+/** 模型类型枚举 */
+export enum ModelType {
+  EXPRESSION = 'expression',
+  CODEBIN_V2 = 'CodeBin-V2',
+  CODEBIN_V3_1 = 'CodeBin-V3-1',
+  CODEBIN_V3_2 = 'CodeBin-V3-2',
+  SPDZ = 'SPDZ'
+}
+
+/** 计算任务节点数据（扩展版） */
+export interface ComputeTaskNodeData extends NodeData {
+  category: NodeCategory.COMPUTE_TASK
+  taskType: ComputeTaskType
+  techPath?: TechPath        // 技术路径
+  // 输入数据配置
+  inputProviders?: InputProvider[]
+  // Join条件
+  joinConditions?: JoinCondition[]
+  // 计算模型配置
+  models?: ComputeModelConfig[]
+  // MPC表达式（仅MPC类型且techPath=software时使用）
+  expression?: string
+  // 算力资源配置
+  computeProviders?: ComputeResourceConfig[]
+  // 输出数据配置
+  outputs?: OutputDataConfig[]
+}
+
+/** 模型节点数据 */
+export interface ModelNodeData extends NodeData {
+  category: NodeCategory.MODEL
+  type: 'expression' | ModelType  // 模型类型
+  parentTaskId: string      // 所属计算任务ID
+  participantId: string
+  name?: string             // 模型名称
+  expression?: string       // 表达式内容（仅expression类型）
+  parameters?: ModelParameter[]  // 模型参数（非expression类型）
+}
+
+/** 算力资源节点数据 */
+export interface ComputeResourceNodeData extends NodeData {
+  category: NodeCategory.COMPUTE_RESOURCE
+  resourceType: 'TEE'
+  parentTaskId: string      // 所属计算任务ID
+  participantId: string
+  groupName: string
+  cardSerial: string
+}
+
+/** 输出数据节点数据 */
+export interface OutputDataNodeData extends NodeData {
+  category: NodeCategory.OUTPUT_DATA
+  parentTaskId: string      // 所属计算任务ID
+  participantId: string     // 接收输出的企业
+  dataset: string           // 输出数据集名称
+  fields: OutputField[]
+}
+
+/** 本地任务节点数据 */
+export interface LocalTaskNodeData extends NodeData {
+  category: NodeCategory.LOCAL_TASK
+  computeType: 'CONCAT'
+  participantId: string     // 必选：执行本地任务的参与方企业
+  inputProviders?: InputProvider[]
+  outputs?: OutputDataConfig[]
+}
+
+// ========== 配置结构 ==========
+
+/** 字段映射 */
+export interface FieldMapping {
+  columnName: string        // 原始字段名
+  columnAlias: string       // 别名
+  columnType: string        // varchar/int/bigint等
+  isJoinField: boolean      // 是否为join字段
+  joinType?: 'INNER' | 'CROSS'  // join字段类型
+}
+
+/** 输入数据提供者 */
+export interface InputProvider {
+  sourceNodeId: string      // 数据源节点ID或输出节点ID
+  sourceType: 'dataSource' | 'outputData'
+  participantId: string
+  dataset: string
+  fields: FieldMapping[]
+  joinFields?: string[]     // 作为join条件的字段名
+}
+
+/** Join操作数 */
+export interface JoinOperand {
+  participantId: string
+  dataset: string
+  columnNames: string[]     // 参与join的字段列表
+}
+
+/** Join条件 */
+export interface JoinCondition {
+  joinType: 'INNER' | 'CROSS'
+  operands: JoinOperand[]   // 至少2个
+}
+
+/** 计算模型配置 */
+export interface ComputeModelConfig {
+  id: string                // 模型唯一ID
+  type: ModelType | 'expression'  // 模型类型（支持expression字符串）
+  participantId: string
+  name: string
+  expression?: string       // 表达式内容（仅expression类型）
+  parameters?: ModelParameter[]
+  modelNodeId?: string      // 关联的模型节点ID
+}
+
+/** 模型参数 */
+export interface ModelParameter {
+  name: string              // 参数名
+  bindingType: 'field' | 'fixed'  // 绑定类型
+  fieldRef?: string         // 绑定的字段引用
+  fixedValue?: string       // 固定值
+}
+
+/** 算力资源配置 */
+export interface ComputeResourceConfig {
+  id: string                // 算力资源唯一ID
+  type: string              // 资源类型（如TEE_CPU）
+  participantId: string
+  groupId: string
+  groupName: string
+  nodeId: string
+  cardSerial: string
+  cardModel: string
+  resourceNodeId?: string   // 关联的算力资源节点ID
+}
+
+/** 输出字段 */
+export interface OutputField {
+  source: 'input' | 'model'  // 字段来源
+  columnName: string         // 字段名或表达式
+  columnAlias: string
+  columnType: string
+}
+
+/** 输出数据配置 */
+export interface OutputDataConfig {
+  id: string                // 输出配置唯一ID
+  participantId: string     // 接收输出结果的参与方企业
+  dataset: string           // 输出数据集名称
+  outputFields: OutputField[]
+  outputNodeId: string      // 关联的输出数据节点ID
+}
+
+/** 资源类型优先级（用于企业排序） */
+export enum ResourceTypePriority {
+  DATA = 3,      // 数据资源所属企业
+  MODEL = 2,     // 模型所属企业
+  COMPUTE = 1,   // 算力所属企业
+  OTHER = 0      // 其他企业
+}
+
+/** 企业选项 */
+export interface EnterpriseOption {
+  id: string
+  name: string
+  resourceType: ResourceTypePriority
 }

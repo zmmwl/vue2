@@ -116,3 +116,59 @@ export const COMPUTE_TASK_TEMPLATES: NodeTemplate[] = [
     description: 'Differential Privacy'
   }
 ]
+
+// 计算模型节点模板
+export const MODEL_TEMPLATES: NodeTemplate[] = [
+  {
+    type: 'model',
+    label: '表达式模型',
+    category: 'model' as any,
+    icon: '📝',
+    color: '#722ED1',
+    description: 'Python表达式模型'
+  },
+  {
+    type: 'model',
+    label: 'CodeBin-V2模型',
+    category: 'model' as any,
+    icon: '📦',
+    color: '#13C2C2',
+    description: '二进制代码模型V2'
+  },
+  {
+    type: 'model',
+    label: 'CodeBin-V3.1模型',
+    category: 'model' as any,
+    icon: '📦',
+    color: '#13C2C2',
+    description: '二进制代码模型V3.1'
+  },
+  {
+    type: 'model',
+    label: 'CodeBin-V3.2模型',
+    category: 'model' as any,
+    icon: '📦',
+    color: '#13C2C2',
+    description: '二进制代码模型V3.2'
+  },
+  {
+    type: 'model',
+    label: 'SPDZ模型',
+    category: 'model' as any,
+    icon: '🔐',
+    color: '#13C2C2',
+    description: 'SPDZ协议模型'
+  }
+]
+
+// 算力资源节点模板
+export const RESOURCE_TEMPLATES: NodeTemplate[] = [
+  {
+    type: 'computeResource',
+    label: 'TEE算力',
+    category: 'computeResource' as any,
+    icon: '⚡',
+    color: '#FA8C16',
+    description: '可信执行环境算力'
+  }
+]
