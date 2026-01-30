@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc -b && vite build",
+    "build:fast": "vite build",
     "preview": "vite preview",
     "test": "DISPLAY= playwright test",
     "test:ui": "playwright test --ui",

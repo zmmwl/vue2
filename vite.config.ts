@@ -19,5 +19,23 @@ export default defineConfig({
         additionalData: `@use "@/assets/styles/variables.scss" as *;`
       }
     }
+  },
+  build: {
+    target: 'esnext',
+    minify: 'esbuild',
+    // 启用并行构建
+    parallel: true,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          // 将 Monaco Editor 分离到单独的 chunk
+          if (id.includes('monaco-editor')) {
+            return 'monaco-editor'
+          }
+        }
+      }
+    },
+    // 减小 chunk 大小警告阈值
+    chunkSizeWarningLimit: 1000
   }
 })
