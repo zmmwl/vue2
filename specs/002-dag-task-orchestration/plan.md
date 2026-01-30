@@ -1,7 +1,7 @@
 # Implementation Plan: DAG隐私计算任务编排系统
 
-**Branch**: `001-dag-task-orchestration` | **Date**: 2026-01-29 | **Spec**: [spec.md](./spec.md)
-**Input**: Feature specification from `/specs/001-dag-task-orchestration/spec.md`
+**Branch**: `002-dag-task-orchestration` | **Date**: 2026-01-29 | **Spec**: [spec.md](./spec.md)
+**Input**: Feature specification from `/specs/002-dag-task-orchestration/spec.md`
 
 ## Summary
 
@@ -60,7 +60,7 @@
 ### Documentation (this feature)
 
 ```text
-specs/001-dag-task-orchestration/
+specs/002-dag-task-orchestration/
 ├── plan.md              # This file (/speckit.plan command output)
 ├── research.md          # Phase 0 output (/speckit.plan command)
 ├── data-model.md        # Phase 1 output (/speckit.plan command)
