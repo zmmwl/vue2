@@ -22,6 +22,31 @@ export default defineConfig({
   },
   build: {
     target: 'esnext',
-    minify: 'esbuild'
+    minify: 'esbuild',
+    // Code splitting 优化
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          // Vue 核心库
+          if (id.includes('node_modules/vue') || id.includes('node_modules/@vue')) {
+            return 'vue-vendor'
+          }
+          // Vue Flow 相关
+          if (id.includes('node_modules/@vue-flow')) {
+            return 'vue-flow'
+          }
+          // CodeMirror 编辑器
+          if (id.includes('node_modules/@codemirror')) {
+            return 'codemirror'
+          }
+          // 其他第三方库
+          if (id.includes('node_modules')) {
+            return 'vendor'
+          }
+        }
+      }
+    },
+    // 提高 chunk 大小警告阈值（因为 CodeMirror 和 Vue Flow 本身就比较大）
+    chunkSizeWarningLimit: 600
   }
 })
