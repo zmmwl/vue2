@@ -117,8 +117,13 @@ const tableName = computed(() => {
   return ''
 })
 
-// 字段数量
+// 字段数量（显示已选择的字段数量）
 const fieldCount = computed(() => {
+  const selected = props.data.selectedFields
+  if (selected && selected.length > 0) {
+    return selected.length
+  }
+  // 如果没有选择字段，显示所有字段数量（向后兼容）
   if (isConfigured.value && props.data.assetInfo?.dataInfo) {
     return props.data.assetInfo.dataInfo.fieldList.length
   }
@@ -130,10 +135,19 @@ const displayScale = computed(() => {
   return props.data.assetInfo?.scale || '未提供'
 })
 
-// 显示的字段列表（限制最多显示 10 个）
+// 显示的字段列表（只显示已选择的字段）
 const displayFields = computed(() => {
   if (isConfigured.value && props.data.assetInfo?.dataInfo) {
-    return props.data.assetInfo.dataInfo.fieldList.slice(0, 10)
+    const allFields = props.data.assetInfo.dataInfo.fieldList
+    const selectedFieldNames = props.data.selectedFields || []
+
+    // 如果有选择字段，只显示已选择的字段
+    if (selectedFieldNames.length > 0) {
+      const selectedSet = new Set(selectedFieldNames)
+      return allFields.filter(field => selectedSet.has(field.name))
+    }
+    // 如果没有选择字段，显示所有字段（向后兼容）
+    return allFields.slice(0, 10)
   }
   return []
 })
