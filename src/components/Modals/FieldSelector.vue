@@ -16,6 +16,18 @@
               <span class="source-type">{{ sourceType }}</span>
             </div>
 
+            <!-- Join类型选择 -->
+            <div class="join-type-selector">
+              <label class="join-type-label">Join 连接类型：</label>
+              <select v-model="globalJoinType" class="join-type-select">
+                <option value="INNER">INNER（内连接）</option>
+                <option value="CROSS">CROSS（交叉连接）</option>
+              </select>
+              <span class="join-type-hint">
+                {{ globalJoinType === 'INNER' ? '只保留匹配的数据行' : '保留所有数据行进行笛卡尔积' }}
+              </span>
+            </div>
+
             <!-- 字段表格 -->
             <div class="field-table-container">
               <table class="field-table">
@@ -26,7 +38,6 @@
                     <th class="col-type">类型</th>
                     <th class="col-alias">别名</th>
                     <th class="col-join">Join</th>
-                    <th class="col-join-type">连接类型</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -69,16 +80,6 @@
                         :disabled="!field.selected"
                         @change="onJoinFieldChange(field)"
                       />
-                    </td>
-                    <td class="col-join-type">
-                      <select
-                        v-model="field.joinType"
-                        class="join-type-select"
-                        :disabled="!field.selected || !field.isJoinField"
-                      >
-                        <option value="INNER">INNER</option>
-                        <option value="CROSS">CROSS</option>
-                      </select>
                     </td>
                   </tr>
                 </tbody>
@@ -149,6 +150,9 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const emit = defineEmits<Emits>()
+
+// 全局 Join 类型（整个数据源统一）
+const globalJoinType = ref<'INNER' | 'CROSS'>('INNER')
 
 // 字段列表（带选择状态）
 const fields = ref<FieldMappingWithSelection[]>([])
@@ -282,7 +286,10 @@ function checkAllAliases() {
 function getSelectedFields(): FieldMapping[] {
   return fields.value
     .filter(f => f.selected)
-    .map(({ selected, ...rest }) => rest)
+    .map(({ selected, joinType, ...rest }) => ({
+      ...rest,
+      joinType: globalJoinType.value
+    }))
 }
 
 /**
@@ -353,6 +360,49 @@ function handleClose() {
   }
 }
 
+.join-type-selector {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background-color: #f0f7ff;
+  border: 1px solid #d6e4ff;
+  border-radius: 6px;
+  margin-bottom: 16px;
+
+  .join-type-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #303133;
+    white-space: nowrap;
+  }
+
+  .join-type-select {
+    padding: 6px 12px;
+    border: 1px solid #d9d9d9;
+    border-radius: 4px;
+    font-size: 13px;
+    background-color: #ffffff;
+    cursor: pointer;
+    transition: all 0.2s;
+
+    &:focus {
+      outline: none;
+      border-color: #1890ff;
+      box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.1);
+    }
+
+    &:hover {
+      border-color: #40a9ff;
+    }
+  }
+
+  .join-type-hint {
+    font-size: 12px;
+    color: #606266;
+  }
+}
+
 .field-table-container {
   margin-bottom: 16px;
   border: 1px solid #e8e8e8;
@@ -396,10 +446,6 @@ function handleClose() {
       &.col-join {
         width: 60px;
         text-align: center;
-      }
-
-      &.col-join-type {
-        width: 110px;
       }
     }
   }
@@ -482,27 +528,6 @@ function handleClose() {
   color: #ff4d4f;
   font-weight: bold;
   font-size: 14px;
-}
-
-.join-type-select {
-  width: 100%;
-  padding: 6px 8px;
-  border: 1px solid #d9d9d9;
-  border-radius: 4px;
-  font-size: 13px;
-  background-color: #ffffff;
-  transition: all 0.2s;
-
-  &:focus {
-    outline: none;
-    border-color: #1890ff;
-  }
-
-  &:disabled {
-    background-color: #f5f5f5;
-    color: #bfbfbf;
-    cursor: not-allowed;
-  }
 }
 
 .alert {
