@@ -10,6 +10,41 @@ import { Page, Locator } from '@playwright/test';
  */
 
 /**
+ * 设置中文字体支持
+ * 在 Linux 环境下注入中文字体样式，解决中文乱码问题
+ */
+export async function setupChineseFontSupport(page: Page): Promise<void> {
+  await page.addInitScript(`
+    // 中文字体栈
+    const chineseFontStack = '"Noto Sans CJK SC", "PingFang SC", "Microsoft YaHei", "WenQuanYi Zenhei", sans-serif';
+
+    // 注入全局字体样式
+    const style = document.createElement('style');
+    style.id = 'playwright-chinese-font-fix';
+    style.textContent = \`
+      * {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial,
+                     \${chineseFontStack} !important;
+      }
+      /* 确保所有元素使用中文字体 */
+      body, div, span, p, h1, h2, h3, h4, h5, h6,
+      button, input, textarea, select, option,
+      table, thead, tbody, tfoot, tr, th, td,
+      .modal-title, .node-title, .field-name,
+      .modal-overlay, .vue-flow__node {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial,
+                     \${chineseFontStack} !important;
+      }
+      /* 确保 emoji 和图标正确显示 */
+      .palette-node-icon, .node-icon {
+        font-family: "Segoe UI Emoji", "Noto Color Emoji", "Apple Color Emoji", sans-serif !important;
+      }
+    \`;
+    document.head.appendChild(style);
+  `);
+}
+
+/**
  * 从侧边栏拖拽节点到画布的辅助函数
  * @param page Playwright Page 对象
  * @param dataTestId 节点的 data-testid 属性值

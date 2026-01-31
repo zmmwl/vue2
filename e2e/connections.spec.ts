@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { dragNodeToCanvas } from './test-utils';
+import { dragNodeToCanvas, setupChineseFontSupport } from './test-utils';
 
 /**
  * Vue Flow 连接线 E2E 测试
@@ -11,6 +11,9 @@ import { dragNodeToCanvas } from './test-utils';
 
 test.describe('连接线测试', () => {
   test.beforeEach(async ({ page }) => {
+    // 设置中文字体支持
+    await setupChineseFontSupport(page);
+
     await page.goto('/');
     await page.waitForSelector('.flow-sidebar', { timeout: 10000 });
   });

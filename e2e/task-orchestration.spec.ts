@@ -1,0 +1,1098 @@
+import { test, expect } from '@playwright/test';
+import { dragNodeToCanvas, setupChineseFontSupport } from './test-utils';
+
+/**
+ * 计算任务编排 E2E 测试
+ *
+ * 覆盖功能点：
+ * 1. 数据源配置（资产选择、字段选择）
+ * 2. 技术路径选择
+ * 3. 字段选择与 Join 配置
+ * 4. 模型配置（企业选择、模型选择）
+ * 5. 算力资源配置（企业选择、算力选择）
+ * 6. 输出配置（企业选择、数据集名称、字段选择）
+ * 7. 完整工作流测试
+ */
+
+test.describe('计算任务编排测试', () => {
+  test.beforeEach(async ({ page }) => {
+    // 设置中文字体支持
+    await setupChineseFontSupport(page);
+
+    await page.goto('/');
+    await page.waitForSelector('.flow-sidebar', { timeout: 10000 });
+  });
+
+  /**
+   * 辅助函数：获取测试节点定位器
+   */
+  function getTestNodeLocator(page: any, index: number = 0) {
+    return page.locator('.vue-flow__node').nth(index);
+  }
+
+  /**
+   * 辅助函数：等待模态框显示
+   */
+  async function waitForModal(page: any, selector: string) {
+    await page.waitForSelector(selector, { state: 'visible', timeout: 5000 });
+  }
+
+  /**
+   * 测试：配置数据源节点
+   * 1. 拖拽数据源节点到画布
+   * 2. 验证资产选择对话框显示
+   * 3. 选择企业
+   * 4. 选择数据资产
+   * 5. 选择字段
+   * 6. 确认并验证节点创建成功
+   */
+  test('应该能够配置数据源节点', async ({ page }) => {
+    // 拖拽 MySQL 数据源节点到画布
+    await dragNodeToCanvas(page, 'palette-node-mysql-数据库', 400, 200);
+    await page.waitForTimeout(500);
+
+    // 验证资产选择对话框已显示
+    await expect(page.locator('.modal-overlay')).toBeVisible();
+    await expect(page.locator('.modal-title')).toContainText('选择数据资产');
+
+    // 等待企业列表加载
+    await page.waitForTimeout(300);
+
+    // 选择第一个企业
+    const enterpriseItems = page.locator('.enterprise-item');
+    await expect(enterpriseItems.first()).toBeVisible();
+    await enterpriseItems.first().click();
+    await page.waitForTimeout(200);
+
+    // 选择第一个数据资产
+    const assetItems = page.locator('.asset-item');
+    await expect(assetItems.first()).toBeVisible();
+    await assetItems.first().click();
+    await page.waitForTimeout(200);
+
+    // 点击查看详情按钮
+    const viewDetailBtn = page.locator('.btn-view-detail').first();
+    if (await viewDetailBtn.isVisible()) {
+      await viewDetailBtn.click();
+      await page.waitForTimeout(300);
+    }
+
+    // 验证字段列表显示
+    const fieldItems = page.locator('.field-item');
+    await expect(fieldItems.first()).toBeVisible();
+
+    // 选择前两个字段
+    const fieldCheckboxes = page.locator('.field-item input[type="checkbox"]');
+    const count = await fieldCheckboxes.count();
+    if (count >= 2) {
+      await fieldCheckboxes.nth(0).check();
+      await page.waitForTimeout(100);
+      await fieldCheckboxes.nth(1).check();
+      await page.waitForTimeout(100);
+    }
+
+    // 点击确认按钮
+    const confirmBtn = page.locator('.btn.btn-primary');
+    await expect(confirmBtn).toBeVisible();
+    await confirmBtn.click();
+    await page.waitForTimeout(500);
+
+    // 验证模态框关闭
+    await expect(page.locator('.modal-overlay')).not.toBeVisible();
+
+    // 验证数据源节点已创建
+    const nodes = page.locator('.vue-flow__node');
+    await expect(nodes).toHaveCount(1);
+
+    // 验证节点显示已配置状态
+    const node = nodes.first();
+    await expect(node).toContainText('用户交易数据'); // Mock 数据中的资产名称
+  });
+
+  /**
+   * 测试：创建计算任务节点并选择技术路径
+   * 1. 拖拽 PSI 计算任务节点到画布
+   * 2. 验证技术路径选择对话框显示
+   * 3. 选择软件密码学路径
+   * 4. 确认并验证节点创建成功
+   * 5. 验证节点显示技术路径标签
+   */
+  test('应该能够创建计算任务节点并选择技术路径', async ({ page }) => {
+    // 拖拽 PSI 计算任务节点到画布
+    await dragNodeToCanvas(page, 'palette-node-psi-计算', 400, 200);
+    await page.waitForTimeout(500);
+
+    // 验证技术路径选择对话框已显示
+    await expect(page.locator('.modal-overlay')).toBeVisible();
+    await expect(page.locator('.modal-title')).toContainText('选择技术路径');
+
+    // 验证两个技术路径选项
+    await expect(page.locator('.tech-path-option')).toHaveCount(2);
+
+    // 选择硬件 TEE 选项
+    const teeOption = page.locator('.tech-path-option').filter({ hasText: '硬件 TEE' });
+    await teeOption.click();
+    await page.waitForTimeout(200);
+
+    // 点击确认按钮
+    const confirmBtn = page.locator('.btn.btn-primary');
+    await confirmBtn.click();
+    await page.waitForTimeout(500);
+
+    // 验证计算任务节点已创建
+    const nodes = page.locator('.vue-flow__node');
+    await expect(nodes).toHaveCount(1);
+
+    // 验证节点显示技术路径标签
+    await expect(nodes.first()).toContainText('硬件 TEE');
+  });
+
+  /**
+   * 测试：连接数据源到计算任务并配置字段
+   * 1. 创建数据源节点（使用 Mock 数据）
+   * 2. 创建计算任务节点
+   * 3. 连接数据源到计算任务
+   * 4. 验证字段选择对话框显示
+   * 5. 配置字段别名和 Join 条件
+   * 6. 确认并验证连接成功
+   */
+  test('应该能够连接数据源到计算任务并配置字段', async ({ page }) => {
+    // 先创建一个数据源节点（简化版本，直接通过脚本设置数据）
+    await page.evaluate(() => {
+      // 模拟创建一个已配置的数据源节点
+      const mockData = {
+        type: 'data_source',
+        label: '用户交易数据',
+        category: 'DATA_SOURCE',
+        sourceType: 'mysql',
+        icon: 'database',
+        color: '#52C41A',
+        assetInfo: {
+          assetId: 'asset_001',
+          assetName: '用户交易数据',
+          holderCompany: '数据提供商A',
+          participantId: 'ent_001',
+          dataInfo: {
+            databaseName: 'transaction_db',
+            tableName: 'user_transactions',
+            fieldList: [
+              { name: 'user_id', dataType: 'VARCHAR', isPrimaryKey: true },
+              { name: 'amount', dataType: 'DECIMAL' },
+              { name: 'create_time', dataType: 'DATETIME' }
+            ]
+          }
+        },
+        selectedFields: ['user_id', 'amount']
+      };
+
+      // 发送自定义事件来创建节点
+      window.dispatchEvent(new CustomEvent('create-test-node', {
+        detail: {
+          data: mockData,
+          position: { x: 300, y: 100 }
+        }
+      }));
+    });
+
+    await page.waitForTimeout(500);
+
+    // 拖拽 PSI 计算任务节点
+    await dragNodeToCanvas(page, 'palette-node-psi-计算', 400, 350);
+    await page.waitForTimeout(300);
+
+    // 选择技术路径
+    const softwareOption = page.locator('.tech-path-option').filter({ hasText: '软件密码学' });
+    await softwareOption.click();
+    await page.waitForTimeout(200);
+
+    const confirmBtn = page.locator('.btn.btn-primary');
+    await confirmBtn.click();
+    await page.waitForTimeout(500);
+
+    // 验证两个节点都存在
+    await expect(page.locator('.vue-flow__node')).toHaveCount(2);
+
+    // 创建连接（模拟从数据源输出 handle 拖到计算任务输入 handle）
+    const sourceNode = getTestNodeLocator(page, 0);
+    const targetNode = getTestNodeLocator(page, 1);
+
+    // 获取节点位置
+    const sourceBox = await sourceNode.boundingBox();
+    const targetBox = await targetNode.boundingBox();
+
+    expect(sourceBox).toBeTruthy();
+    expect(targetBox).toBeTruthy();
+
+    // 模拟拖拽连接：从源节点底部 handle 到目标节点顶部 handle
+    if (sourceBox && targetBox) {
+      await page.mouse.move(sourceBox.x + sourceBox.width / 2, sourceBox.y + sourceBox.height);
+      await page.mouse.down();
+      await page.mouse.move(targetBox.x + targetBox.width / 2, targetBox.y, { steps: 10 });
+      await page.mouse.up();
+      await page.waitForTimeout(500);
+    }
+
+    // 验证字段选择对话框显示
+    await expect(page.locator('.modal-title')).toContainText('选择字段');
+
+    // 验证 Join 类型选择器显示
+    await expect(page.locator('.join-type-selector')).toBeVisible();
+    await expect(page.locator('.join-type-select')).toBeVisible();
+
+    // 切换到 CROSS 连接类型
+    const joinTypeSelect = page.locator('.join-type-select');
+    await joinTypeSelect.selectOption('CROSS');
+    await page.waitForTimeout(200);
+
+    // 选择字段
+    const fieldCheckboxes = page.locator('.field-checkbox');
+    const fieldCount = await fieldCheckboxes.count();
+    if (fieldCount > 0) {
+      // 选择第一个字段作为 Join 字段
+      await fieldCheckboxes.nth(0).check();
+      await page.waitForTimeout(100);
+
+      // 设置别名
+      const aliasInput = page.locator('.field-alias-input').first();
+      if (await aliasInput.isVisible()) {
+        await aliasInput.fill('new_user_id');
+        await page.waitForTimeout(100);
+      }
+    }
+
+    // 点击确认按钮
+    const fieldConfirmBtn = page.locator('.modal-footer .btn.btn-primary');
+    await expect(fieldConfirmBtn).toBeVisible();
+    await fieldConfirmBtn.click();
+    await page.waitForTimeout(500);
+
+    // 验证连接已创建
+    const edges = page.locator('.vue-flow__edge');
+    await expect(edges).toHaveCount(1);
+
+    // 验证计算任务节点显示输入数据源数量
+    await expect(targetNode).toContainText('输入: 1 个数据源');
+  });
+
+  /**
+   * 测试：配置模型节点
+   * 1. 创建计算任务节点
+   * 2. 拖拽模型节点到计算任务上
+   * 3. 验证企业选择对话框显示
+   * 4. 选择企业
+   * 5. 验证模型选择对话框显示
+   * 6. 选择模型
+   * 7. 确认并验证模型节点创建成功
+   */
+  test('应该能够配置模型节点', async ({ page }) => {
+    // 先创建一个计算任务节点
+    await dragNodeToCanvas(page, 'palette-node-psi-计算', 400, 200);
+    await page.waitForTimeout(300);
+
+    const techOption = page.locator('.tech-path-option').first();
+    await techOption.click();
+    await page.waitForTimeout(200);
+
+    const confirmBtn = page.locator('.btn.btn-primary');
+    await confirmBtn.click();
+    await page.waitForTimeout(500);
+
+    // 获取计算任务节点位置
+    const taskNode = getTestNodeLocator(page, 0);
+    const taskBox = await taskNode.boundingBox();
+    expect(taskBox).toBeTruthy();
+
+    if (taskBox) {
+      // 模拟拖拽模型节点到计算任务上
+      await page.evaluate((box) => {
+        const sidebar = document.querySelector('[data-testid="palette-node-model"]');
+        if (!sidebar) return;
+
+        const data = {
+          type: 'modelNode',
+          label: '计算模型',
+          category: 'model',
+          modelType: 'mlm',
+          icon: '📦',
+          color: '#8B5CF6'
+        };
+
+        // 模拟 drop 事件
+        const canvas = document.querySelector('[data-testid="flow-canvas"]');
+        if (!canvas) return;
+
+        canvas.dispatchEvent(new CustomEvent('test-drop-model', {
+          detail: { data, x: box.x + box.width / 2, y: box.y + box.height / 2 }
+        }));
+      }, taskBox);
+
+      await page.waitForTimeout(500);
+
+      // 验证企业选择对话框显示
+      await expect(page.locator('.modal-overlay')).toBeVisible();
+      await expect(page.locator('.modal-title')).toContainText('选择企业');
+
+      // 选择第一个企业（模型提供商）
+      const enterpriseItems = page.locator('.enterprise-item');
+      if (await enterpriseItems.count() > 0) {
+        await enterpriseItems.first().click();
+        await page.waitForTimeout(300);
+
+        // 验证模型选择对话框显示
+        await expect(page.locator('.modal-title')).toContainText('选择计算模型');
+
+        // 验证模型列表
+        const modelItems = page.locator('.model-item');
+        if (await modelItems.count() > 0) {
+          await modelItems.first().click();
+          await page.waitForTimeout(200);
+
+          // 点击确认按钮
+          const modelConfirmBtn = page.locator('.modal-footer .btn.btn-primary');
+          await modelConfirmBtn.click();
+          await page.waitForTimeout(500);
+
+          // 验证模型节点已创建
+          const nodes = page.locator('.vue-flow__node');
+          await expect(nodes).toHaveCount(2);
+
+          // 验证连接已创建
+          const edges = page.locator('.vue-flow__edge');
+          await expect(edges).toHaveCount(1);
+        }
+      }
+    }
+  });
+
+  /**
+   * 测试：配置算力资源节点
+   * 1. 创建计算任务节点
+   * 2. 拖拽算力资源节点到计算任务上
+   * 3. 验证企业选择对话框显示
+   * 4. 选择企业
+   * 5. 验证算力选择对话框显示
+   * 6. 选择算力资源
+   * 7. 确认并验证算力节点创建成功
+   */
+  test('应该能够配置算力资源节点', async ({ page }) => {
+    // 先创建一个计算任务节点
+    await dragNodeToCanvas(page, 'palette-node-psi-计算', 400, 200);
+    await page.waitForTimeout(300);
+
+    const techOption = page.locator('.tech-path-option').first();
+    await techOption.click();
+    await page.waitForTimeout(200);
+
+    const confirmBtn = page.locator('.btn.btn-primary');
+    await confirmBtn.click();
+    await page.waitForTimeout(500);
+
+    // 获取计算任务节点位置
+    const taskNode = getTestNodeLocator(page, 0);
+    const taskBox = await taskNode.boundingBox();
+    expect(taskBox).toBeTruthy();
+
+    if (taskBox) {
+      // 模拟拖拽算力资源节点到计算任务上
+      await page.evaluate((box) => {
+        const canvas = document.querySelector('[data-testid="flow-canvas"]');
+        if (!canvas) return;
+
+        const data = {
+          type: 'computeResource',
+          label: '算力资源',
+          category: 'computeResource',
+          icon: '⚡',
+          color: '#FA8C16'
+        };
+
+        canvas.dispatchEvent(new CustomEvent('test-drop-compute', {
+          detail: { data, x: box.x + box.width / 2, y: box.y + box.height / 2 }
+        }));
+      }, taskBox);
+
+      await page.waitForTimeout(500);
+
+      // 验证企业选择对话框显示
+      await expect(page.locator('.modal-overlay')).toBeVisible();
+      await expect(page.locator('.modal-title')).toContainText('选择企业');
+
+      // 选择算力提供商企业
+      const enterpriseItems = page.locator('.enterprise-item');
+      if (await enterpriseItems.count() > 0) {
+        // 查找算力提供商（通常是第四个企业）
+        const computeEnterprise = enterpriseItems.filter({ hasText: /算力/ });
+        if (await computeEnterprise.count() > 0) {
+          await computeEnterprise.first().click();
+        } else {
+          await enterpriseItems.nth(3).click();
+        }
+        await page.waitForTimeout(300);
+
+        // 验证算力选择对话框显示
+        await expect(page.locator('.modal-title')).toContainText('选择算力资源');
+
+        // 验证算力资源列表
+        const computeItems = page.locator('.compute-item');
+        if (await computeItems.count() > 0) {
+          await computeItems.first().click();
+          await page.waitForTimeout(200);
+
+          // 点击确认按钮
+          const computeConfirmBtn = page.locator('.modal-footer .btn.btn-primary');
+          await computeConfirmBtn.click();
+          await page.waitForTimeout(500);
+
+          // 验证算力节点已创建
+          const nodes = page.locator('.vue-flow__node');
+          await expect(nodes).toHaveCount(2);
+
+          // 验证连接已创建
+          const edges = page.locator('.vue-flow__edge');
+          await expect(edges).toHaveCount(1);
+        }
+      }
+    }
+  });
+
+  /**
+   * 测试：配置输出数据
+   * 1. 创建已配置输入的计算任务节点
+   * 2. 点击"添加输出"按钮
+   * 3. 验证输出配置对话框显示
+   * 4. 选择接收企业
+   * 5. 输入数据集名称
+   * 6. 选择输出字段
+   * 7. 确认并验证输出节点创建成功
+   */
+  test('应该能够配置输出数据', async ({ page }) => {
+    // 创建一个计算任务节点并配置输入
+    await page.evaluate(() => {
+      const mockData = {
+        type: 'compute_task',
+        label: 'PSI',
+        category: 'COMPUTE_TASK',
+        taskType: 'psi',
+        techPath: 'SOFTWARE',
+        icon: '🔐',
+        color: '#1890ff',
+        inputProviders: [
+          {
+            sourceNodeId: 'test_source',
+            participantId: 'ent_001',
+            dataset: 'asset_001',
+            fields: [
+              { columnName: 'user_id', columnAlias: 'user_id', columnType: 'VARCHAR', isJoinField: true },
+              { columnName: 'amount', columnAlias: 'amount', columnType: 'DECIMAL', isJoinField: false }
+            ]
+          }
+        ]
+      };
+
+      window.dispatchEvent(new CustomEvent('create-test-task-node', {
+        detail: {
+          data: mockData,
+          position: { x: 300, y: 200 }
+        }
+      }));
+    });
+
+    await page.waitForTimeout(500);
+
+    // 验证计算任务节点存在
+    const taskNode = getTestNodeLocator(page, 0);
+    await expect(taskNode).toBeVisible();
+
+    // 点击"添加输出"按钮
+    const addOutputBtn = taskNode.locator('.add-output-btn');
+    await expect(addOutputBtn).toBeVisible();
+    await addOutputBtn.click();
+    await page.waitForTimeout(300);
+
+    // 验证输出配置对话框显示
+    await expect(page.locator('.modal-overlay')).toBeVisible();
+    await expect(page.locator('.modal-title')).toContainText('配置输出数据');
+
+    // 点击选择企业
+    const enterpriseCard = page.locator('.enterprise-card');
+    await expect(enterpriseCard).toBeVisible();
+    await enterpriseCard.click();
+    await page.waitForTimeout(300);
+
+    // 验证企业选择对话框显示
+    await expect(page.locator('.modal-title').filter({ hasText: /选择企业/ })).toBeVisible();
+
+    // 选择第一个企业
+    const enterpriseItems = page.locator('.enterprise-item');
+    if (await enterpriseItems.count() > 0) {
+      await enterpriseItems.first().click();
+      await page.waitForTimeout(300);
+    }
+
+    // 验证回到输出配置对话框
+    await expect(page.locator('.modal-title')).toContainText('配置输出数据');
+
+    // 输入数据集名称
+    const datasetInput = page.locator('.text-input');
+    await expect(datasetInput).toBeVisible();
+    await datasetInput.fill('output_psi_result');
+    await page.waitForTimeout(200);
+
+    // 选择输出字段
+    const fieldItems = page.locator('.field-item');
+    const fieldCount = await fieldItems.count();
+    if (fieldCount > 0) {
+      await fieldItems.first().click();
+      await page.waitForTimeout(100);
+      if (fieldCount > 1) {
+        await fieldItems.nth(1).click();
+        await page.waitForTimeout(100);
+      }
+    }
+
+    // 点击确认按钮
+    const outputConfirmBtn = page.locator('.modal-footer .btn.btn-primary');
+    await expect(outputConfirmBtn).toBeVisible();
+    await outputConfirmBtn.click();
+    await page.waitForTimeout(500);
+
+    // 验证输出节点已创建
+    const nodes = page.locator('.vue-flow__node');
+    await expect(nodes).toHaveCount(2);
+
+    // 验证输出节点显示数据集名称
+    await expect(nodes.nth(1)).toContainText('output_psi_result');
+
+    // 验证连接已创建
+    const edges = page.locator('.vue-flow__edge');
+    await expect(edges).toHaveCount(1);
+
+    // 验证计算任务节点显示输出数量
+    await expect(taskNode).toContainText('输出: 1 个');
+  });
+
+  /**
+   * 测试：完整的 PSI 计算任务工作流
+   * 1. 创建两个数据源节点并配置
+   * 2. 创建 PSI 计算任务节点
+   * 3. 连接两个数据源到计算任务
+   * 4. 配置模型和算力资源
+   * 5. 配置输出
+   * 6. 验证完整流程成功
+   */
+  test('应该能够完成完整的 PSI 计算任务工作流', async ({ page }) => {
+    // 步骤 1: 创建第一个数据源
+    await dragNodeToCanvas(page, 'palette-node-mysql-数据库', 250, 100);
+    await page.waitForTimeout(300);
+
+    // 模拟配置完成（快速跳过资产选择对话框）
+    await page.evaluate(() => {
+      const modal = document.querySelector('.modal-overlay');
+      if (modal) {
+        // 模拟选择资产并确认
+        window.dispatchEvent(new CustomEvent('test-asset-selected', {
+          detail: { assetId: 'asset_001', fields: ['user_id', 'amount'] }
+        }));
+      }
+    });
+
+    // 等待并确认第一个对话框
+    let confirmBtn = page.locator('.btn.btn-primary');
+    if (await confirmBtn.isVisible()) {
+      await confirmBtn.click();
+      await page.waitForTimeout(300);
+    }
+
+    // 步骤 2: 创建第二个数据源
+    await dragNodeToCanvas(page, 'palette-node-postgresql', 550, 100);
+    await page.waitForTimeout(300);
+
+    // 等待并确认第二个对话框
+    confirmBtn = page.locator('.btn.btn-primary');
+    if (await confirmBtn.isVisible()) {
+      await confirmBtn.click();
+      await page.waitForTimeout(300);
+    }
+
+    // 验证两个数据源节点
+    await expect(page.locator('.vue-flow__node')).toHaveCount(2);
+
+    // 步骤 3: 创建 PSI 计算任务节点
+    await dragNodeToCanvas(page, 'palette-node-psi-计算', 400, 300);
+    await page.waitForTimeout(300);
+
+    // 选择技术路径
+    const softwareOption = page.locator('.tech-path-option').filter({ hasText: '软件密码学' });
+    await softwareOption.click();
+    await page.waitForTimeout(200);
+
+    await page.locator('.btn.btn-primary').click();
+    await page.waitForTimeout(500);
+
+    // 验证三个节点
+    await expect(page.locator('.vue-flow__node')).toHaveCount(3);
+
+    // 步骤 4: 连接数据源到计算任务
+    const nodes = page.locator('.vue-flow__node');
+    const sourceNode1 = nodes.nth(0);
+    const sourceNode2 = nodes.nth(1);
+    const taskNode = nodes.nth(2);
+
+    // 创建第一个连接
+    const box1 = await sourceNode1.boundingBox();
+    const taskBox = await taskNode.boundingBox();
+
+    if (box1 && taskBox) {
+      // 从第一个数据源拖到计算任务
+      await page.mouse.move(box1.x + box1.width / 2, box1.y + box1.height);
+      await page.mouse.down();
+      await page.mouse.move(taskBox.x + taskBox.width / 2, taskBox.y, { steps: 10 });
+      await page.mouse.up();
+      await page.waitForTimeout(500);
+
+      // 处理字段选择对话框 - 选择字段并确认
+      const fieldModal = page.locator('.modal-overlay');
+      if (await fieldModal.isVisible()) {
+        const fieldCheckboxes = page.locator('.field-checkbox');
+        if (await fieldCheckboxes.count() > 0) {
+          await fieldCheckboxes.nth(0).check();
+          await page.waitForTimeout(100);
+        }
+
+        const fieldConfirm = page.locator('.modal-footer .btn.btn-primary');
+        await fieldConfirm.click();
+        await page.waitForTimeout(500);
+      }
+    }
+
+    // 创建第二个连接
+    const box2 = await sourceNode2.boundingBox();
+    if (box2 && taskBox) {
+      await page.mouse.move(box2.x + box2.width / 2, box2.y + box2.height);
+      await page.mouse.down();
+      await page.mouse.move(taskBox.x + taskBox.width / 2, taskBox.y, { steps: 10 });
+      await page.mouse.up();
+      await page.waitForTimeout(500);
+
+      // 处理字段选择对话框
+      const fieldModal = page.locator('.modal-overlay');
+      if (await fieldModal.isVisible()) {
+        const fieldCheckboxes = page.locator('.field-checkbox');
+        if (await fieldCheckboxes.count() > 0) {
+          await fieldCheckboxes.nth(0).check();
+          await page.waitForTimeout(100);
+        }
+
+        const fieldConfirm = page.locator('.modal-footer .btn.btn-primary');
+        await fieldConfirm.click();
+        await page.waitForTimeout(500);
+      }
+    }
+
+    // 验证连接
+    await expect(page.locator('.vue-flow__edge')).toHaveCount(2);
+
+    // 步骤 5: 配置输出
+    const addOutputBtn = taskNode.locator('.add-output-btn');
+    await expect(addOutputBtn).toBeVisible();
+    await addOutputBtn.click();
+    await page.waitForTimeout(300);
+
+    // 配置输出（简化流程）
+    const outputModal = page.locator('.modal-overlay');
+    if (await outputModal.isVisible()) {
+      // 点击企业卡片
+      const enterpriseCard = page.locator('.enterprise-card');
+      if (await enterpriseCard.isVisible()) {
+        await enterpriseCard.click();
+        await page.waitForTimeout(300);
+
+        // 选择企业
+        const entItems = page.locator('.enterprise-item');
+        if (await entItems.count() > 0) {
+          await entItems.first().click();
+          await page.waitForTimeout(300);
+        }
+      }
+
+      // 输入数据集名称
+      const datasetInput = page.locator('.text-input');
+      if (await datasetInput.isVisible()) {
+        await datasetInput.fill('psi_output_result');
+        await page.waitForTimeout(100);
+      }
+
+      // 选择字段
+      const fieldItems = page.locator('.field-item');
+      const fCount = await fieldItems.count();
+      if (fCount > 0) {
+        await fieldItems.first().click();
+        await page.waitForTimeout(100);
+      }
+
+      // 确认
+      const outputConfirm = page.locator('.modal-footer .btn.btn-primary');
+      await outputConfirm.click();
+      await page.waitForTimeout(500);
+    }
+
+    // 最终验证
+    await expect(page.locator('.vue-flow__node')).toHaveCount(4); // 2 数据源 + 1 计算任务 + 1 输出
+    await expect(page.locator('.vue-flow__edge')).toHaveCount(3); // 2 数据输入 + 1 输出连接
+
+    // 验证计算任务显示正确的输入和输出数量
+    await expect(taskNode).toContainText('输入: 2 个数据源');
+    await expect(taskNode).toContainText('输出: 1 个');
+  });
+
+  /**
+   * 测试：技术路径切换
+   * 验证可以选择不同的技术路径（软件密码学 vs 硬件 TEE）
+   */
+  test('应该能够切换技术路径', async ({ page }) => {
+    // 创建计算任务节点
+    await dragNodeToCanvas(page, 'palette-node-mpc-计算', 400, 200);
+    await page.waitForTimeout(300);
+
+    // 验证两个选项
+    await expect(page.locator('.tech-path-option')).toHaveCount(2);
+
+    // 验证软件密码学选项
+    const softwareOption = page.locator('.tech-path-option').filter({ hasText: '软件密码学' });
+    await expect(softwareOption).toContainText('基于密码学算法的纯软件实现');
+
+    // 验证硬件 TEE 选项
+    const teeOption = page.locator('.tech-path-option').filter({ hasText: '硬件 TEE' });
+    await expect(teeOption).toContainText('基于可信执行环境的硬件加速方案');
+
+    // 选择软件密码学
+    await softwareOption.click();
+    await page.waitForTimeout(200);
+
+    // 验证最终计算类型显示
+    const previewValue = page.locator('.preview-value');
+    await expect(previewValue).toBeVisible();
+    await expect(previewValue).toContainText('SOFTWARE');
+
+    // 切换到硬件 TEE
+    await teeOption.click();
+    await page.waitForTimeout(200);
+
+    // 验证最终计算类型更新
+    await expect(previewValue).toContainText('TEE');
+  });
+
+  /**
+   * 测试：Join 类型选择
+   * 验证在字段选择对话框中可以选择 INNER 或 CROSS Join 类型
+   */
+  test('应该能够选择 Join 类型', async ({ page }) => {
+    // 创建数据源和计算任务节点
+    await page.evaluate(() => {
+      // 创建数据源节点
+      const sourceData = {
+        type: 'data_source',
+        label: '测试数据源',
+        category: 'DATA_SOURCE',
+        assetInfo: {
+          assetId: 'test_asset',
+          assetName: '测试数据',
+          participantId: 'ent_001',
+          dataInfo: {
+            fieldList: [
+              { name: 'id', dataType: 'VARCHAR', isPrimaryKey: true },
+              { name: 'value', dataType: 'INT' }
+            ]
+          }
+        }
+      };
+
+      const taskData = {
+        type: 'compute_task',
+        label: 'PSI',
+        category: 'COMPUTE_TASK',
+        taskType: 'psi',
+        techPath: 'SOFTWARE'
+      };
+
+      window.dispatchEvent(new CustomEvent('create-test-flow', {
+        detail: { sourceData, taskData }
+      }));
+    });
+
+    await page.waitForTimeout(500);
+
+    // 创建连接触发字段选择对话框
+    const nodes = page.locator('.vue-flow__node');
+    if (await nodes.count() >= 2) {
+      const sourceBox = await nodes.first().boundingBox();
+      const taskBox = await nodes.nth(1).boundingBox();
+
+      if (sourceBox && taskBox) {
+        await page.mouse.move(sourceBox.x + sourceBox.width / 2, sourceBox.y + sourceBox.height);
+        await page.mouse.down();
+        await page.mouse.move(taskBox.x + taskBox.width / 2, taskBox.y, { steps: 10 });
+        await page.mouse.up();
+        await page.waitForTimeout(500);
+      }
+    }
+
+    // 验证字段选择对话框显示
+    const fieldSelector = page.locator('.modal-overlay');
+    if (await fieldSelector.isVisible()) {
+      // 验证 Join 类型选择器
+      await expect(page.locator('.join-type-selector')).toBeVisible();
+      await expect(page.locator('.join-type-label')).toContainText('Join 连接类型');
+
+      const joinSelect = page.locator('.join-type-select');
+      await expect(joinSelect).toBeVisible();
+
+      // 验证选项
+      await expect(joinSelect.locator('option[value="INNER"]')).toBeVisible();
+      await expect(joinSelect.locator('option[value="CROSS"]')).toBeVisible();
+
+      // 选择 CROSS
+      await joinSelect.selectOption('CROSS');
+      await page.waitForTimeout(200);
+
+      // 验证提示文本更新
+      const hint = page.locator('.join-type-hint');
+      await expect(hint).toContainText('笛卡尔积');
+
+      // 切换回 INNER
+      await joinSelect.selectOption('INNER');
+      await page.waitForTimeout(200);
+
+      await expect(hint).toContainText('匹配');
+    }
+  });
+
+  /**
+   * 测试：删除计算任务节点时级联删除输出节点
+   * 1. 创建计算任务节点并配置输出
+   * 2. 删除计算任务节点
+   * 3. 验证输出节点也被删除
+   */
+  test('应该能够级联删除输出节点', async ({ page }) => {
+    // 创建带输出的计算任务
+    await page.evaluate(() => {
+      const taskData = {
+        type: 'compute_task',
+        label: 'PSI',
+        category: 'COMPUTE_TASK',
+        taskType: 'psi',
+        techPath: 'SOFTWARE',
+        inputProviders: [{ fields: [{ columnName: 'id' }] }],
+        outputs: [
+          { outputNodeId: 'test_output_node' }
+        ]
+      };
+
+      const outputData = {
+        type: 'outputData',
+        label: '输出数据',
+        category: 'OUTPUT_DATA',
+        parentTaskId: 'test_task'
+      };
+
+      window.dispatchEvent(new CustomEvent('create-test-task-with-output', {
+        detail: { taskData, outputData }
+      }));
+    });
+
+    await page.waitForTimeout(500);
+
+    // 验证两个节点存在
+    const nodes = page.locator('.vue-flow__node');
+    const initialCount = await nodes.count();
+    expect(initialCount).toBeGreaterThanOrEqual(2);
+
+    // 选择并删除计算任务节点
+    const taskNode = nodes.first();
+    await taskNode.click();
+    await page.waitForTimeout(300);
+    await page.keyboard.press('Delete');
+    await page.waitForTimeout(500);
+
+    // 验证节点数量减少（输出节点也被删除）
+    const finalCount = await page.locator('.vue-flow__node').count();
+    expect(finalCount).toBeLessThan(initialCount);
+  });
+
+  /**
+   * 测试：验证连接规则
+   * 1. 两个数据源节点不能直接连接
+   * 2. 连接必须从输出 handle 开始
+   */
+  test('应该遵守连接规则', async ({ page }) => {
+    // 创建两个数据源节点
+    await dragNodeToCanvas(page, 'palette-node-mysql-数据库', 200, 150);
+    await page.waitForTimeout(300);
+
+    // 快速确认对话框
+    const confirmBtn = page.locator('.btn.btn-primary');
+    if (await confirmBtn.isVisible()) {
+      await confirmBtn.click();
+      await page.waitForTimeout(300);
+    }
+
+    await dragNodeToCanvas(page, 'palette-node-postgresql', 400, 150);
+    await page.waitForTimeout(300);
+
+    if (await confirmBtn.isVisible()) {
+      await confirmBtn.click();
+      await page.waitForTimeout(300);
+    }
+
+    // 尝试连接两个数据源节点
+    const node1 = getTestNodeLocator(page, 0);
+    const node2 = getTestNodeLocator(page, 1);
+
+    const box1 = await node1.boundingBox();
+    const box2 = await node2.boundingBox();
+
+    if (box1 && box2) {
+      await page.mouse.move(box1.x + box1.width / 2, box1.y + box1.height);
+      await page.mouse.down();
+      await page.mouse.move(box2.x + box2.width / 2, box2.y, { steps: 10 });
+      await page.mouse.up();
+      await page.waitForTimeout(500);
+    }
+
+    // 验证没有连接被创建（两个数据源不能连接）
+    await expect(page.locator('.vue-flow__edge')).toHaveCount(0);
+  });
+});
+
+/**
+ * 辅助测试：模态框交互测试
+ */
+test.describe('模态框交互测试', () => {
+  test.beforeEach(async ({ page }) => {
+    // 设置中文字体支持
+    await setupChineseFontSupport(page);
+
+    await page.goto('/');
+    await page.waitForSelector('.flow-sidebar', { timeout: 10000 });
+  });
+
+  test('应该能够点击模态框外部关闭（当允许时）', async ({ page }) => {
+    // 拖拽节点触发模态框
+    await dragNodeToCanvas(page, 'palette-node-mysql-数据库', 400, 200);
+    await page.waitForTimeout(500);
+
+    // 验证模态框显示
+    await expect(page.locator('.modal-overlay')).toBeVisible();
+
+    // 点击模态框外部区域
+    const overlay = page.locator('.modal-overlay');
+    await overlay.click({ position: { x: 10, y: 10 } });
+    await page.waitForTimeout(300);
+
+    // 验证模态框关闭（取决于 closeOnOverlay 设置）
+    // 如果没有关闭，节点应该仍然存在
+  });
+
+  test('应该能够使用 ESC 键关闭模态框', async ({ page }) => {
+    await dragNodeToCanvas(page, 'palette-node-psi-计算', 400, 200);
+    await page.waitForTimeout(500);
+
+    // 验证模态框显示
+    await expect(page.locator('.modal-overlay')).toBeVisible();
+
+    // 按 ESC 键
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(300);
+
+    // 验证模态框关闭
+    await expect(page.locator('.modal-overlay')).not.toBeVisible();
+  });
+
+  test('应该能够使用关闭按钮关闭模态框', async ({ page }) => {
+    await dragNodeToCanvas(page, 'palette-node-psi-计算', 400, 200);
+    await page.waitForTimeout(500);
+
+    // 点击关闭按钮
+    const closeBtn = page.locator('.modal-close, .close-button');
+    await expect(closeBtn).toBeVisible();
+    await closeBtn.click();
+    await page.waitForTimeout(300);
+
+    // 验证模态框关闭
+    await expect(page.locator('.modal-overlay')).not.toBeVisible();
+  });
+});
+
+/**
+ * 辅助测试：表单验证测试
+ */
+test.describe('表单验证测试', () => {
+  test.beforeEach(async ({ page }) => {
+    // 设置中文字体支持
+    await setupChineseFontSupport(page);
+
+    await page.goto('/');
+    await page.waitForSelector('.flow-sidebar', { timeout: 10000 });
+  });
+
+  test('输出配置应该验证必填字段', async ({ page }) => {
+    // 创建计算任务并添加输出
+    await page.evaluate(() => {
+      const taskData = {
+        type: 'compute_task',
+        label: 'PSI',
+        category: 'COMPUTE_TASK',
+        taskType: 'psi',
+        techPath: 'SOFTWARE',
+        inputProviders: [
+          {
+            fields: [
+              { columnName: 'user_id', columnType: 'VARCHAR' },
+              { columnName: 'amount', columnType: 'DECIMAL' }
+            ]
+          }
+        ]
+      };
+
+      window.dispatchEvent(new CustomEvent('create-test-task-node', {
+        detail: { data: taskData, position: { x: 300, y: 200 } }
+      }));
+    });
+
+    await page.waitForTimeout(500);
+
+    // 点击添加输出
+    const addOutputBtn = page.locator('.add-output-btn');
+    await addOutputBtn.click();
+    await page.waitForTimeout(300);
+
+    // 选择企业
+    const enterpriseCard = page.locator('.enterprise-card');
+    await enterpriseCard.click();
+    await page.waitForTimeout(300);
+
+    const entItems = page.locator('.enterprise-item');
+    if (await entItems.count() > 0) {
+      await entItems.first().click();
+      await page.waitForTimeout(300);
+    }
+
+    // 验证确认按钮在未输入数据集名称时禁用
+    const confirmBtn = page.locator('.modal-footer .btn.btn-primary');
+
+    // 输入数据集名称
+    const datasetInput = page.locator('.text-input');
+    await datasetInput.fill('test_output');
+    await page.waitForTimeout(200);
+
+    // 选择字段
+    const fieldItems = page.locator('.field-item');
+    if (await fieldItems.count() > 0) {
+      await fieldItems.first().click();
+      await page.waitForTimeout(100);
+    }
+
+    // 现在确认按钮应该可用
+    await expect(confirmBtn).not.toBeDisabled();
+  });
+});

@@ -4,6 +4,11 @@ import { defineConfig, devices } from '@playwright/test';
  * Playwright 配置文件
  * 用于 Vue Flow 流程编辑器的 E2E 测试
  */
+
+// 设置环境变量确保正确编码
+process.env.LC_ALL = 'zh_CN.UTF-8';
+process.env.LANG = 'zh_CN.UTF-8';
+
 export default defineConfig({
   testDir: './e2e',
 
@@ -29,6 +34,9 @@ export default defineConfig({
     ['list']
   ],
 
+  /* 全局设置 */
+  globalSetup: './e2e/global-setup.ts',
+
   /* 共享配置 */
   use: {
     /* 基础 URL 对应 Vite 开发服务器 */
@@ -36,6 +44,12 @@ export default defineConfig({
 
     /* 默认无头模式 - 不显示浏览器窗口 */
     headless: true,
+
+    /* 设置 locale 为中文 */
+    locale: 'zh-CN',
+
+    /* 设置时区 */
+    timezoneId: 'Asia/Shanghai',
 
     /* 失败时自动捕获 trace */
     trace: 'on-first-retry',
@@ -51,7 +65,11 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      use: {
+        ...devices['Desktop Chrome'],
+        // 注入中文字体样式
+        baseURL: 'http://localhost:5172',
+      },
     },
   ],
 
