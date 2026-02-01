@@ -256,6 +256,21 @@
 
 ---
 
+## Phase 12: E2E 测试 (Priority: P1)
+
+**Purpose**: 端到端测试验证所有用户故事的完整流程
+
+- [x] T105 [P] 创建计算任务编排 E2E 测试 e2e/task-orchestration.spec.ts (覆盖 US1, US2, US5, US7 核心流程)
+- [x] T106 [P] 创建节点操作 E2E 测试 e2e/node-operations.spec.ts (验证节点选中、删除、拖拽)
+- [x] T107 [P] 创建连接规则 E2E 测试 e2e/connections.spec.ts (验证连线阻止规则、循环依赖检测)
+- [x] T108 [P] 创建拖拽操作 E2E 测试 e2e/drag-drop.spec.ts (验证所有节点类型拖拽)
+- [x] T109 创建边缘情况 E2E 测试 e2e/edge-cases.spec.ts (验证字段别名冲突、无资源提示等)
+- [x] T110 运行全部 E2E 测试并确保 100% 通过率 npm run test:e2e
+
+**Checkpoint**: E2E 测试完成 - 所有用户故事可通过自动化测试验证
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies
@@ -358,7 +373,7 @@ Task T017: "实现技术路径选择后节点创建逻辑" (依赖T016)
 
 | 指标 | 数量 |
 |------|------|
-| **总任务数** | 104 |
+| **总任务数** | 110 |
 | **Setup任务** | 4 |
 | **Foundational任务** | 8 |
 | **US1任务** | 8 |
@@ -370,6 +385,7 @@ Task T017: "实现技术路径选择后节点创建逻辑" (依赖T016)
 | **US8任务** | 6 |
 | **US6任务** | 7 |
 | **Polish任务** | 13 |
+| **E2E测试任务** | 6 |
 | **并行机会** | 约40%任务标记[P] |
 
 ### MVP Scope (P1 Stories)
