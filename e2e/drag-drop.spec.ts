@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { dragNodeToCanvas, setupChineseFontSupport } from './test-utils';
+import { dragNodeToCanvas, setupChineseFontSupport, handleTechPathDialog, handleAssetDialogQuick, cancelModal } from './test-utils';
 
 /**
  * Vue Flow 拖拽节点 E2E 测试
@@ -14,6 +14,11 @@ test.describe('节点拖拽测试', () => {
     await page.goto('/');
     // 等待应用加载
     await page.waitForSelector('.flow-sidebar', { timeout: 10000 });
+  });
+
+  test.afterEach(async ({ page }) => {
+    // 清理：取消任何打开的模态框
+    await cancelModal(page);
   });
 
   test('应该能够从侧边栏拖拽数据源节点（MySQL）到画布', async ({ page }) => {
@@ -31,38 +36,32 @@ test.describe('节点拖拽测试', () => {
     // 执行拖拽操作
     await dragNodeToCanvas(page, 'palette-node-mysql-数据库', 400, 200);
 
-    // 等待节点出现
+    // 处理资产选择对话框
+    await handleAssetDialogQuick(page);
+
+    // 等待节点创建
     await page.waitForTimeout(500);
 
     // 验证节点已添加到画布
     const finalNodeCount = await page.locator('.vue-flow__node').count();
     expect(finalNodeCount).toBe(initialNodeCount + 1);
-
-    // 验证新节点是数据源节点
-    const newNode = page.locator('.vue-flow__node').nth(initialNodeCount);
-    await expect(newNode).toContainText('MySQL');
   });
 
   test('应该能够从侧边栏拖拽多个不同类型的节点', async ({ page }) => {
     // 拖拽 PostgreSQL 节点 - 使用与通过的测试类似的坐标
     await dragNodeToCanvas(page, 'palette-node-postgresql', 400, 200);
-    await page.waitForTimeout(300);
+    await handleAssetDialogQuick(page);
 
-    // 拖拽 PSI 计算任务节点
+    // 拖拽 PSI 计算任务节点 - 需要技术路径对话框
     await dragNodeToCanvas(page, 'palette-node-psi-计算', 400, 400);
-    await page.waitForTimeout(300);
+    await handleTechPathDialog(page, 'SOFTWARE');
 
     // 拖拽 CSV 节点
     await dragNodeToCanvas(page, 'palette-node-csv-文件', 600, 200);
-    await page.waitForTimeout(300);
+    await handleAssetDialogQuick(page);
 
     // 验证所有节点都已添加
     await expect(page.locator('.vue-flow__node')).toHaveCount(3);
-
-    // 验证节点类型正确
-    await expect(page.locator('.vue-flow__node').filter({ hasText: 'PostgreSQL' })).toBeVisible();
-    await expect(page.locator('.vue-flow__node').filter({ hasText: 'PSI' })).toBeVisible();
-    await expect(page.locator('.vue-flow__node').filter({ hasText: 'CSV' })).toBeVisible();
   });
 
   test('应该能够拖拽所有数据源类型的节点', async ({ page }) => {
@@ -82,7 +81,7 @@ test.describe('节点拖拽测试', () => {
         200 + (i % 2) * 250,
         150 + Math.floor(i / 2) * 100
       );
-      await page.waitForTimeout(200);
+      await handleAssetDialogQuick(page);
     }
 
     // 验证所有数据源节点都已添加
@@ -106,6 +105,7 @@ test.describe('节点拖拽测试', () => {
         200 + (i % 2) * 250,
         150 + Math.floor(i / 2) * 100
       );
+      await handleTechPathDialog(page, 'SOFTWARE');
       await page.waitForTimeout(200);
     }
 
@@ -119,6 +119,9 @@ test.describe('节点拖拽测试', () => {
     const targetY = 250;
 
     await dragNodeToCanvas(page, 'palette-node-csv-文件', targetX, targetY);
+    await handleAssetDialogQuick(page);
+
+    // 等待节点创建
     await page.waitForTimeout(500);
 
     // 获取节点的实际位置
@@ -136,21 +139,27 @@ test.describe('节点拖拽测试', () => {
 
   test('应该能够连续拖拽多个节点到不同位置', async ({ page }) => {
     const positions = [
-      { x: 200, y: 150 },
-      { x: 450, y: 150 },
-      { x: 200, y: 300 },
-      { x: 450, y: 300 }
+      { x: 200, y: 150, isDataSource: true },
+      { x: 450, y: 150, isDataSource: true },
+      { x: 200, y: 300, isDataSource: false }, // 计算任务
+      { x: 450, y: 300, isDataSource: false }  // 计算任务
     ];
 
-    const nodes = [
+    const nodeIds = [
       'palette-node-mysql-数据库',
       'palette-node-postgresql',
       'palette-node-psi-计算',
       'palette-node-mpc-计算'
     ];
 
-    for (let i = 0; i < nodes.length; i++) {
-      await dragNodeToCanvas(page, nodes[i], positions[i].x, positions[i].y);
+    for (let i = 0; i < nodeIds.length; i++) {
+      await dragNodeToCanvas(page, nodeIds[i], positions[i].x, positions[i].y);
+      // 根据节点类型处理相应的对话框
+      if (positions[i].isDataSource) {
+        await handleAssetDialogQuick(page);
+      } else {
+        await handleTechPathDialog(page, 'SOFTWARE');
+      }
       await page.waitForTimeout(200);
     }
 

@@ -10,11 +10,14 @@ import { Page, Locator } from '@playwright/test';
  */
 
 /**
- * 设置中文字体支持
- * 在 Linux 环境下注入中文字体样式，解决中文乱码问题
+ * 设置测试环境
+ * 在 Linux 环境下注入中文字体样式，并设置测试模式标志
  */
-export async function setupChineseFontSupport(page: Page): Promise<void> {
+export async function setupTestEnvironment(page: Page): Promise<void> {
   await page.addInitScript(`
+    // 设置测试模式标志，让应用自动创建模拟数据
+    window.__PLAYWRIGHT_TEST__ = true;
+
     // 中文字体栈
     const chineseFontStack = '"Noto Sans CJK SC", "PingFang SC", "Microsoft YaHei", "WenQuanYi Zenhei", sans-serif';
 
@@ -33,6 +36,61 @@ export async function setupChineseFontSupport(page: Page): Promise<void> {
       .modal-title, .node-title, .field-name,
       .modal-overlay, .vue-flow__node {
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial,
+                     \${chineseFontStack} !important;
+      }
+      /* 确保 emoji 和图标正确显示 */
+      .palette-node-icon, .node-icon {
+        font-family: "Segoe UI Emoji", "Noto Color Emoji", "Apple Color Emoji", sans-serif !important;
+      }
+    \`;
+    document.head.appendChild(style);
+  `);
+}
+
+/**
+ * 禁用测试模式（用于需要实际对话框交互的测试）
+ */
+export async function disableTestMode(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    window.__PLAYWRIGHT_TEST__ = false;
+  });
+}
+
+/**
+ * 设置中文字体支持（向后兼容）
+ * 在 Linux 环境下注入中文字体样式，解决中文乱码问题
+ */
+export async function setupChineseFontSupport(page: Page): Promise<void> {
+  await setupTestEnvironment(page);
+}
+
+/**
+ * 设置中文字体支持但不启用测试模式
+ * 用于需要实际对话框交互的测试
+ */
+export async function setupChineseFontSupportOnly(page: Page): Promise<void> {
+  await page.addInitScript(`
+    // 明确移除测试模式标志，让对话框正常显示
+    window.__PLAYWRIGHT_TEST__ = false;
+
+    // 中文字体栈
+    const chineseFontStack = '"Noto Sans CJK SC", "PingFang SC", "Microsoft YaHei", "WenQuanYi Zenhei", sans-serif';
+
+    // 注入全局字体样式
+    const style = document.createElement('style');
+    style.id = 'playwright-chinese-font-fix';
+    style.textContent = \`
+      * {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial,
+                     \${chineseFontStack} !important;
+      }
+      /* 确保所有元素使用中文字体 */
+      body, div, span, p, h1, h2, h3, h4, h5, h6,
+      button, input, textarea, select, option,
+      table, thead, tbody, tfoot, tr, th, td,
+      .modal-title, .node-title, .field-name,
+      .modal-overlay, .vue-flow__node {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial",
                      \${chineseFontStack} !important;
       }
       /* 确保 emoji 和图标正确显示 */
@@ -85,51 +143,57 @@ export async function dragNodeToCanvas(
 
       // 3. 根据图标确定类型
       let type = 'data_source';
-      let category = '';
+      let category = 'data_source';  // 默认为数据源类别
       let taskType = '';
       let sourceType = '';
 
       if (icon.includes('🗄️') || label.includes('MySQL')) {
         type = 'data_source';
+        category = 'data_source';
         sourceType = 'mysql';
       } else if (icon.includes('🐘') || label.includes('PostgreSQL')) {
         type = 'data_source';
+        category = 'data_source';
         sourceType = 'postgresql';
       } else if (icon.includes('📄') || label.includes('CSV')) {
         type = 'data_source';
+        category = 'data_source';
         sourceType = 'csv';
       } else if (icon.includes('📊') || label.includes('Excel')) {
         type = 'data_source';
+        category = 'data_source';
         sourceType = 'excel';
       } else if (icon.includes('🌐') || label.includes('REST')) {
         type = 'data_source';
+        category = 'data_source';
         sourceType = 'rest_api';
       } else if (icon.includes('◈') || label.includes('GraphQL')) {
         type = 'data_source';
+        category = 'data_source';
         sourceType = 'graphql';
       } else if (icon.includes('🔐') || label.includes('PSI')) {
         type = 'compute_task';
-        category = 'privacy_computation';
+        category = 'compute_task';
         taskType = 'psi';
       } else if (icon.includes('🔍') || label.includes('PIR')) {
         type = 'compute_task';
-        category = 'privacy_computation';
+        category = 'compute_task';
         taskType = 'pir';
       } else if (icon.includes('🧮') || label.includes('MPC')) {
         type = 'compute_task';
-        category = 'privacy_computation';
+        category = 'compute_task';
         taskType = 'mpc';
       } else if (icon.includes('🤖') || label.includes('联邦')) {
         type = 'compute_task';
-        category = 'privacy_computation';
+        category = 'compute_task';
         taskType = 'federated_learning';
       } else if (icon.includes('🔒') || label.includes('同态')) {
         type = 'compute_task';
-        category = 'privacy_computation';
+        category = 'compute_task';
         taskType = 'homomorphic_encryption';
       } else if (icon.includes('🛡️') || label.includes('差分')) {
         type = 'compute_task';
-        category = 'privacy_computation';
+        category = 'compute_task';
         taskType = 'differential_privacy';
       }
 
@@ -151,16 +215,24 @@ export async function dragNodeToCanvas(
         sourceType
       };
 
+      // 调试：输出模板数据
+      console.log('[dragNodeToCanvas] Template data:', templateData);
+
       // 6. 找到画布元素
       const canvasEl = document.querySelector('[data-testid="flow-canvas"]') as HTMLElement;
       if (!canvasEl) {
         throw new Error('Canvas element not found');
       }
 
+      console.log('[dragNodeToCanvas] Canvas element found:', canvasEl);
+
       // 7. 计算画布的偏移量，将相对坐标转换为视口坐标
       const canvasRect = canvasEl.getBoundingClientRect();
       const clientX = canvasRect.left + targetX;
       const clientY = canvasRect.top + targetY;
+
+      console.log('[dragNodeToCanvas] Canvas rect:', canvasRect);
+      console.log('[dragNodeToCanvas] Calculated clientX:', clientX, 'clientY:', clientY);
 
       // 8. 创建拖放事件并触发
       // 创建 DataTransfer 对象
@@ -210,7 +282,9 @@ export async function dragNodeToCanvas(
         writable: false
       });
 
-      canvasEl.dispatchEvent(dropEvent);
+      console.log('[dragNodeToCanvas] Dispatching drop event');
+      const dropResult = canvasEl.dispatchEvent(dropEvent);
+      console.log('[dragNodeToCanvas] Drop event dispatched, result:', dropResult);
 
       // 触发 dragend 事件
       const dragEndEvent = new DragEvent('dragend', {
@@ -237,4 +311,71 @@ export async function waitForNodeCount(page: Page, count: number, timeout = 5000
     count,
     { timeout }
   );
+}
+
+/**
+ * 处理技术路径选择对话框
+ * 在测试模式下，应用会自动创建节点，此函数只需等待节点创建完成
+ */
+export async function handleTechPathDialog(page: Page, techPath?: 'SOFTWARE' | 'TEE'): Promise<void> {
+  // 在测试模式下，应用检测到 window.__PLAYWRIGHT_TEST__ 或 navigator.webdriver
+  // 会自动创建节点，不需要手动处理对话框
+  // 只需等待一小段时间让节点被创建
+  await page.waitForTimeout(500);
+
+  // 如果对话框仍然出现（非测试模式），则处理它
+  const dialogVisible = await page.locator('.modal-overlay').isVisible().catch(() => false);
+  if (dialogVisible) {
+    await page.waitForTimeout(200);
+
+    // 选择技术路径（如果指定）
+    if (techPath === 'SOFTWARE') {
+      // 软件密码学默认已选中，但如果需要可以点击
+      const softwareOption = page.locator('role=radio').filter({ hasText: '软件密码学' });
+      if (await softwareOption.isVisible().catch(() => false)) {
+        await softwareOption.click();
+      }
+    } else if (techPath === 'TEE') {
+      const teeOption = page.locator('role=radio').filter({ hasText: '硬件 TEE' });
+      await teeOption.click();
+    }
+
+    await page.waitForTimeout(200);
+
+    // 点击确认按钮 - 使用按钮文本定位
+    const confirmBtn = page.locator('button').filter({ hasText: '确定' });
+    await confirmBtn.click();
+    await page.waitForTimeout(300);
+  }
+}
+
+/**
+ * 处理资产选择对话框的快速确认（测试模式）
+ * 在测试模式下，应用会自动创建模拟数据，此函数只需等待节点创建完成
+ */
+export async function handleAssetDialogQuick(page: Page): Promise<void> {
+  // 在测试模式下，应用检测到 window.__PLAYWRIGHT_TEST__ 或 navigator.webdriver
+  // 会自动创建模拟资产数据，不需要手动处理对话框
+  // 只需等待节点被创建即可
+  await page.waitForTimeout(500);
+}
+
+/**
+ * 取消模态框
+ */
+export async function cancelModal(page: Page): Promise<void> {
+  const modal = page.locator('.modal-overlay');
+  const isVisible = await modal.isVisible().catch(() => false);
+
+  if (isVisible) {
+    // 尝试点击关闭按钮
+    const closeBtn = page.locator('.modal-close, .close-button');
+    if (await closeBtn.isVisible().catch(() => false)) {
+      await closeBtn.click();
+    } else {
+      // 按 ESC 键
+      await page.keyboard.press('Escape');
+    }
+    await page.waitForTimeout(300);
+  }
 }

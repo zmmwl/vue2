@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { dragNodeToCanvas } from './test-utils';
+import { dragNodeToCanvas, setupChineseFontSupport, handleAssetDialogQuick, handleTechPathDialog } from './test-utils';
 
 /**
  * 演示测试：创建两个节点并连接它们
@@ -13,16 +13,21 @@ test('演示：数据源节点连接到计算任务节点', async ({ page }) => 
   // 获取观察时间（秒），默认为 0（不停留）
   const observeTime = parseInt(process.env.OBSERVE_TIME || '0');
 
+  // 设置中文字体支持
+  await setupChineseFontSupport(page);
+
   await page.goto('/');
   await page.waitForSelector('.flow-sidebar', { timeout: 10000 });
 
   console.log('📍 步骤 1: 拖拽数据源节点（MySQL）到画布');
   await dragNodeToCanvas(page, 'palette-node-mysql-数据库', 300, 150);
+  await handleAssetDialogQuick(page);
   await page.waitForTimeout(1000);
   console.log('✅ MySQL 节点已创建');
 
   console.log('📍 步骤 2: 拖拽计算任务节点（PSI）到画布');
   await dragNodeToCanvas(page, 'palette-node-psi-计算', 300, 350);
+  await handleTechPathDialog(page, 'SOFTWARE');
   await page.waitForTimeout(1000);
   console.log('✅ PSI 节点已创建');
 
@@ -97,16 +102,21 @@ test('演示：数据源节点连接到计算任务节点', async ({ page }) => 
 test('不应该允许两个数据源节点直接连接', async ({ page }) => {
   const observeTime = parseInt(process.env.OBSERVE_TIME || '0');
 
+  // 设置中文字体支持
+  await setupChineseFontSupport(page);
+
   await page.goto('/');
   await page.waitForSelector('.flow-sidebar', { timeout: 10000 });
 
   console.log('📍 步骤 1: 拖拽数据源节点（MySQL）到画布');
   await dragNodeToCanvas(page, 'palette-node-mysql-数据库', 300, 150);
+  await handleAssetDialogQuick(page);
   await page.waitForTimeout(1000);
   console.log('✅ MySQL 节点已创建');
 
   console.log('📍 步骤 2: 拖拽另一个数据源节点（PostgreSQL）到画布');
   await dragNodeToCanvas(page, 'palette-node-postgresql', 300, 350);
+  await handleAssetDialogQuick(page);
   await page.waitForTimeout(1000);
   console.log('✅ PostgreSQL 节点已创建');
 

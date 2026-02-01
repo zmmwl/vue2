@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { dragNodeToCanvas, setupChineseFontSupport } from './test-utils';
+import { dragNodeToCanvas, setupChineseFontSupportOnly } from './test-utils';
 
 /**
  * 计算任务编排 E2E 测试
@@ -16,11 +16,16 @@ import { dragNodeToCanvas, setupChineseFontSupport } from './test-utils';
 
 test.describe('计算任务编排测试', () => {
   test.beforeEach(async ({ page }) => {
-    // 设置中文字体支持
-    await setupChineseFontSupport(page);
+    // 设置中文字体支持（不启用测试模式，让对话框正常显示）
+    await setupChineseFontSupportOnly(page);
 
     await page.goto('/');
     await page.waitForSelector('.flow-sidebar', { timeout: 10000 });
+
+    // 显式清除测试模式标志，确保模态框正常显示
+    await page.evaluate(() => {
+      (window as any).__PLAYWRIGHT_TEST__ = false;
+    });
   });
 
   /**
@@ -51,38 +56,69 @@ test.describe('计算任务编排测试', () => {
     await dragNodeToCanvas(page, 'palette-node-mysql-数据库', 400, 200);
     await page.waitForTimeout(500);
 
-    // 验证资产选择对话框已显示
-    await expect(page.locator('.modal-overlay')).toBeVisible();
-    await expect(page.locator('.modal-title')).toContainText('选择数据资产');
+    // 调试：检查测试模式标志和节点创建情况
+    const testMode = await page.evaluate(() => (window as any).__PLAYWRIGHT_TEST__);
+    console.log('测试模式标志:', testMode);
+    const nodeCount = await page.locator('.vue-flow__node').count();
+    console.log('节点数量:', nodeCount);
+    const modalVisible = await page.locator('.asset-selector-dialog-overlay').isVisible().catch(() => false);
+    console.log('模态框可见:', modalVisible);
 
-    // 等待企业列表加载
-    await page.waitForTimeout(300);
+    // 验证资产选择对话框已显示
+    await expect(page.locator('.asset-selector-dialog-overlay')).toBeVisible();
+    await expect(page.locator('.dialog-title')).toContainText('选择数据资产');
+
+    // 等待企业列表加载（企业列表是异步加载的）
+    const enterpriseItems = page.locator('.list-item');
+    await expect(enterpriseItems.first()).toBeVisible({ timeout: 10000 });
 
     // 选择第一个企业
-    const enterpriseItems = page.locator('.enterprise-item');
-    await expect(enterpriseItems.first()).toBeVisible();
-    await enterpriseItems.first().click();
-    await page.waitForTimeout(200);
+    await enterpriseItems.first().click({ force: true });
+    await page.waitForTimeout(500);
 
-    // 选择第一个数据资产
-    const assetItems = page.locator('.asset-item');
+    // 点击"下一步"按钮进入步骤 2（选择数据资产）
+    const nextBtn1 = page.locator('.dialog-footer .btn.btn-primary').filter({ hasText: '下一步' });
+    await expect(nextBtn1).toBeVisible();
+    await expect(nextBtn1).toBeEnabled();
+    await nextBtn1.click();
+    await page.waitForTimeout(500);
+
+    // 验证步骤 2 成为当前步骤
+    const step2 = page.locator('.step-indicator').nth(1);
+    await expect(step2).toHaveClass(/is-current/);
+
+    // 等待步骤 2 内容可见（v-show 控制显示）
+    const step2Content = page.locator('.step-content').nth(1);
+    await expect(step2Content).toBeVisible();
+
+    // 选择第一个数据资产（在步骤 2 内容中查找）
+    const assetItems = step2Content.locator('.list-item');
     await expect(assetItems.first()).toBeVisible();
-    await assetItems.first().click();
-    await page.waitForTimeout(200);
+    await assetItems.first().click({ force: true });
+    await page.waitForTimeout(500);
 
-    // 点击查看详情按钮
-    const viewDetailBtn = page.locator('.btn-view-detail').first();
-    if (await viewDetailBtn.isVisible()) {
-      await viewDetailBtn.click();
-      await page.waitForTimeout(300);
-    }
+    // 点击"下一步"按钮进入步骤 3（选择字段）
+    const nextBtn2 = page.locator('.dialog-footer .btn.btn-primary').filter({ hasText: '下一步' });
+    await expect(nextBtn2).toBeVisible();
+    await expect(nextBtn2).toBeEnabled();
+    await nextBtn2.click();
+    await page.waitForTimeout(500);
 
-    // 验证字段列表显示
-    const fieldItems = page.locator('.field-item');
+    // 验证步骤 3 成为当前步骤（选择字段）
+    const step3 = page.locator('.step-indicator').nth(2);
+    await expect(step3).toHaveClass(/is-current/);
+
+    // 等待步骤 3 内容可见
+    const step3Content = page.locator('.step-content').nth(2);
+    await expect(step3Content).toBeVisible();
+    await page.waitForTimeout(500);
+
+    // 验证字段列表显示（在步骤 3 内容中查找）
+    const fieldItems = step3Content.locator('.field-item');
     await expect(fieldItems.first()).toBeVisible();
 
     // 选择前两个字段
-    const fieldCheckboxes = page.locator('.field-item input[type="checkbox"]');
+    const fieldCheckboxes = step3Content.locator('.field-item input[type="checkbox"]');
     const count = await fieldCheckboxes.count();
     if (count >= 2) {
       await fieldCheckboxes.nth(0).check();
@@ -98,7 +134,7 @@ test.describe('计算任务编排测试', () => {
     await page.waitForTimeout(500);
 
     // 验证模态框关闭
-    await expect(page.locator('.modal-overlay')).not.toBeVisible();
+    await expect(page.locator('.asset-selector-dialog-overlay')).not.toBeVisible();
 
     // 验证数据源节点已创建
     const nodes = page.locator('.vue-flow__node');
@@ -106,7 +142,7 @@ test.describe('计算任务编排测试', () => {
 
     // 验证节点显示已配置状态
     const node = nodes.first();
-    await expect(node).toContainText('用户交易数据'); // Mock 数据中的资产名称
+    await expect(node).toContainText('用户行为数据'); // Mock 数据中的资产名称
   });
 
   /**
@@ -123,8 +159,8 @@ test.describe('计算任务编排测试', () => {
     await page.waitForTimeout(500);
 
     // 验证技术路径选择对话框已显示
-    await expect(page.locator('.modal-overlay')).toBeVisible();
-    await expect(page.locator('.modal-title')).toContainText('选择技术路径');
+    await expect(page.locator('.asset-selector-dialog-overlay')).toBeVisible();
+    await expect(page.locator('.dialog-title')).toContainText('选择技术路径');
 
     // 验证两个技术路径选项
     await expect(page.locator('.tech-path-option')).toHaveCount(2);
@@ -233,7 +269,7 @@ test.describe('计算任务编排测试', () => {
     }
 
     // 验证字段选择对话框显示
-    await expect(page.locator('.modal-title')).toContainText('选择字段');
+    await expect(page.locator('.dialog-title')).toContainText('选择字段');
 
     // 验证 Join 类型选择器显示
     await expect(page.locator('.join-type-selector')).toBeVisible();
@@ -329,17 +365,17 @@ test.describe('计算任务编排测试', () => {
       await page.waitForTimeout(500);
 
       // 验证企业选择对话框显示
-      await expect(page.locator('.modal-overlay')).toBeVisible();
-      await expect(page.locator('.modal-title')).toContainText('选择企业');
+      await expect(page.locator('.asset-selector-dialog-overlay')).toBeVisible();
+      await expect(page.locator('.dialog-title')).toContainText('选择企业');
 
       // 选择第一个企业（模型提供商）
-      const enterpriseItems = page.locator('.enterprise-item');
+      const enterpriseItems = page.locator('.list-item');
       if (await enterpriseItems.count() > 0) {
         await enterpriseItems.first().click();
         await page.waitForTimeout(300);
 
         // 验证模型选择对话框显示
-        await expect(page.locator('.modal-title')).toContainText('选择计算模型');
+        await expect(page.locator('.dialog-title')).toContainText('选择计算模型');
 
         // 验证模型列表
         const modelItems = page.locator('.model-item');
@@ -414,11 +450,11 @@ test.describe('计算任务编排测试', () => {
       await page.waitForTimeout(500);
 
       // 验证企业选择对话框显示
-      await expect(page.locator('.modal-overlay')).toBeVisible();
-      await expect(page.locator('.modal-title')).toContainText('选择企业');
+      await expect(page.locator('.asset-selector-dialog-overlay')).toBeVisible();
+      await expect(page.locator('.dialog-title')).toContainText('选择企业');
 
       // 选择算力提供商企业
-      const enterpriseItems = page.locator('.enterprise-item');
+      const enterpriseItems = page.locator('.list-item');
       if (await enterpriseItems.count() > 0) {
         // 查找算力提供商（通常是第四个企业）
         const computeEnterprise = enterpriseItems.filter({ hasText: /算力/ });
@@ -430,7 +466,7 @@ test.describe('计算任务编排测试', () => {
         await page.waitForTimeout(300);
 
         // 验证算力选择对话框显示
-        await expect(page.locator('.modal-title')).toContainText('选择算力资源');
+        await expect(page.locator('.dialog-title')).toContainText('选择算力资源');
 
         // 验证算力资源列表
         const computeItems = page.locator('.compute-item');
@@ -510,8 +546,8 @@ test.describe('计算任务编排测试', () => {
     await page.waitForTimeout(300);
 
     // 验证输出配置对话框显示
-    await expect(page.locator('.modal-overlay')).toBeVisible();
-    await expect(page.locator('.modal-title')).toContainText('配置输出数据');
+    await expect(page.locator('.asset-selector-dialog-overlay')).toBeVisible();
+    await expect(page.locator('.dialog-title')).toContainText('配置输出数据');
 
     // 点击选择企业
     const enterpriseCard = page.locator('.enterprise-card');
@@ -520,17 +556,17 @@ test.describe('计算任务编排测试', () => {
     await page.waitForTimeout(300);
 
     // 验证企业选择对话框显示
-    await expect(page.locator('.modal-title').filter({ hasText: /选择企业/ })).toBeVisible();
+    await expect(page.locator('.dialog-title').filter({ hasText: /选择企业/ })).toBeVisible();
 
     // 选择第一个企业
-    const enterpriseItems = page.locator('.enterprise-item');
+    const enterpriseItems = page.locator('.list-item');
     if (await enterpriseItems.count() > 0) {
       await enterpriseItems.first().click();
       await page.waitForTimeout(300);
     }
 
     // 验证回到输出配置对话框
-    await expect(page.locator('.modal-title')).toContainText('配置输出数据');
+    await expect(page.locator('.dialog-title')).toContainText('配置输出数据');
 
     // 输入数据集名称
     const datasetInput = page.locator('.text-input');
@@ -539,7 +575,7 @@ test.describe('计算任务编排测试', () => {
     await page.waitForTimeout(200);
 
     // 选择输出字段
-    const fieldItems = page.locator('.field-item');
+    const fieldItems = page.locator('.field-checkbox-item');
     const fieldCount = await fieldItems.count();
     if (fieldCount > 0) {
       await fieldItems.first().click();
@@ -587,7 +623,7 @@ test.describe('计算任务编排测试', () => {
 
     // 模拟配置完成（快速跳过资产选择对话框）
     await page.evaluate(() => {
-      const modal = document.querySelector('.modal-overlay');
+      const modal = document.querySelector('.asset-selector-dialog-overlay');
       if (modal) {
         // 模拟选择资产并确认
         window.dispatchEvent(new CustomEvent('test-asset-selected', {
@@ -651,7 +687,7 @@ test.describe('计算任务编排测试', () => {
       await page.waitForTimeout(500);
 
       // 处理字段选择对话框 - 选择字段并确认
-      const fieldModal = page.locator('.modal-overlay');
+      const fieldModal = page.locator('.asset-selector-dialog-overlay');
       if (await fieldModal.isVisible()) {
         const fieldCheckboxes = page.locator('.field-checkbox');
         if (await fieldCheckboxes.count() > 0) {
@@ -675,7 +711,7 @@ test.describe('计算任务编排测试', () => {
       await page.waitForTimeout(500);
 
       // 处理字段选择对话框
-      const fieldModal = page.locator('.modal-overlay');
+      const fieldModal = page.locator('.asset-selector-dialog-overlay');
       if (await fieldModal.isVisible()) {
         const fieldCheckboxes = page.locator('.field-checkbox');
         if (await fieldCheckboxes.count() > 0) {
@@ -699,7 +735,7 @@ test.describe('计算任务编排测试', () => {
     await page.waitForTimeout(300);
 
     // 配置输出（简化流程）
-    const outputModal = page.locator('.modal-overlay');
+    const outputModal = page.locator('.asset-selector-dialog-overlay');
     if (await outputModal.isVisible()) {
       // 点击企业卡片
       const enterpriseCard = page.locator('.enterprise-card');
@@ -708,9 +744,9 @@ test.describe('计算任务编排测试', () => {
         await page.waitForTimeout(300);
 
         // 选择企业
-        const entItems = page.locator('.enterprise-item');
-        if (await entItems.count() > 0) {
-          await entItems.first().click();
+        const listItems = page.locator('.list-item');
+        if (await listItems.count() > 0) {
+          await listItems.first().click();
           await page.waitForTimeout(300);
         }
       }
@@ -723,7 +759,7 @@ test.describe('计算任务编排测试', () => {
       }
 
       // 选择字段
-      const fieldItems = page.locator('.field-item');
+      const fieldItems = page.locator('.field-checkbox-item');
       const fCount = await fieldItems.count();
       if (fCount > 0) {
         await fieldItems.first().click();
@@ -838,7 +874,7 @@ test.describe('计算任务编排测试', () => {
     }
 
     // 验证字段选择对话框显示
-    const fieldSelector = page.locator('.modal-overlay');
+    const fieldSelector = page.locator('.asset-selector-dialog-overlay');
     if (await fieldSelector.isVisible()) {
       // 验证 Join 类型选择器
       await expect(page.locator('.join-type-selector')).toBeVisible();
@@ -969,8 +1005,8 @@ test.describe('计算任务编排测试', () => {
  */
 test.describe('模态框交互测试', () => {
   test.beforeEach(async ({ page }) => {
-    // 设置中文字体支持
-    await setupChineseFontSupport(page);
+    // 设置中文字体支持（不启用测试模式，让对话框正常显示）
+    await setupChineseFontSupportOnly(page);
 
     await page.goto('/');
     await page.waitForSelector('.flow-sidebar', { timeout: 10000 });
@@ -982,10 +1018,10 @@ test.describe('模态框交互测试', () => {
     await page.waitForTimeout(500);
 
     // 验证模态框显示
-    await expect(page.locator('.modal-overlay')).toBeVisible();
+    await expect(page.locator('.asset-selector-dialog-overlay')).toBeVisible();
 
     // 点击模态框外部区域
-    const overlay = page.locator('.modal-overlay');
+    const overlay = page.locator('.asset-selector-dialog-overlay');
     await overlay.click({ position: { x: 10, y: 10 } });
     await page.waitForTimeout(300);
 
@@ -998,14 +1034,14 @@ test.describe('模态框交互测试', () => {
     await page.waitForTimeout(500);
 
     // 验证模态框显示
-    await expect(page.locator('.modal-overlay')).toBeVisible();
+    await expect(page.locator('.asset-selector-dialog-overlay')).toBeVisible();
 
     // 按 ESC 键
     await page.keyboard.press('Escape');
     await page.waitForTimeout(300);
 
     // 验证模态框关闭
-    await expect(page.locator('.modal-overlay')).not.toBeVisible();
+    await expect(page.locator('.asset-selector-dialog-overlay')).not.toBeVisible();
   });
 
   test('应该能够使用关闭按钮关闭模态框', async ({ page }) => {
@@ -1019,7 +1055,7 @@ test.describe('模态框交互测试', () => {
     await page.waitForTimeout(300);
 
     // 验证模态框关闭
-    await expect(page.locator('.modal-overlay')).not.toBeVisible();
+    await expect(page.locator('.asset-selector-dialog-overlay')).not.toBeVisible();
   });
 });
 
@@ -1028,8 +1064,8 @@ test.describe('模态框交互测试', () => {
  */
 test.describe('表单验证测试', () => {
   test.beforeEach(async ({ page }) => {
-    // 设置中文字体支持
-    await setupChineseFontSupport(page);
+    // 设置中文字体支持（不启用测试模式，让对话框正常显示）
+    await setupChineseFontSupportOnly(page);
 
     await page.goto('/');
     await page.waitForSelector('.flow-sidebar', { timeout: 10000 });
@@ -1071,9 +1107,9 @@ test.describe('表单验证测试', () => {
     await enterpriseCard.click();
     await page.waitForTimeout(300);
 
-    const entItems = page.locator('.enterprise-item');
-    if (await entItems.count() > 0) {
-      await entItems.first().click();
+    const listItems = page.locator('.list-item');
+    if (await listItems.count() > 0) {
+      await listItems.first().click();
       await page.waitForTimeout(300);
     }
 
@@ -1086,7 +1122,7 @@ test.describe('表单验证测试', () => {
     await page.waitForTimeout(200);
 
     // 选择字段
-    const fieldItems = page.locator('.field-item');
+    const fieldItems = page.locator('.field-checkbox-item');
     if (await fieldItems.count() > 0) {
       await fieldItems.first().click();
       await page.waitForTimeout(100);

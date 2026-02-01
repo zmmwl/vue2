@@ -1,13 +1,19 @@
 import { test, expect } from '@playwright/test';
-import { dragNodeToCanvas } from './test-utils';
+import { dragNodeToCanvas, setupChineseFontSupport, handleAssetDialogQuick } from './test-utils';
 
 test.describe('调试 UI 元素', () => {
-  test('检查控制按钮 class 名称', async ({ page }) => {
+  test.beforeEach(async ({ page }) => {
+    // 设置中文字体支持
+    await setupChineseFontSupport(page);
+
     await page.goto('/');
     await page.waitForSelector('.flow-sidebar', { timeout: 10000 });
+  });
 
+  test('检查控制按钮 class 名称', async ({ page }) => {
     // 创建一个节点
     await dragNodeToCanvas(page, 'palette-node-mysql-数据库', 300, 200);
+    await handleAssetDialogQuick(page);
     await page.waitForTimeout(500);
 
     // 查找控制按钮
@@ -28,13 +34,13 @@ test.describe('调试 UI 元素', () => {
   });
 
   test('检查节点选中后的 class', async ({ page }) => {
-    await page.goto('/');
-    await page.waitForSelector('.flow-sidebar', { timeout: 10000 });
-
     // 创建一个节点
     await dragNodeToCanvas(page, 'palette-node-mysql-数据库', 300, 200);
+    await handleAssetDialogQuick(page);
     await page.waitForTimeout(500);
 
+    // 等待节点出现
+    await page.waitForSelector('.vue-flow__node', { timeout: 5000 });
     const node = page.locator('.vue-flow__node').first();
 
     // 选中前的 class
