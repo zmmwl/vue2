@@ -141,7 +141,8 @@ test.describe('节点操作测试', () => {
     await nodes.nth(0).click();
     await page.waitForTimeout(300);
 
-    await nodes.nth(1).click();
+    // 使用 force: true 点击第二个节点，绕过第一个节点的展开按钮拦截
+    await nodes.nth(1).click({ force: true });
     await page.waitForTimeout(300);
 
     // 验证节点仍然存在

@@ -2,7 +2,7 @@
   <Teleport to="body">
     <Transition name="modal">
       <div v-if="modelValue" class="modal-overlay" @click="closeOnOverlay && $emit('cancel')">
-        <div class="modal-container" @click.stop>
+        <div class="modal-container" @click.stop tabindex="0" @keydown.esc="$emit('cancel')">
           <div class="modal-header">
             <h3 class="modal-title">选择技术路径</h3>
             <button class="modal-close" @click="$emit('cancel')">&times;</button>

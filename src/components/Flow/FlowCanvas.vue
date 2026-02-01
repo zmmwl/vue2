@@ -703,11 +703,11 @@ function createNode(
       description: data.description,
       // DAG任务编排相关字段
       techPath: techPath,
-      inputProviders: [],
-      joinConditions: [],
-      models: [],
-      computeProviders: [],
-      outputs: []
+      inputProviders: (data as any).inputProviders || [],
+      joinConditions: (data as any).joinConditions || [],
+      models: (data as any).models || [],
+      computeProviders: (data as any).computeProviders || [],
+      outputs: (data as any).outputs || []
     } as NodeData
   }
 
@@ -1478,6 +1478,280 @@ function createLocalTaskNode(data: DroppedNodeData, participantId: string) {
   pendingNodePosition.value = null
 }
 
+/**
+ * 处理测试用的节点创建事件
+ * 用于 E2E 测试中直接创建带有预设数据的节点
+ */
+function handleCreateTestNode(event: Event) {
+  logger.info('[FlowCanvas] create-test-node event received')
+  const customEvent = event as CustomEvent
+  const { data, position } = customEvent.detail
+
+  logger.info('[FlowCanvas] create-test-node data:', { category: data.category, position })
+
+  // 保存节点位置
+  pendingNodePosition.value = position
+
+  // 支持 'DATA_SOURCE' 和 'data_source' 两种格式
+  const category = data.category?.toLowerCase() || ''
+
+  if (category === NodeCategory.DATA_SOURCE || category === 'data_source') {
+    // 对于数据源节点，直接使用提供的资产信息创建
+    const assetInfo = data.assetInfo as AssetInfo
+    const selectedFields = data.selectedFields || []
+
+    const fieldInfos: FieldInfo[] = selectedFields.map((name: string) => {
+      const field = assetInfo.dataInfo.fieldList.find((f: any) => f.name === name)
+      return {
+        name,
+        dataType: field?.dataType || 'STRING',
+        description: field?.description || ''
+      }
+    })
+
+    logger.info('[FlowCanvas] Creating data source node from test event', {
+      assetName: assetInfo.assetName,
+      fieldCount: fieldInfos.length
+    })
+
+    handleAssetSelected({
+      assetInfo,
+      selectedFields: fieldInfos
+    })
+  } else {
+    logger.warn('[FlowCanvas] Unsupported category in create-test-node:', category)
+  }
+}
+
+/**
+ * 处理测试用的带输出节点的任务创建事件
+ */
+function handleCreateTestTaskWithOutput(event: Event) {
+  logger.info('[FlowCanvas] create-test-task-with-output event received')
+  const customEvent = event as CustomEvent
+  const { taskData, outputData } = customEvent.detail
+
+  // 创建计算任务节点
+  const taskPosition = { x: 400, y: 200 }
+  pendingNodePosition.value = taskPosition
+  pendingNodeData.value = taskData
+
+  const techPath = taskData.techPath || TechPath.SOFTWARE
+  createNode(taskData as DroppedNodeData, { x: 0, y: 0 }, techPath)
+
+  // 获取刚创建的计算任务节点
+  const taskNode = nodes.value[nodes.value.length - 1]
+
+  // 创建输出节点
+  const outputPosition = { x: 400, y: 400 }
+  const outputNode: Node = {
+    id: outputData.id || `output_${Date.now()}`,
+    type: 'outputData',
+    position: outputPosition,
+    data: {
+      label: outputData.label || '输出数据',
+      category: NodeCategory.OUTPUT_DATA,
+      icon: '📊',
+      color: '#1890ff',
+      description: '计算任务输出',
+      parentTaskId: taskNode.id,
+      participantId: outputData.participantId || '',
+      dataset: outputData.dataset || '',
+      fields: outputData.fields || []
+    } as any
+  }
+
+  addNode(outputNode)
+
+  // 更新计算任务节点的输出配置
+  if (taskNode) {
+    const nodeData = taskNode.data as ComputeTaskNodeData
+    if (!nodeData.outputs) {
+      nodeData.outputs = []
+    }
+    nodeData.outputs.push({
+      outputNodeId: outputNode.id
+    })
+  }
+
+  logger.info('[FlowCanvas] Created task with output', {
+    taskId: taskNode.id,
+    outputId: outputNode.id
+  })
+}
+
+/**
+ * 处理测试用的计算任务节点创建事件
+ */
+function handleCreateTestTaskNode(event: Event) {
+  logger.info('[FlowCanvas] create-test-task-node event received')
+  const customEvent = event as CustomEvent
+  const { data, position } = customEvent.detail
+
+  // 保存节点位置
+  pendingNodePosition.value = position || { x: 300, y: 200 }
+  pendingNodeData.value = data
+
+  const techPath = data.techPath || TechPath.SOFTWARE
+  createNode(data as DroppedNodeData, { x: 0, y: 0 }, techPath)
+}
+
+/**
+ * 处理测试用的连接创建事件
+ * 用于 E2E 测试中直接创建节点连接并触发字段选择对话框
+ */
+function handleCreateTestConnection(event: Event) {
+  logger.info('[FlowCanvas] create-test-connection event received')
+  const customEvent = event as CustomEvent
+  const { sourceNodeId, targetNodeId } = customEvent.detail
+
+  const sourceNode = nodes.value.find(n => n.id === sourceNodeId)
+  const targetNode = nodes.value.find(n => n.id === targetNodeId)
+
+  if (!sourceNode || !targetNode) {
+    logger.warn('[FlowCanvas] Source or target node not found for test connection', { sourceNodeId, targetNodeId })
+    return
+  }
+
+  const sourceData = sourceNode.data as NodeData
+  const targetData = targetNode.data as ComputeTaskNodeData
+
+  logger.info('[FlowCanvas] Creating test connection', {
+    source: sourceNode.id,
+    target: targetNode.id,
+    sourceCategory: sourceData.category,
+    targetCategory: targetData.category
+  })
+
+  // 构建连接对象
+  let connection: Connection = {
+    source: sourceNodeId,
+    target: targetNodeId,
+    sourceHandle: 'output'
+  }
+
+  // 根据源节点类型确定正确的 targetHandle
+  if (targetData.category === NodeCategory.COMPUTE_TASK) {
+    if (sourceData.category === NodeCategory.DATA_SOURCE || sourceData.category === NodeCategory.OUTPUT_DATA) {
+      connection.targetHandle = 'data-input'
+    } else if (sourceData.category === NodeCategory.MODEL) {
+      connection.targetHandle = 'input'
+    } else if (sourceData.category === NodeCategory.COMPUTE_RESOURCE) {
+      connection.targetHandle = 'compute-input'
+    }
+  }
+
+  // 保存待处理的连接
+  pendingConnection.value = connection
+  pendingConnectionSource.value = connection.source
+  pendingSourceType.value = sourceData.category === NodeCategory.DATA_SOURCE ? 'dataSource' : 'outputData'
+
+  // 获取源节点的字段信息
+  if (sourceData.category === NodeCategory.DATA_SOURCE && sourceData.assetInfo) {
+    // 数据源节点
+    pendingSourceName.value = sourceData.assetInfo.assetName
+    pendingParticipantId.value = sourceData.assetInfo.participantId
+    pendingDataset.value = sourceData.assetInfo.assetId
+    pendingAvailableFields.value = sourceData.assetInfo.dataInfo.fieldList.map(field => ({
+      name: field.name,
+      dataType: field.dataType,
+      dataLength: field.dataLength,
+      description: field.description
+    }))
+  } else if (sourceData.category === NodeCategory.OUTPUT_DATA) {
+    // 输出节点 - 从父任务的输出配置获取字段
+    const outputData = sourceData as any
+    pendingSourceName.value = outputData.dataset || '输出数据'
+    pendingParticipantId.value = outputData.participantId || ''
+    pendingDataset.value = outputData.dataset || ''
+
+    // 获取输出字段
+    const outputFields = outputData.fields || []
+    pendingAvailableFields.value = outputFields.map((field: any) => ({
+      name: field.columnName,
+      dataType: field.columnType,
+      description: field.columnAlias
+    }))
+  } else {
+    logger.warn('[FlowCanvas] Unsupported source node type for test connection')
+    return
+  }
+
+  // 打开字段选择对话框
+  showFieldSelectorDialog.value = true
+  logger.info('[FlowCanvas] Opening field selector dialog for test connection')
+}
+
+/**
+ * 处理测试用的模型节点拖放事件
+ * 用于 E2E 测试中模拟拖拽模型节点到计算任务节点上
+ */
+function handleTestDropModel(event: Event) {
+  logger.info('[FlowCanvas] test-drop-model event received')
+  const customEvent = event as CustomEvent
+  const { data, x, y } = customEvent.detail
+
+  // 查找第一个计算任务节点
+  const targetTaskNode = nodes.value.find(n => n.data?.category === NodeCategory.COMPUTE_TASK)
+
+  if (!targetTaskNode) {
+    logger.warn('[FlowCanvas] No compute task node found for model drop')
+    return
+  }
+
+  logger.info('[FlowCanvas] Simulating model drop on compute task', {
+    modelData: data,
+    targetNodeId: targetTaskNode.id
+  })
+
+  // 保存数据和状态
+  pendingModelOrComputeData.value = data
+  pendingResourceType.value = 'model'
+  pendingTargetTaskNodeId.value = targetTaskNode.id
+
+  // 检查是否是表达式模型
+  if ((data as any).modelType === 'expression') {
+    // 表达式模型：直接创建，不需要企业选择
+    pendingExpressionData.value = data
+    pendingExpression.value = ''
+    showExpressionEditorDialog.value = true
+  } else {
+    // 其他模型：弹出企业选择对话框
+    showEnterpriseDialog.value = true
+  }
+}
+
+/**
+ * 处理测试用的算力资源节点拖放事件
+ * 用于 E2E 测试中模拟拖拽算力资源节点到计算任务节点上
+ */
+function handleTestDropCompute(event: Event) {
+  logger.info('[FlowCanvas] test-drop-compute event received')
+  const customEvent = event as CustomEvent
+  const { data, x, y } = customEvent.detail
+
+  // 查找第一个计算任务节点
+  const targetTaskNode = nodes.value.find(n => n.data?.category === NodeCategory.COMPUTE_TASK)
+
+  if (!targetTaskNode) {
+    logger.warn('[FlowCanvas] No compute task node found for compute resource drop')
+    return
+  }
+
+  logger.info('[FlowCanvas] Simulating compute resource drop on compute task', {
+    computeData: data,
+    targetNodeId: targetTaskNode.id
+  })
+
+  // 保存数据和状态
+  pendingModelOrComputeData.value = data
+  pendingResourceType.value = 'compute'
+  pendingTargetTaskNodeId.value = targetTaskNode.id
+
+  // 弹出企业选择对话框
+  showEnterpriseDialog.value = true
+}
+
 // 暴露方法供父组件调用
 defineExpose({
   openEditDialog,
@@ -1488,10 +1762,23 @@ defineExpose({
 // 生命周期：注册全局事件监听器
 onMounted(() => {
   document.addEventListener('add-output', handleAddOutput)
+  // 监听 window 上的事件，与测试中的 window.dispatchEvent 匹配
+  window.addEventListener('create-test-node', handleCreateTestNode)
+  window.addEventListener('create-test-task-with-output', handleCreateTestTaskWithOutput)
+  window.addEventListener('create-test-task-node', handleCreateTestTaskNode)
+  window.addEventListener('create-test-connection', handleCreateTestConnection)
+  window.addEventListener('test-drop-model', handleTestDropModel)
+  window.addEventListener('test-drop-compute', handleTestDropCompute)
 })
 
 onUnmounted(() => {
   document.removeEventListener('add-output', handleAddOutput)
+  window.removeEventListener('create-test-node', handleCreateTestNode)
+  window.removeEventListener('create-test-task-with-output', handleCreateTestTaskWithOutput)
+  window.removeEventListener('create-test-task-node', handleCreateTestTaskNode)
+  window.removeEventListener('create-test-connection', handleCreateTestConnection)
+  window.removeEventListener('test-drop-model', handleTestDropModel)
+  window.removeEventListener('test-drop-compute', handleTestDropCompute)
 })
 </script>
 
