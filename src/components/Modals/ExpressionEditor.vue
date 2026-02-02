@@ -50,15 +50,22 @@ import { EditorView, keymap, placeholder as placeholderExt } from '@codemirror/v
 import { python } from '@codemirror/lang-python'
 import { oneDark } from '@codemirror/theme-one-dark'
 import { defaultKeymap, indentWithTab } from '@codemirror/commands'
-import { autocompletion } from '@codemirror/autocomplete'
+import { autocompletion, CompletionContext, type Completion } from '@codemirror/autocomplete'
 import { bracketMatching } from '@codemirror/language'
 import { searchKeymap, highlightSelectionMatches } from '@codemirror/search'
 import type { Extension } from '@codemirror/state'
+import { EditorSelection } from '@codemirror/state'
+
+interface CompletionField {
+  name: string
+  participantId: string
+  dataset: string
+  dataType?: string
+}
 
 interface Props {
   modelValue: boolean
   initialExpression?: string
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   availableFields?: Array<{ name: string; participantId: string; dataset: string }>
 }
 
@@ -83,10 +90,178 @@ const expression = ref(props.initialExpression || '')
 // 错误信息
 const errorMessage = ref('')
 
+// 常用 Python 函数和关键字
+const pythonKeywords = [
+  'and', 'or', 'not', 'True', 'False', 'None',
+  'if', 'else', 'elif', 'for', 'while', 'in', 'is',
+  'def', 'return', 'lambda', 'class', 'import', 'from'
+]
+
+const pythonFunctions = [
+  { label: 'sum', detail: '求和', info: 'sum(iterable) - 返回可迭代对象的总和' },
+  { label: 'abs', detail: '绝对值', info: 'abs(x) - 返回x的绝对值' },
+  { label: 'round', detail: '四舍五入', info: 'round(x[, n]) - 返回x的四舍五入值' },
+  { label: 'min', detail: '最小值', info: 'min(iterable) - 返回最小值' },
+  { label: 'max', detail: '最大值', info: 'max(iterable) - 返回最大值' },
+  { label: 'len', detail: '长度', info: 'len(obj) - 返回对象的长度' },
+  { label: 'pow', detail: '幂运算', info: 'pow(x, y[, z]) - 返回x的y次幂' },
+  { label: 'int', detail: '转整数', info: 'int(x) - 将x转换为整数' },
+  { label: 'float', detail: '转浮点', info: 'float(x) - 将x转换为浮点数' },
+  { label: 'str', detail: '转字符串', info: 'str(obj) - 将obj转换为字符串' }
+]
+
+/**
+ * 格式化变量引用
+ * participantId.dataset.columnName
+ */
+function formatVariableRef(participantId: string, dataset: string, columnName: string): string {
+  return `${participantId}.${dataset}.${columnName}`
+}
+
+/**
+ * 创建字段补全选项
+ */
+function createFieldCompletions(fields: CompletionField[]): Completion[] {
+  return fields.map(field => {
+    const ref = formatVariableRef(field.participantId, field.dataset, field.name)
+    return {
+      label: ref,
+      type: 'variable',
+      detail: `${field.participantId} / ${field.dataset}`,
+      info: field.dataType ? `字段类型: ${field.dataType}` : '数据字段'
+    } as Completion
+  })
+}
+
+/**
+ * 自定义补全源
+ */
+function createCompletionSource(fields: CompletionField[]) {
+  return (context: CompletionContext) => {
+    const word = context.matchBefore(/\w*\.?\w*/)
+    if (!word || (word.from === word.to && !context.explicit)) {
+      return null
+    }
+
+    const currentLine = context.state.doc.lineAt(word.from)
+
+    // 获取当前行的文本，用于检查是否在点号后面
+    const textUpToCursor = currentLine.text.substring(0, word.from - currentLine.from)
+
+    // 检查是否在输入点号后的补全
+    const dotMatch = textUpToCursor.match(/(\w+)\.(\w*)\.(\w*)$/)
+
+    if (dotMatch) {
+      // participantId.dataset.columnName 模式
+      const participantId = dotMatch[1]
+      const dataset = dotMatch[2]
+
+      // 过滤匹配的字段
+      const matchedFields = fields.filter(f =>
+        f.participantId === participantId &&
+        f.dataset === dataset &&
+        f.name.toLowerCase().startsWith(word.text.toLowerCase())
+      )
+
+      if (matchedFields.length > 0) {
+        return {
+          from: word.from,
+          options: createFieldCompletions(matchedFields)
+        }
+      }
+    } else if (textUpToCursor.includes('.')) {
+      // 可能是在 dataset 后面补全 columnName
+      const parts = textUpToCursor.split('.')
+      if (parts.length === 2) {
+        const [participantId, dataset] = parts
+
+        // 过滤匹配的字段
+        const matchedFields = fields.filter(f =>
+          f.participantId === participantId &&
+          f.dataset === dataset &&
+          f.name.toLowerCase().startsWith(word.text.toLowerCase())
+        )
+
+        if (matchedFields.length > 0) {
+          // 只返回字段名部分
+          return {
+            from: word.from,
+            options: matchedFields.map(f => ({
+              label: f.name,
+              type: 'property',
+              detail: f.dataType || '字段',
+              info: `${participantId}.${dataset}.${f.name}`,
+              apply: (view: EditorView, _completion: Completion, from: number, to: number) => {
+                view.dispatch({
+                  changes: { from, to, insert: f.name },
+                  selection: EditorSelection.cursor(from + f.name.length)
+                })
+              }
+            }))
+          }
+        }
+      }
+    } else {
+      // 顶层补全：参与者、函数、关键字
+      const options: Completion[] = []
+
+      // 添加字段引用（participantId.dataset 开头）
+      const uniqueParticipants = [...new Set(fields.map(f => f.participantId))]
+      uniqueParticipants.forEach(pid => {
+        const datasets = [...new Set(fields.filter(f => f.participantId === pid).map(f => f.dataset))]
+        datasets.forEach(ds => {
+          options.push({
+            label: `${pid}.${ds}.`,
+            type: 'namespace',
+            detail: '数据源',
+            info: `${pid} 的 ${ds} 数据集`,
+            apply: (view: EditorView, _completion: Completion, from: number, to: number) => {
+              view.dispatch({
+                changes: { from, to, insert: `${pid}.${ds}.` },
+                selection: EditorSelection.cursor(from + `${pid}.${ds}.`.length)
+              })
+            }
+          })
+        })
+      })
+
+      // 添加 Python 函数
+      pythonFunctions.forEach(fn => {
+        if (fn.label.toLowerCase().startsWith(word.text.toLowerCase())) {
+          options.push(fn)
+        }
+      })
+
+      // 添加关键字
+      pythonKeywords.forEach(kw => {
+        if (kw.toLowerCase().startsWith(word.text.toLowerCase())) {
+          options.push({
+            label: kw,
+            type: 'keyword',
+            detail: 'Python 关键字'
+          })
+        }
+      })
+
+      if (options.length > 0) {
+        return {
+          from: word.from,
+          options
+        }
+      }
+    }
+
+    return null
+  }
+}
+
 /**
  * 创建编辑器扩展
  */
 function createExtensions(): Extension[] {
+  // 获取可用字段
+  const fields = props.availableFields || []
+
   return [
     EditorView.theme({
       '&': {
@@ -107,7 +282,11 @@ function createExtensions(): Extension[] {
       indentWithTab,
       ...searchKeymap
     ]),
-    autocompletion(),
+    autocompletion({
+      override: [createCompletionSource(fields)],
+      activateOnTyping: true,
+      maxRenderedOptions: 20
+    }),
     bracketMatching(),
     highlightSelectionMatches(),
     placeholderExt('# 在此输入 Python 表达式...\n# 示例: companyA.salary * 0.8 + companyB.bonus'),
@@ -139,7 +318,9 @@ async function initEditor() {
           expression.value = update.state.doc.toString()
           validateExpression()
         }
-      })
+      }),
+      // 确保编辑器可编辑和可聚焦
+      EditorView.editable.of(true),
     ]
   })
 
@@ -198,17 +379,28 @@ function handleCancel() {
 }
 
 // 监听对话框显示状态
-watch(() => props.modelValue, (newValue) => {
-  if (newValue) {
+watch(() => props.modelValue, async (isOpen) => {
+  if (isOpen) {
     // 对话框打开时初始化 editor
     expression.value = props.initialExpression || ''
-    initEditor()
+    // 使用 nextTick 确保 DOM 已更新
+    await nextTick()
+    await nextTick() // 双重 nextTick 确保 Transition 动画完成
+    await initEditor()
   } else {
     // 对话框关闭时销毁 editor
     if (editorView) {
       editorView.destroy()
       editorView = null
     }
+  }
+})
+
+// 监听可用字段变化，重新初始化编辑器以更新补全
+watch(() => props.availableFields, () => {
+  if (props.modelValue && editorContainer.value) {
+    // 如果对话框打开中，重新初始化编辑器
+    initEditor()
   }
 })
 
@@ -221,6 +413,34 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped lang="scss">
+// 使用 :deep() 确保过渡样式正确应用到 Transition 组件
+:deep(.modal-enter-active),
+:deep(.modal-leave-active) {
+  transition: opacity 0.3s ease;
+
+  .modal-content {
+    transition: transform 0.3s ease;
+  }
+}
+
+:deep(.modal-enter-from),
+:deep(.modal-leave-to) {
+  opacity: 0;
+
+  .modal-content {
+    transform: scale(0.9);
+  }
+}
+
+:deep(.modal-enter-to),
+:deep(.modal-leave-from) {
+  opacity: 1;
+
+  .modal-content {
+    transform: scale(1);
+  }
+}
+
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -295,6 +515,7 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  min-height: 0; // 允许 flex 子元素正确收缩
 }
 
 .expression-info {
@@ -327,14 +548,16 @@ onBeforeUnmount(() => {
 
 .editor-container {
   flex: 1;
-  min-height: 300px;
+  min-height: 250px;
+  height: 300px;
   border: 1px solid #3e3e42;
   border-radius: 8px;
   overflow: hidden;
+  position: relative;
 
   // CodeMirror 样式覆盖
   :deep(.cm-editor) {
-    height: 100%;
+    height: 100% !important;
 
     &.cm-focused {
       outline: none;
@@ -342,10 +565,21 @@ onBeforeUnmount(() => {
 
     .cm-scroller {
       overflow: auto;
+      height: 100%;
+    }
+
+    .cm-content {
+      padding: 16px;
+      min-height: 100%;
     }
 
     .cm-line {
-      padding: 0 16px;
+      padding: 0 4px;
+    }
+
+    // 确保编辑区域可见
+    .cm-contentWrapper {
+      min-height: 100%;
     }
   }
 }
@@ -401,34 +635,6 @@ onBeforeUnmount(() => {
       color: #666666;
       cursor: not-allowed;
     }
-  }
-}
-
-// 过渡动画
-.modal-enter-active,
-.modal-leave-active {
-  transition: opacity 0.3s ease;
-
-  .modal-content {
-    transition: transform 0.3s ease;
-  }
-}
-
-.modal-enter-from,
-.modal-leave-to {
-  opacity: 0;
-
-  .modal-content {
-    transform: scale(0.9);
-  }
-}
-
-.modal-enter-to,
-.modal-leave-from {
-  opacity: 1;
-
-  .modal-content {
-    transform: scale(1);
   }
 }
 </style>

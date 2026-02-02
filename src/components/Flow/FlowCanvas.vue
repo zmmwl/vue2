@@ -93,6 +93,7 @@
     <ExpressionEditor
       v-model="showExpressionEditorDialog"
       :initial-expression="pendingExpression || ''"
+      :available-fields="expressionEditorAvailableFields"
       @confirm="handleExpressionConfirmed"
       @cancel="handleExpressionEditorCancel"
     />
@@ -107,7 +108,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, markRaw, onMounted, onUnmounted, computed } from 'vue'
+import { ref, markRaw, onMounted, onUnmounted, computed, nextTick } from 'vue'
 import { VueFlow, useVueFlow } from '@vue-flow/core'
 import { Background } from '@vue-flow/background'
 import { Controls } from '@vue-flow/controls'
@@ -270,6 +271,34 @@ const availableInputFields = computed(() => {
 const availableModelFields = computed(() => {
   // TODO: 当实现模型配置后，从模型中提取输出字段
   return []
+})
+
+/**
+ * 获取表达式编辑器可用的字段
+ * 从目标任务节点的输入数据源中提取字段
+ */
+const expressionEditorAvailableFields = computed(() => {
+  if (!pendingTargetTaskNodeId.value) return []
+
+  const taskNode = nodes.value.find(n => n.id === pendingTargetTaskNodeId.value)
+  if (!taskNode) return []
+
+  const taskData = taskNode.data as ComputeTaskNodeData
+  const fields: Array<{ name: string; participantId: string; dataset: string; dataType?: string }> = []
+
+  // 从 inputProviders 提取字段
+  taskData.inputProviders?.forEach((provider) => {
+    provider.fields.forEach(field => {
+      fields.push({
+        name: field.columnName,
+        participantId: provider.participantId,
+        dataset: provider.dataset,
+        dataType: field.columnType
+      })
+    })
+  })
+
+  return fields
 })
 
 /**
@@ -721,10 +750,19 @@ function createNode(
     } as NodeData
   }
 
+  logger.info('[FlowCanvas] Creating node with data:', {
+    nodeId: newNode.id,
+    dataCategory: data.category,
+    nodeDataCategory: newNode.data.category,
+    type: newNode.type,
+    techPath: techPath
+  })
+
   addNode(newNode)
   logger.info('[FlowCanvas] Node created', {
     nodeId: newNode.id,
     type: newNode.type,
+    nodeCategory: newNode.data.category,
     techPath: techPath
   })
 }
@@ -1247,19 +1285,14 @@ function handleExpressionConfirmed(expression: string) {
     type: 'expression'
   }
 
-  // 获取目标计算任务节点
-  const targetElement = document.querySelector('.vue-flow__node.selected')
-  const targetNodeId = targetElement?.getAttribute('data-id')
-  const targetTaskNode = nodes.value.find(n => n.id === targetNodeId)
-
-  if (targetTaskNode) {
-    createModelNode(pendingExpressionData.value, expressionModel, targetTaskNode.data?.label as string, expression)
-  }
+  // 对于表达式模型，使用空字符串作为 participantId（表达式不需要特定参与者）
+  createModelNode(pendingExpressionData.value, expressionModel, '', expression)
 
   // 清理状态
   showExpressionEditorDialog.value = false
   pendingExpression.value = ''
   pendingExpressionData.value = null
+  pendingTargetTaskNodeId.value = ''
 }
 
 /**
@@ -1717,16 +1750,25 @@ function handleTestDropModel(event: Event) {
   const customEvent = event as CustomEvent
   const { data } = customEvent.detail
 
+  // 调试：打印所有节点的 category
+  logger.info('[FlowCanvas] All nodes categories:', nodes.value.map(n => ({
+    id: n.id,
+    category: n.data?.category,
+    label: n.data?.label
+  })))
+
   // 查找第一个计算任务节点
   const targetTaskNode = nodes.value.find(n => n.data?.category === NodeCategory.COMPUTE_TASK)
 
   if (!targetTaskNode) {
     logger.warn('[FlowCanvas] No compute task node found for model drop')
+    logger.warn('[FlowCanvas] NodeCategory.COMPUTE_TASK value:', NodeCategory.COMPUTE_TASK)
     return
   }
 
   logger.info('[FlowCanvas] Simulating model drop on compute task', {
     modelData: data,
+    modelType: (data as any).modelType,
     targetNodeId: targetTaskNode.id
   })
 
@@ -1738,11 +1780,29 @@ function handleTestDropModel(event: Event) {
   // 检查是否是表达式模型
   if ((data as any).modelType === 'expression') {
     // 表达式模型：直接创建，不需要企业选择
+    logger.info('[FlowCanvas] Opening expression editor dialog')
     pendingExpressionData.value = data
     pendingExpression.value = ''
-    showExpressionEditorDialog.value = true
+
+    // 使用 nextTick 确保 Vue 响应式更新
+    nextTick(() => {
+      showExpressionEditorDialog.value = true
+      logger.info('[FlowCanvas] showExpressionEditorDialog set to true in nextTick', {
+        value: showExpressionEditorDialog.value
+      })
+
+      // 调试：检查 DOM 中是否有 modal-overlay
+      setTimeout(() => {
+        const modal = document.querySelector('.modal-overlay')
+        logger.info('[FlowCanvas] Modal overlay check after 100ms', {
+          exists: !!modal,
+          display: modal ? window.getComputedStyle(modal).display : 'N/A'
+        })
+      }, 100)
+    })
   } else {
     // 其他模型：弹出企业选择对话框
+    logger.info('[FlowCanvas] Opening enterprise selector dialog')
     showEnterpriseDialog.value = true
   }
 }
