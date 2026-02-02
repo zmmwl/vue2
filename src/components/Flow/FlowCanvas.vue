@@ -143,6 +143,7 @@ import { buildJoinConditions } from '@/utils/join-builder'
 import { MOCK_ENTERPRISES } from '@/utils/mock-data'
 import { sortEnterprisesByPriority } from '@/utils/enterprise-sorter'
 import { useGraphState } from '@/composables/useGraphState'
+import { EXPRESSION_MODEL_OUTPUT, getDataTypeName } from '@/services/model-mock-service'
 
 interface Emits {
   (e: 'node-selected', node: Node<NodeData> | null): void
@@ -240,6 +241,7 @@ const availableEnterprises = computed(() => {
 
 /**
  * 获取可用的输入字段（来自所有输入数据源）
+ * 按数据源分组返回，包含数据源节点信息
  */
 const availableInputFields = computed(() => {
   if (!pendingOutputTaskId.value) return []
@@ -248,16 +250,29 @@ const availableInputFields = computed(() => {
   if (!taskNode) return []
 
   const taskData = taskNode.data as ComputeTaskNodeData
-  const fields: Array<{ id: string; name: string; type: string; source: string }> = []
+  const fields: Array<{
+    id: string
+    name: string
+    type: string
+    source: string
+    sourceNodeId: string
+    sourceType: 'dataSource' | 'outputData'
+    participantId: string
+    dataset: string
+  }> = []
 
   // 从 inputProviders 提取字段
   taskData.inputProviders?.forEach((provider) => {
     provider.fields.forEach(field => {
       fields.push({
-        id: `input-${field.columnName}`,
+        id: `input-${provider.sourceNodeId}-${field.columnName}`,
         name: field.columnName,
         type: field.columnType,
-        source: `${provider.participantId}.${provider.dataset}`
+        source: `${provider.participantId}.${provider.dataset}`,
+        sourceNodeId: provider.sourceNodeId,
+        sourceType: provider.sourceType,
+        participantId: provider.participantId,
+        dataset: provider.dataset
       })
     })
   })
@@ -267,10 +282,111 @@ const availableInputFields = computed(() => {
 
 /**
  * 获取可用的模型输出字段
+ * 从计算模型的配置中提取输出字段
+ * - 表达式模型：只有一个默认的浮点型输出字段 "result"
+ * - 其他模型：从模型详情接口获取 returnParameters
  */
 const availableModelFields = computed(() => {
-  // TODO: 当实现模型配置后，从模型中提取输出字段
-  return []
+  if (!pendingOutputTaskId.value) return []
+
+  const taskNode = nodes.value.find(n => n.id === pendingOutputTaskId.value)
+  if (!taskNode) return []
+
+  const taskData = taskNode.data as ComputeTaskNodeData
+  const fields: Array<{
+    id: string
+    name: string
+    type: string
+    source: string
+    modelId: string
+    modelType: string
+    participantId: string
+  }> = []
+
+  // 遍历所有模型配置
+  taskData.models?.forEach(async (model) => {
+    if (model.type === 'expression') {
+      // 表达式模型：只有一个默认输出字段，类型是浮点型
+      fields.push({
+        id: `model-${model.id || model.modelNodeId}-result`,
+        name: EXPRESSION_MODEL_OUTPUT.name,
+        type: getDataTypeName(EXPRESSION_MODEL_OUTPUT.dataType),
+        source: `表达式模型: ${model.expression || '未设置表达式'}`,
+        modelId: model.id || model.modelNodeId || '',
+        modelType: 'expression',
+        participantId: model.participantId || ''
+      })
+    } else {
+      // 其他模型：需要调用接口获取模型详情
+      // 这里使用同步方式，实际上应该是异步的，但在 computed 中需要使用缓存或提前加载
+      // 为简化实现，这里先基于已知的模型类型返回默认字段
+      const modelId = model.id || ''
+
+      // 基于 ModelType 返回一些默认的输出字段作为占位符
+      // 实际应用中应该在模型选择时就预加载模型详情
+      if (model.type === 'CodeBin-V2') {
+        fields.push({
+          id: `model-${modelId}-intersection_result`,
+          name: 'intersection_result',
+          type: 'STRING',
+          source: `PSI求交模型V2: ${model.name}`,
+          modelId: modelId,
+          modelType: model.type,
+          participantId: model.participantId || ''
+        })
+        fields.push({
+          id: `model-${modelId}-intersection_size`,
+          name: 'intersection_size',
+          type: 'INT',
+          source: `PSI求交模型V2: ${model.name}`,
+          modelId: modelId,
+          modelType: model.type,
+          participantId: model.participantId || ''
+        })
+      } else if (model.type === 'CodeBin-V3-1') {
+        fields.push({
+          id: `model-${modelId}-statistic_value`,
+          name: 'statistic_value',
+          type: 'DOUBLE',
+          source: `MPC统计模型V3.1: ${model.name}`,
+          modelId: modelId,
+          modelType: model.type,
+          participantId: model.participantId || ''
+        })
+      } else if (model.type === 'CodeBin-V3-2') {
+        fields.push({
+          id: `model-${modelId}-model_accuracy`,
+          name: 'model_accuracy',
+          type: 'DOUBLE',
+          source: `联邦学习模型V3.2: ${model.name}`,
+          modelId: modelId,
+          modelType: model.type,
+          participantId: model.participantId || ''
+        })
+        fields.push({
+          id: `model-${modelId}-training_loss`,
+          name: 'training_loss',
+          type: 'DOUBLE',
+          source: `联邦学习模型V3.2: ${model.name}`,
+          modelId: modelId,
+          modelType: model.type,
+          participantId: model.participantId || ''
+        })
+      } else if (model.type === 'SPDZ') {
+        fields.push({
+          id: `model-${modelId}-compute_result`,
+          name: 'compute_result',
+          type: 'DOUBLE',
+          source: `SPDZ计算模型: ${model.name}`,
+          modelId: modelId,
+          modelType: model.type,
+          participantId: model.participantId || ''
+        })
+      }
+    }
+  })
+
+  return fields
 })
 
 /**
@@ -1638,11 +1754,13 @@ function handleCreateTestTaskNode(event: Event) {
   const { data, position } = customEvent.detail
 
   // 保存节点位置
-  pendingNodePosition.value = position || { x: 300, y: 200 }
+  const nodePosition = position || { x: 300, y: 200 }
+  pendingNodePosition.value = nodePosition
   pendingNodeData.value = data
 
   const techPath = data.techPath || TechPath.SOFTWARE
-  createNode(data as DroppedNodeData, { x: 0, y: 0 }, techPath)
+  // 使用 nodePosition 中的位置创建节点
+  createNode(data as DroppedNodeData, nodePosition, techPath)
 }
 
 /**

@@ -58,25 +58,41 @@
                   <p>暂无可选字段</p>
                   <p class="empty-hint">请先配置计算任务的输入数据</p>
                 </div>
-                <div v-else class="fields-list">
+                <div v-else class="fields-list-grouped">
+                  <!-- 按分组显示字段 -->
                   <div
-                    v-for="field in availableFields"
-                    :key="field.id"
-                    class="field-item"
-                    :class="{ 'is-selected': isFieldSelected(field.id) }"
-                    @click="toggleField(field.id)"
+                    v-for="group in fieldGroups"
+                    :key="group.id"
+                    class="field-group"
                   >
-                    <input
-                      :id="`field-${field.id}`"
-                      type="checkbox"
-                      :checked="isFieldSelected(field.id)"
-                      @change="toggleField(field.id)"
-                    />
-                    <div class="field-info">
-                      <div class="field-name">{{ field.name }}</div>
-                      <div class="field-source">{{ field.source }}</div>
+                    <!-- 分组标题 -->
+                    <div class="group-header">
+                      <span class="group-icon">{{ group.icon }}</span>
+                      <span class="group-title">{{ group.title }}</span>
+                      <span class="group-count">({{ group.fields.length }})</span>
                     </div>
-                    <div class="field-type">{{ field.type }}</div>
+                    <!-- 分组字段列表 -->
+                    <div class="group-fields">
+                      <div
+                        v-for="field in group.fields"
+                        :key="field.id"
+                        class="field-item"
+                        :class="{ 'is-selected': isFieldSelected(field.id) }"
+                        @click="toggleField(field.id)"
+                      >
+                        <input
+                          :id="`field-${field.id}`"
+                          type="checkbox"
+                          :checked="isFieldSelected(field.id)"
+                          @change="toggleField(field.id)"
+                        />
+                        <div class="field-info">
+                          <div class="field-name">{{ field.name }}</div>
+                          <div class="field-source">{{ field.source }}</div>
+                        </div>
+                        <div class="field-type">{{ field.type }}</div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -116,6 +132,23 @@ interface AvailableField {
   name: string
   type: string
   source: string
+  // 分组相关属性
+  sourceNodeId?: string
+  sourceType?: 'dataSource' | 'outputData' | 'model'
+  participantId?: string
+  dataset?: string
+  modelId?: string
+  modelType?: string
+}
+
+/**
+ * 字段分组
+ */
+interface FieldGroup {
+  id: string
+  title: string
+  icon: string
+  fields: AvailableField[]
 }
 
 interface Props {
@@ -165,6 +198,68 @@ const selectedFieldIds = ref<Set<string>>(new Set())
 // 所有可用字段
 const availableFields = computed(() => {
   return [...props.inputFields, ...props.modelOutputFields]
+})
+
+/**
+ * 将字段按来源分组
+ * 1. 输入数据源字段：按数据源分组
+ * 2. 模型输出字段：按模型分组
+ */
+const fieldGroups = computed<FieldGroup[]>(() => {
+  const groups: FieldGroup[] = []
+  let inputGroupIndex = 0
+  let modelGroupIndex = 0
+
+  // 处理输入数据源字段 - 按数据源分组
+  const dataSourceGroups = new Map<string, AvailableField[]>()
+  props.inputFields.forEach(field => {
+    const key = field.sourceNodeId || field.participantId || field.source
+    if (!dataSourceGroups.has(key)) {
+      dataSourceGroups.set(key, [])
+    }
+    dataSourceGroups.get(key)!.push(field)
+  })
+
+  // 为每个数据源创建一个分组
+  dataSourceGroups.forEach((fields, key) => {
+    const firstField = fields[0]
+    if (firstField) {
+      groups.push({
+        id: `input-${key}`,
+        title: firstField.source,
+        icon: '🗄️',
+        fields
+      })
+      inputGroupIndex++
+    }
+  })
+
+  // 处理模型输出字段 - 按模型分组
+  const modelGroups = new Map<string, AvailableField[]>()
+  props.modelOutputFields.forEach(field => {
+    const key = field.modelId || field.modelType || field.source
+    if (!modelGroups.has(key)) {
+      modelGroups.set(key, [])
+    }
+    modelGroups.get(key)!.push(field)
+  })
+
+  // 为每个模型创建一个分组
+  modelGroups.forEach((fields, key) => {
+    const firstField = fields[0]
+    if (firstField) {
+      const icon = firstField.modelType === 'expression' ? '📝' : '📦'
+      groups.push({
+        id: `model-${key}`,
+        title: firstField.source,
+        icon,
+        fields
+      })
+      modelGroupIndex++
+    }
+  })
+
+  return groups
 })
 
 // 选中的企业名称
@@ -420,6 +515,54 @@ function handleClose() {
     .empty-hint {
       font-size: 12px;
       color: #c0c4cc;
+    }
+  }
+
+  .fields-list-grouped {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    max-height: 350px;
+    overflow-y: auto;
+    padding: 4px;
+  }
+
+  .field-group {
+    .group-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      background: linear-gradient(135deg, #f0f7ff, #e6f4ff);
+      border-radius: 8px;
+      margin-bottom: 8px;
+      border-left: 3px solid #409eff;
+
+      .group-icon {
+        font-size: 16px;
+      }
+
+      .group-title {
+        flex: 1;
+        font-size: 13px;
+        font-weight: 600;
+        color: #303133;
+      }
+
+      .group-count {
+        font-size: 11px;
+        color: #909399;
+        padding: 2px 8px;
+        background: rgba(255, 255, 255, 0.6);
+        border-radius: 10px;
+      }
+    }
+
+    .group-fields {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding-left: 8px;
     }
   }
 
