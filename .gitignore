@@ -26,3 +26,4 @@ dist-ssr
 # Playwright test outputs
 playwright-report
 test-results
+test-results-output/
