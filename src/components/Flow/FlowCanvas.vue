@@ -383,7 +383,17 @@ const onConnect = (connection: Connection) => {
       pendingSourceName.value = sourceData.assetInfo.assetName
       pendingParticipantId.value = sourceData.assetInfo.participantId
       pendingDataset.value = sourceData.assetInfo.assetId
-      pendingAvailableFields.value = sourceData.assetInfo.dataInfo.fieldList.map(field => ({
+
+      // 只显示数据源节点中已选择的字段
+      const selectedFieldNames = sourceData.selectedFields || []
+      const allFields = sourceData.assetInfo.dataInfo.fieldList
+
+      // 如果用户选择了特定字段，只返回这些字段；否则返回所有字段（向后兼容）
+      const fieldsToInclude = selectedFieldNames.length > 0
+        ? allFields.filter(field => selectedFieldNames.includes(field.name))
+        : allFields
+
+      pendingAvailableFields.value = fieldsToInclude.map(field => ({
         name: field.name,
         dataType: field.dataType,
         dataLength: field.dataLength,
@@ -1541,6 +1551,10 @@ function handleCreateTestTaskWithOutput(event: Event) {
 
   // 获取刚创建的计算任务节点
   const taskNode = nodes.value[nodes.value.length - 1]
+  if (!taskNode) {
+    logger.warn('[FlowCanvas] Failed to create task node')
+    return
+  }
 
   // 创建输出节点
   const outputPosition = { x: 400, y: 400 }
@@ -1564,15 +1578,17 @@ function handleCreateTestTaskWithOutput(event: Event) {
   addNode(outputNode)
 
   // 更新计算任务节点的输出配置
-  if (taskNode) {
-    const nodeData = taskNode.data as ComputeTaskNodeData
-    if (!nodeData.outputs) {
-      nodeData.outputs = []
-    }
-    nodeData.outputs.push({
-      outputNodeId: outputNode.id
-    })
+  const nodeData = taskNode.data as ComputeTaskNodeData
+  if (!nodeData.outputs) {
+    nodeData.outputs = []
   }
+  nodeData.outputs.push({
+    id: `output_config_${Date.now()}`,
+    participantId: outputData.participantId || '',
+    dataset: outputData.dataset || '',
+    outputFields: outputData.fields || [],
+    outputNodeId: outputNode.id
+  })
 
   logger.info('[FlowCanvas] Created task with output', {
     taskId: taskNode.id,
@@ -1652,7 +1668,17 @@ function handleCreateTestConnection(event: Event) {
     pendingSourceName.value = sourceData.assetInfo.assetName
     pendingParticipantId.value = sourceData.assetInfo.participantId
     pendingDataset.value = sourceData.assetInfo.assetId
-    pendingAvailableFields.value = sourceData.assetInfo.dataInfo.fieldList.map(field => ({
+
+    // 只显示数据源节点中已选择的字段
+    const selectedFieldNames = sourceData.selectedFields || []
+    const allFields = sourceData.assetInfo.dataInfo.fieldList
+
+    // 如果用户选择了特定字段，只返回这些字段；否则返回所有字段（向后兼容）
+    const fieldsToInclude = selectedFieldNames.length > 0
+      ? allFields.filter(field => selectedFieldNames.includes(field.name))
+      : allFields
+
+    pendingAvailableFields.value = fieldsToInclude.map(field => ({
       name: field.name,
       dataType: field.dataType,
       dataLength: field.dataLength,
@@ -1689,7 +1715,7 @@ function handleCreateTestConnection(event: Event) {
 function handleTestDropModel(event: Event) {
   logger.info('[FlowCanvas] test-drop-model event received')
   const customEvent = event as CustomEvent
-  const { data, x, y } = customEvent.detail
+  const { data } = customEvent.detail
 
   // 查找第一个计算任务节点
   const targetTaskNode = nodes.value.find(n => n.data?.category === NodeCategory.COMPUTE_TASK)
@@ -1728,7 +1754,7 @@ function handleTestDropModel(event: Event) {
 function handleTestDropCompute(event: Event) {
   logger.info('[FlowCanvas] test-drop-compute event received')
   const customEvent = event as CustomEvent
-  const { data, x, y } = customEvent.detail
+  const { data } = customEvent.detail
 
   // 查找第一个计算任务节点
   const targetTaskNode = nodes.value.find(n => n.data?.category === NodeCategory.COMPUTE_TASK)
