@@ -1232,6 +1232,10 @@ function handleOutputConfigConfirmed(config: {
     y: taskNode.position.y + 150
   }
 
+  // 根据 participantId 查找企业名称
+  const enterprise = availableEnterprises.value.find(e => e.id === config.participantId)
+  const entityName = enterprise?.name || ''
+
   const outputNode: Node = {
     id: outputNodeId,
     type: 'outputData',
@@ -1244,6 +1248,7 @@ function handleOutputConfigConfirmed(config: {
       description: `输出到 ${config.participantId}`,
       parentTaskId: pendingOutputTaskId.value,
       participantId: config.participantId,
+      entityName: entityName,
       dataset: config.dataset,
       fields: config.fields
     } as any
@@ -1775,6 +1780,11 @@ function handleCreateTestTaskWithOutput(event: Event) {
 
   // 创建输出节点
   const outputPosition = { x: 400, y: 400 }
+
+  // 根据 participantId 查找企业名称
+  const enterprise = availableEnterprises.value.find(e => e.id === outputData.participantId)
+  const entityName = enterprise?.name || ''
+
   const outputNode: Node = {
     id: outputData.id || `output_${Date.now()}`,
     type: 'outputData',
@@ -1787,6 +1797,7 @@ function handleCreateTestTaskWithOutput(event: Event) {
       description: '计算任务输出',
       parentTaskId: taskNode.id,
       participantId: outputData.participantId || '',
+      entityName: entityName,
       dataset: outputData.dataset || '',
       fields: outputData.fields || []
     } as any
