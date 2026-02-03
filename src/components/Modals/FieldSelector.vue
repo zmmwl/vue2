@@ -189,19 +189,26 @@ function initializeFields() {
     columnName: field.name,
     columnAlias: field.name,
     columnType: field.dataType,
-    isJoinField: false,
+    isJoinField: field.isPrimaryKey || false,  // 主键默认为 join 键
     joinType: 'INNER' as const,
-    selected: false
+    selected: true  // 默认选中所有字段
   }))
 
-  // 如果有初始选择，恢复选择状态
+  // 如果有初始选择，恢复选择状态（覆盖默认值）
   if (props.initialSelection && props.initialSelection.length > 0) {
+    // 先将所有字段设为未选中
+    initialFields.forEach(field => {
+      field.selected = false
+      field.isJoinField = false
+    })
+
+    // 然后根据初始选择恢复
     props.initialSelection.forEach(initial => {
       const field = initialFields.find(f => f.columnName === initial.columnName)
       if (field) {
         field.selected = true
         field.columnAlias = initial.columnAlias
-        field.isJoinField = initial.isJoinField
+        field.isJoinField = initial.isJoinField || false
         field.joinType = initial.joinType || 'INNER'
       }
     })

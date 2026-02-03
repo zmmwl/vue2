@@ -284,11 +284,17 @@ async function selectAsset(asset: any) {
     const assetInfo = await assetApi.getAsset({ assetId: asset.assetId })
     selectedAsset.value = assetInfo
     allFields.value = assetInfo.dataInfo.fieldList
+
+    // 默认选中所有字段
     selectedFields.value.clear()
+    allFields.value.forEach(field => {
+      selectedFields.value.add(field.name)
+    })
 
     logger.info('[AssetSelectorDialog] Asset details loaded', {
       assetId: assetInfo.assetId,
-      fieldCount: allFields.value.length
+      fieldCount: allFields.value.length,
+      selectedCount: selectedFields.value.size
     })
   } catch (error: any) {
     logger.error('[AssetSelectorDialog] Failed to load asset details', error)
@@ -430,8 +436,14 @@ watch(() => props.modelValue, async (isOpen) => {
       selectedAsset.value = props.initialAssetInfo
       allFields.value = props.initialAssetInfo.dataInfo.fieldList || []
 
-      // 回显已选字段
-      selectedFields.value = new Set(props.initialSelectedFields || [])
+      // 回显已选字段（如果没有初始选择，默认选中所有字段）
+      const initialFields = props.initialSelectedFields || []
+      if (initialFields.length > 0) {
+        selectedFields.value = new Set(initialFields)
+      } else {
+        // 默认选中所有字段
+        selectedFields.value = new Set(allFields.value.map(f => f.name))
+      }
 
       // 设置企业（通过 participantId 查找）
       await loadEnterprises()
