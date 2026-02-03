@@ -80,6 +80,7 @@ interface ComputeInfo {
 interface Props {
   modelValue: boolean
   participantId: string
+  entityName?: string         // 企业名称（可选）
 }
 
 interface Emits {
@@ -105,9 +106,12 @@ const availableComputes = computed(() => {
   }))
 })
 
-// 企业名称
+// 企业名称（同时显示企业名称和ID）
 const enterpriseName = computed(() => {
   if (!props.participantId) return '未选择'
+  if (props.entityName && props.participantId) {
+    return `${props.entityName} (${props.participantId})`
+  }
   return props.participantId
 })
 

@@ -73,7 +73,7 @@
             </div>
             <div class="info-item">
               <span class="info-label">所属企业</span>
-              <span class="info-value">{{ assetInfo?.entityName || '-' }}</span>
+              <span class="info-value">{{ assetInfo?.participantId ? getEnterpriseDisplayName(assetInfo.participantId) : (assetInfo?.entityName || '-') }}</span>
             </div>
             <div class="info-item">
               <span class="info-label">数据规模</span>
@@ -165,7 +165,7 @@
             >
               <div class="provider-header">
                 <span class="provider-index">{{ index + 1 }}</span>
-                <span class="provider-name">{{ provider.participantId }}</span>
+                <span class="provider-name">{{ getEnterpriseDisplayName(provider.participantId) }}</span>
                 <span class="provider-dataset">{{ provider.dataset }}</span>
               </div>
               <div class="provider-fields">
@@ -203,7 +203,7 @@
                   :key="opIndex"
                   class="operand-item"
                 >
-                  <span class="operand-participant">{{ operand.participantId }}</span>
+                  <span class="operand-participant">{{ getEnterpriseDisplayName(operand.participantId) }}</span>
                   <span class="operand-dataset">{{ operand.dataset }}</span>
                   <span class="operand-fields">{{ operand.columnNames.join(', ') }}</span>
                 </div>
@@ -228,7 +228,7 @@
               <div class="model-header">
                 <span class="model-icon">📦</span>
                 <span class="model-type">{{ modelTypeLabel(model) }}</span>
-                <span class="model-participant">{{ model.participantId }}</span>
+                <span class="model-participant">{{ getEnterpriseDisplayName(model.participantId) }}</span>
               </div>
               <div v-if="model.type === 'expression'" class="model-expression">
                 {{ expressionPreview(model) }}
@@ -256,7 +256,7 @@
               <div class="compute-header">
                 <span class="compute-icon">⚡</span>
                 <span class="compute-name">{{ compute.id }}</span>
-                <span class="compute-participant">{{ compute.participantId }}</span>
+                <span class="compute-participant">{{ getEnterpriseDisplayName(compute.participantId) }}</span>
               </div>
               <div class="compute-type">{{ compute.type }}</div>
             </div>
@@ -278,7 +278,7 @@
             >
               <div class="output-header">
                 <span class="output-index">{{ index + 1 }}</span>
-                <span class="output-participant">{{ output.participantId }}</span>
+                <span class="output-participant">{{ getEnterpriseDisplayName(output.participantId) }}</span>
               </div>
               <div class="output-dataset">{{ output.dataset }}</div>
               <div class="output-fields">
@@ -305,6 +305,7 @@ import type { NodeData, ComputeTaskNodeData } from '@/types/nodes'
 import type { ExportJson } from '@/types/export'
 import { NodeCategory, TechPath } from '@/types/nodes'
 import { logger } from '@/utils/logger'
+import { MOCK_ENTERPRISES } from '@/utils/mock-data'
 import CollapsibleSection from './CollapsibleSection.vue'
 import JsonPreviewPanel from './JsonPreviewPanel.vue'
 
@@ -443,6 +444,18 @@ function modelTypeLabel(model: any): string {
 function expressionPreview(model: any): string {
   const expr = model.expression || ''
   return expr.length > 50 ? expr.substring(0, 50) + '...' : expr
+}
+
+/**
+ * 获取企业显示名称（同时显示企业名称和 participantId）
+ */
+function getEnterpriseDisplayName(participantId: string): string {
+  if (!participantId) return '-'
+  const enterprise = MOCK_ENTERPRISES.find(e => e.participantId === participantId)
+  if (enterprise) {
+    return `${enterprise.entityName} (${participantId})`
+  }
+  return participantId
 }
 
 // 处理编辑按钮点击

@@ -27,6 +27,7 @@
                 </div>
                 <div class="enterprise-info">
                   <div class="enterprise-name">{{ enterprise.name }}</div>
+                  <div class="enterprise-id">{{ enterprise.id }}</div>
                   <div class="enterprise-type">
                     <span
                       class="type-tag"
@@ -250,6 +251,17 @@ function handleClose() {
   font-size: 14px;
   font-weight: 600;
   color: #303133;
+  margin-bottom: 4px;
+}
+
+.enterprise-id {
+  font-size: 11px;
+  color: #909399;
+  font-family: 'Monaco', 'Menlo', monospace;
+  padding: 2px 6px;
+  background: rgba(0, 0, 0, 0.03);
+  border-radius: 4px;
+  display: inline-block;
   margin-bottom: 4px;
 }
 

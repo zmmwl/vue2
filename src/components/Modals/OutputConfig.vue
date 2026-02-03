@@ -25,7 +25,10 @@
                       <div class="enterprise-name">
                         {{ selectedEnterpriseName || '请选择企业' }}
                       </div>
-                      <div class="enterprise-hint">点击选择</div>
+                      <div v-if="selectedEnterpriseId" class="enterprise-id">
+                        {{ selectedEnterpriseId }}
+                      </div>
+                      <div v-else class="enterprise-hint">点击选择</div>
                     </div>
                     <span class="arrow-icon">→</span>
                   </div>
@@ -478,6 +481,16 @@ function handleClose() {
       font-weight: 600;
       color: #303133;
       margin-bottom: 2px;
+    }
+
+    .enterprise-id {
+      font-size: 11px;
+      color: #909399;
+      font-family: 'Monaco', 'Menlo', monospace;
+      padding: 2px 6px;
+      background: rgba(0, 0, 0, 0.03);
+      border-radius: 4px;
+      display: inline-block;
     }
 
     .enterprise-hint {

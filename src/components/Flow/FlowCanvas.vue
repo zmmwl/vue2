@@ -77,6 +77,7 @@
     <ModelSelector
       v-model="showModelSelectorDialog"
       :participant-id="selectedParticipantId || ''"
+      :entity-name="selectedEntityName || ''"
       @confirm="handleModelSelected"
       @cancel="handleModelSelectorCancel"
     />
@@ -85,6 +86,7 @@
     <ComputeSelector
       v-model="showComputeSelectorDialog"
       :participant-id="selectedParticipantId || ''"
+      :entity-name="selectedEntityName || ''"
       @confirm="handleComputeSelected"
       @cancel="handleComputeSelectorCancel"
     />
@@ -215,6 +217,7 @@ const pendingOutputConfig = ref<{
 // 企业选择对话框状态（用于模型和算力）
 const showEnterpriseDialog = ref(false)
 const selectedParticipantId = ref<string>('')
+const selectedEntityName = ref<string>('')  // 选中的企业名称
 const pendingResourceType = ref<'model' | 'compute'>('model')
 const pendingModelOrComputeData = ref<DroppedNodeData | null>(null)
 const pendingTargetTaskNodeId = ref<string>('')  // 存储目标任务节点 ID
@@ -1309,6 +1312,9 @@ function handleEnterpriseSelected(participantId: string) {
   })
 
   selectedParticipantId.value = participantId
+  // 根据 participantId 查找企业名称
+  const enterprise = availableEnterprises.value.find(e => e.id === participantId)
+  selectedEntityName.value = enterprise?.name || ''
 
   if (pendingResourceType.value === 'model') {
     // 打开模型选择对话框
@@ -1328,6 +1334,7 @@ function handleEnterpriseDialogCancel() {
   logger.info('[FlowCanvas] Enterprise selector dialog cancelled')
   showEnterpriseDialog.value = false
   selectedParticipantId.value = ''
+  selectedEntityName.value = ''
   pendingModelOrComputeData.value = null
   pendingTargetTaskNodeId.value = ''
 }
@@ -1363,6 +1370,7 @@ function handleModelSelectorCancel() {
   logger.info('[FlowCanvas] Model selector dialog cancelled')
   showModelSelectorDialog.value = false
   selectedParticipantId.value = ''
+  selectedEntityName.value = ''
   pendingModelOrComputeData.value = null
   pendingTargetTaskNodeId.value = ''
 }
@@ -1398,6 +1406,7 @@ function handleComputeSelectorCancel() {
   logger.info('[FlowCanvas] Compute selector dialog cancelled')
   showComputeSelectorDialog.value = false
   selectedParticipantId.value = ''
+  selectedEntityName.value = ''
   pendingModelOrComputeData.value = null
   pendingTargetTaskNodeId.value = ''
 }

@@ -16,7 +16,7 @@
       <div class="node-info">
         <div class="node-title">{{ data.label || '输出数据' }}</div>
         <div v-if="(data as any).participantId" class="node-meta">
-          接收方: {{ (data as any).participantId }}
+          接收方: {{ (data as any).entityName || (data as any).participantId }}<template v-if="(data as any).participantId"> ({{ (data as any).participantId }})</template>
         </div>
         <div v-if="outputFieldsCount > 0" class="node-meta">
           字段: {{ outputFieldsCount }} 个

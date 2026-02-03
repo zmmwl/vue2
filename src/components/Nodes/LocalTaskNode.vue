@@ -55,9 +55,16 @@ const nodeLabel = computed(() => {
   return props.data?.label || '本地结果处理'
 })
 
-// 参与方名称
+// 参与方名称（同时显示企业名称和ID）
 const participantName = computed(() => {
-  return props.data?.participantId || '未选择企业'
+  const { participantId, entityName } = props.data || {}
+  if (entityName && participantId) {
+    return `${entityName} (${participantId})`
+  }
+  if (participantId) {
+    return participantId
+  }
+  return '未选择企业'
 })
 
 // 节点样式

@@ -211,6 +211,7 @@ export interface ModelNodeData extends NodeData {
   type: 'expression' | ModelType  // 模型类型
   parentTaskId: string      // 所属计算任务ID
   participantId: string
+  entityName?: string       // 企业名称（可选）
   name?: string             // 模型名称
   expression?: string       // 表达式内容（仅expression类型）
   parameters?: ModelParameter[]  // 模型参数（非expression类型）
@@ -222,6 +223,7 @@ export interface ComputeResourceNodeData extends NodeData {
   resourceType: 'TEE'
   parentTaskId: string      // 所属计算任务ID
   participantId: string
+  entityName?: string       // 企业名称（可选）
   groupName: string
   cardSerial: string
 }
@@ -231,6 +233,7 @@ export interface OutputDataNodeData extends NodeData {
   category: NodeCategory.OUTPUT_DATA
   parentTaskId: string      // 所属计算任务ID
   participantId: string     // 接收输出的企业
+  entityName?: string       // 企业名称（可选）
   dataset: string           // 输出数据集名称
   fields: OutputField[]
 }
@@ -240,6 +243,7 @@ export interface LocalTaskNodeData extends NodeData {
   category: NodeCategory.LOCAL_TASK
   computeType: 'CONCAT'
   participantId: string     // 必选：执行本地任务的参与方企业
+  entityName?: string       // 企业名称（可选）
   inputProviders?: InputProvider[]
   outputs?: OutputDataConfig[]
 }

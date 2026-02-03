@@ -51,6 +51,7 @@
               @click="selectEnterprise(enterprise)"
             >
               <div class="item-name">{{ enterprise.entityName }}</div>
+              <div class="item-id">{{ enterprise.participantId }}</div>
               <div class="item-count">{{ enterprise.enterpriseAssetList.length }} 个资产</div>
             </div>
             <div v-if="filteredEnterprises.length === 0" class="empty-state">
@@ -799,6 +800,15 @@ watch(() => props.modelValue, async (isOpen) => {
   font-weight: 500;
   color: var(--text-primary);
   transition: color var(--transition-base) var(--easing-smooth);
+}
+
+.item-id {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-family: 'Monaco', 'Menlo', monospace;
+  padding: 2px 6px;
+  background: rgba(0, 0, 0, 0.03);
+  border-radius: 4px;
 }
 
 .item-desc {
