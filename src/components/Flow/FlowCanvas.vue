@@ -98,6 +98,13 @@
       @cancel="handleExpressionEditorCancel"
     />
 
+    <!-- CodeBin 类型选择对话框 -->
+    <CodeBinTypeSelector
+      v-model="showCodeBinTypeSelectorDialog"
+      @confirm="handleCodeBinTypeSelected"
+      @cancel="handleCodeBinTypeSelectorCancel"
+    />
+
     <!-- 本地任务企业选择对话框 -->
     <LocalTaskEnterpriseSelector
       v-model="showLocalTaskEnterpriseDialog"
@@ -133,6 +140,7 @@ import ModelSelector from '@/components/Modals/ModelSelector.vue'
 import ComputeSelector from '@/components/Modals/ComputeSelector.vue'
 import ExpressionEditor from '@/components/Modals/ExpressionEditor.vue'
 import LocalTaskEnterpriseSelector from '@/components/Modals/LocalTaskEnterpriseSelector.vue'
+import CodeBinTypeSelector from '@/components/Modals/CodeBinTypeSelector.vue'
 import { createUniqueEdge } from '@/utils/edge-utils'
 import { logger } from '@/utils/logger'
 import { downloadJsonFile } from '@/utils/file-downloader'
@@ -221,6 +229,11 @@ const showComputeSelectorDialog = ref(false)
 const showExpressionEditorDialog = ref(false)
 const pendingExpression = ref<string>('')
 const pendingExpressionData = ref<DroppedNodeData | null>(null)
+
+// CodeBin 类型选择对话框状态
+const showCodeBinTypeSelectorDialog = ref(false)
+const pendingCodeBinData = ref<DroppedNodeData | null>(null)
+const selectedCodeBinType = ref<string>('')
 
 // 本地任务企业选择对话框状态
 const showLocalTaskEnterpriseDialog = ref(false)
@@ -781,6 +794,12 @@ const onDrop = (event: DragEvent) => {
             pendingExpressionData.value = data
             pendingExpression.value = ''
             showExpressionEditorDialog.value = true
+          } else if (data.modelType === 'codebin-select') {
+            // CodeBin 组合模型：弹出类型选择对话框
+            pendingCodeBinData.value = data
+            pendingTargetTaskNodeId.value = targetNode.id
+            selectedCodeBinType.value = ''
+            showCodeBinTypeSelectorDialog.value = true
           } else {
             // 其他模型：弹出企业选择对话框
             showEnterpriseDialog.value = true
@@ -1419,6 +1438,46 @@ function handleExpressionEditorCancel() {
   showExpressionEditorDialog.value = false
   pendingExpression.value = ''
   pendingExpressionData.value = null
+}
+
+/**
+ * 处理 CodeBin 类型选择确认
+ */
+function handleCodeBinTypeSelected(modelType: string) {
+  logger.info('[FlowCanvas] CodeBin type selected', { modelType })
+
+  if (!pendingCodeBinData.value) {
+    logger.warn('[FlowCanvas] No pending CodeBin data')
+    return
+  }
+
+  // 更新数据中的 modelType
+  const updatedData = {
+    ...pendingCodeBinData.value,
+    modelType
+  }
+
+  // 关闭类型选择对话框，打开企业选择对话框
+  showCodeBinTypeSelectorDialog.value = false
+  pendingModelOrComputeData.value = updatedData
+  pendingResourceType.value = 'model'
+  // pendingTargetTaskNodeId 已在打开对话框时设置
+  showEnterpriseDialog.value = true
+
+  // 清理状态
+  selectedCodeBinType.value = ''
+  pendingCodeBinData.value = null
+}
+
+/**
+ * 处理 CodeBin 类型选择取消
+ */
+function handleCodeBinTypeSelectorCancel() {
+  logger.info('[FlowCanvas] CodeBin type selector dialog cancelled')
+  showCodeBinTypeSelectorDialog.value = false
+  selectedCodeBinType.value = ''
+  pendingCodeBinData.value = null
+  pendingTargetTaskNodeId.value = ''
 }
 
 /**

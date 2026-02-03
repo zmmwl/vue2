@@ -5,21 +5,12 @@ import { NodeCategory, ComputeTaskType, DataSourceType } from '@/types/nodes'
 export const DATA_SOURCE_TEMPLATES: NodeTemplate[] = [
   {
     type: 'data_source',
-    label: 'MySQL 数据库',
+    label: '数据库表',
     category: NodeCategory.DATA_SOURCE,
     sourceType: DataSourceType.DATABASE,
     icon: '🗄️',
     color: '#52C41A',
-    description: '关系型数据库'
-  },
-  {
-    type: 'data_source',
-    label: 'PostgreSQL',
-    category: NodeCategory.DATA_SOURCE,
-    sourceType: DataSourceType.DATABASE,
-    icon: '🐘',
-    color: '#52C41A',
-    description: '开源关系型数据库'
+    description: '关系型数据库表'
   },
   {
     type: 'data_source',
@@ -29,33 +20,6 @@ export const DATA_SOURCE_TEMPLATES: NodeTemplate[] = [
     icon: '📄',
     color: '#52C41A',
     description: '逗号分隔值文件'
-  },
-  {
-    type: 'data_source',
-    label: 'Excel 文件',
-    category: NodeCategory.DATA_SOURCE,
-    sourceType: DataSourceType.FILE,
-    icon: '📊',
-    color: '#52C41A',
-    description: 'Excel 电子表格'
-  },
-  {
-    type: 'data_source',
-    label: 'REST API',
-    category: NodeCategory.DATA_SOURCE,
-    sourceType: DataSourceType.API,
-    icon: '🌐',
-    color: '#52C41A',
-    description: 'RESTful API 接口'
-  },
-  {
-    type: 'data_source',
-    label: 'GraphQL',
-    category: NodeCategory.DATA_SOURCE,
-    sourceType: DataSourceType.API,
-    icon: '◈',
-    color: '#52C41A',
-    description: 'GraphQL 查询接口'
   }
 ]
 
@@ -96,24 +60,6 @@ export const COMPUTE_TASK_TEMPLATES: NodeTemplate[] = [
     icon: '🤖',
     color: '#EB2F96',
     description: 'Federated Learning'
-  },
-  {
-    type: 'compute_task',
-    label: '同态加密',
-    category: NodeCategory.COMPUTE_TASK,
-    taskType: ComputeTaskType.MPC,
-    icon: '🔒',
-    color: '#13C2C2',
-    description: 'Homomorphic Encryption'
-  },
-  {
-    type: 'compute_task',
-    label: '差分隐私',
-    category: NodeCategory.COMPUTE_TASK,
-    taskType: ComputeTaskType.MPC,
-    icon: '🛡️',
-    color: '#F5222D',
-    description: 'Differential Privacy'
   }
 ]
 
@@ -129,27 +75,12 @@ export const MODEL_TEMPLATES: NodeTemplate[] = [
   },
   {
     type: 'model',
-    label: 'CodeBin-V2模型',
+    label: 'CodeBin模型',
     category: 'model' as any,
     icon: '📦',
     color: '#13C2C2',
-    description: '二进制代码模型V2'
-  },
-  {
-    type: 'model',
-    label: 'CodeBin-V3.1模型',
-    category: 'model' as any,
-    icon: '📦',
-    color: '#13C2C2',
-    description: '二进制代码模型V3.1'
-  },
-  {
-    type: 'model',
-    label: 'CodeBin-V3.2模型',
-    category: 'model' as any,
-    icon: '📦',
-    color: '#13C2C2',
-    description: '二进制代码模型V3.2'
+    description: 'CodeBin系列模型（含V2/V3.1/V3.2）',
+    isCodeBin: true  // 标记为 CodeBin 模型，需要进一步选择类型
   },
   {
     type: 'model',

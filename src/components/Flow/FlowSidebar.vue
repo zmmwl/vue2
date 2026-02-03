@@ -175,12 +175,11 @@ const onDragStartModel = (event: DragEvent, template: NodeTemplate) => {
     let modelType = 'CodeBin-V2'
     if (template.label.includes('表达式')) {
       modelType = 'expression'
-    } else if (template.label.includes('V3.1')) {
-      modelType = 'CodeBin-V3-1'
-    } else if (template.label.includes('V3.2')) {
-      modelType = 'CodeBin-V3-2'
     } else if (template.label.includes('SPDZ')) {
       modelType = 'SPDZ'
+    } else if (template.isCodeBin) {
+      // CodeBin 组合模型，标记需要进一步选择
+      modelType = 'codebin-select'
     }
 
     const data = {

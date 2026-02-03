@@ -166,6 +166,7 @@ export interface NodeTemplate {
   color: string
   description?: string
   modelType?: string  // 模型类型（用于模型节点）
+  isCodeBin?: boolean // 是否为 CodeBin 组合模型（需要进一步选择类型）
 }
 
 // ========== DAG任务编排相关类型 ==========
