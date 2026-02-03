@@ -16,7 +16,6 @@
               <select
                 v-model="selectedType"
                 class="form-select"
-                :disabled="!selectedType"
               >
                 <option value="" disabled>请选择模型类型</option>
                 <option value="CodeBin-V2">CodeBin-V2 模型</option>
