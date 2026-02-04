@@ -234,7 +234,19 @@
                 {{ expressionPreview(model) }}
               </div>
               <div v-else class="model-params">
-                <span class="params-count">{{ model.parameters?.length || 0 }} 个参数</span>
+                <span class="params-count">
+                  {{ model.parameters?.length || 0 }} 个参数
+                  <span v-if="hasUnconfiguredParams(model)" class="unconfigured-hint">
+                    (未配置)
+                  </span>
+                </span>
+                <button
+                  class="config-params-btn"
+                  @click="handleConfigParams(model)"
+                  :title="'配置参数'"
+                >
+                  ⚙️ 配置
+                </button>
               </div>
             </div>
           </div>
@@ -319,6 +331,7 @@ interface Props {
 interface Emits {
   (e: 'edit', nodeId: string): void
   (e: 'viewModeChange', mode: 'detail' | 'preview'): void
+  (e: 'configParams', data: { modelId: string; modelConfig: any; taskId: string }): void
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -470,6 +483,34 @@ function handleEdit() {
 function handleViewModeChange(mode: 'detail' | 'preview') {
   logger.info('[FlowDetailPanel] View mode change', { mode })
   emit('viewModeChange', mode)
+}
+
+/**
+ * 判断模型是否有未配置的参数
+ * 表达式模型无需配置参数
+ */
+function hasUnconfiguredParams(model: any): boolean {
+  if (model.type === 'expression') return false
+  // 如果参数为空，表示需要配置
+  return !model.parameters || model.parameters.length === 0
+}
+
+/**
+ * 处理配置参数
+ */
+function handleConfigParams(model: any) {
+  if (!props.selectedNode) return
+
+  logger.info('[FlowDetailPanel] Config params clicked', {
+    modelId: model.id,
+    taskId: props.selectedNode.id
+  })
+
+  emit('configParams', {
+    modelId: model.id,
+    modelConfig: model,
+    taskId: props.selectedNode.id
+  })
 }
 
 // 监听选中节点变化
@@ -1101,10 +1142,38 @@ watch(() => props.selectedNode, (node) => {
 }
 
 .model-params {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+
   .params-count {
     font-size: 11px;
     color: var(--text-secondary);
     font-weight: 500;
+    flex: 1;
+
+    .unconfigured-hint {
+      color: #fa8c16;
+      margin-left: 4px;
+    }
+  }
+
+  .config-params-btn {
+    padding: 4px 10px;
+    font-size: 11px;
+    font-weight: 500;
+    color: #1890ff;
+    background: rgba(24, 144, 255, 0.06);
+    border: 1px solid rgba(24, 144, 255, 0.2);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+
+    &:hover {
+      background: rgba(24, 144, 255, 0.1);
+      border-color: rgba(24, 144, 255, 0.4);
+    }
   }
 }
 

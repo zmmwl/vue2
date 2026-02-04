@@ -353,3 +353,23 @@ export const MOCK_MODELS = [
     participantId: 'ent_003'
   }
 ]
+
+/**
+ * 获取模型输入参数签名
+ * @param modelId 模型ID
+ * @returns Promise<ModelParameterSignature[]>
+ */
+export async function getModelInputSignatures(modelId: string): Promise<Array<{
+  fid: string
+  name: string
+  dataSource: string
+  dataType: number
+  isEncrypt: number
+  description: string
+}>> {
+  const response = await getModelDetail(modelId)
+  if (response.code !== 200) {
+    throw new Error(response.msg)
+  }
+  return response.data.modelParameters
+}

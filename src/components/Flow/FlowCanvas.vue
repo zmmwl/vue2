@@ -113,6 +113,15 @@
       @confirm="handleLocalTaskEnterpriseSelected"
       @cancel="handleLocalTaskEnterpriseCancel"
     />
+
+    <!-- 模型参数配置对话框 -->
+    <ModelParameterConfig
+      v-model="paramConfigVisible"
+      :modelConfig="currentModelConfig!"
+      :availableFields="availableFields"
+      @confirm="handleParamConfigConfirm"
+      @cancel="handleParamConfigCancel"
+    />
   </div>
 </template>
 
@@ -125,7 +134,7 @@ import { MiniMap } from '@vue-flow/minimap'
 import type { Node, Connection, EdgeChange, NodeChange, GraphNode } from '@vue-flow/core'
 import type { DroppedNodeData } from '@/types/graph'
 import { NodeCategory, ComputeTaskType, TechPath, ResourceTypePriority } from '@/types/nodes'
-import type { NodeData, AssetInfo, FieldInfo, FieldMapping, ComputeTaskNodeData, OutputField } from '@/types/nodes'
+import type { NodeData, AssetInfo, FieldInfo, FieldMapping, ComputeTaskNodeData, OutputField, ComputeModelConfig, ModelParameter, AvailableFieldOption } from '@/types/nodes'
 import DataSourceNode from '@/components/Nodes/DataSourceNode.vue'
 import ComputeTaskNode from '@/components/Nodes/ComputeTaskNode.vue'
 import OutputDataNode from '@/components/Nodes/OutputDataNode.vue'
@@ -143,7 +152,9 @@ import ComputeSelector from '@/components/Modals/ComputeSelector.vue'
 import ExpressionEditor from '@/components/Modals/ExpressionEditor.vue'
 import LocalTaskEnterpriseSelector from '@/components/Modals/LocalTaskEnterpriseSelector.vue'
 import CodeBinTypeSelector from '@/components/Modals/CodeBinTypeSelector.vue'
+import ModelParameterConfig from '@/components/Modals/ModelParameterConfig.vue'
 import { createUniqueEdge } from '@/utils/edge-utils'
+import { generateAvailableFields } from '@/utils/model-config-utils'
 import { logger } from '@/utils/logger'
 import { downloadJsonFile } from '@/utils/file-downloader'
 import { convertDagToJson } from '@/utils/dag-export'
@@ -241,6 +252,12 @@ const selectedCodeBinType = ref<string>('')
 // 本地任务企业选择对话框状态
 const showLocalTaskEnterpriseDialog = ref(false)
 const pendingLocalTaskData = ref<DroppedNodeData | null>(null)
+
+// 参数配置对话框状态
+const paramConfigVisible = ref(false)
+const currentModelConfig = ref<ComputeModelConfig | null>(null)
+const currentTaskId = ref<string>('')
+const availableFields = ref<AvailableFieldOption[]>([])
 
 /**
  * 获取可用的企业列表（按优先级排序）
@@ -606,18 +623,21 @@ const onNodesChange = (changes: NodeChange[]) => {
       const removedNode = nodes.value.find(n => n.id === change.id)
 
       if (removedNode) {
-        const nodeData = removedNode.data as ComputeTaskNodeData
+        const nodeData = removedNode.data as NodeData
 
         // 如果删除的是计算任务节点，级联删除其输出节点
-        if (nodeData.category === NodeCategory.COMPUTE_TASK && nodeData.outputs) {
-          // 收集需要删除的输出节点ID
-          const outputNodeIds = nodeData.outputs.map(output => output.outputNodeId)
-          // 级联删除输出节点
-          setNodes(nodes.value.filter(n => !outputNodeIds.includes(n.id)))
-          logger.info('[FlowCanvas] Cascade deleted output nodes', {
-            taskId: change.id,
-            outputNodeCount: outputNodeIds.length
-          })
+        if (nodeData.category === NodeCategory.COMPUTE_TASK) {
+          const taskData = removedNode.data as ComputeTaskNodeData
+          if (taskData.outputs) {
+            // 收集需要删除的输出节点ID
+            const outputNodeIds = taskData.outputs.map(output => output.outputNodeId)
+            // 级联删除输出节点
+            setNodes(nodes.value.filter(n => !outputNodeIds.includes(n.id)))
+            logger.info('[FlowCanvas] Cascade deleted output nodes', {
+              taskId: change.id,
+              outputNodeCount: outputNodeIds.length
+            })
+          }
         }
 
         // 如果删除的是数据源节点或输出节点，级联删除计算任务中对应的输入数据配置
@@ -1555,6 +1575,67 @@ function handleLocalTaskEnterpriseCancel() {
 }
 
 /**
+ * 处理配置参数事件（从 FlowDetailPanel 触发）
+ */
+function handleConfigParams(data: { modelId: string; modelConfig: ComputeModelConfig; taskId: string }) {
+  logger.info('[FlowCanvas] Config params event received', data)
+
+  currentModelConfig.value = data.modelConfig
+  currentTaskId.value = data.taskId
+
+  // 获取任务数据并生成可用字段列表
+  const taskNode = nodes.value.find(n => n.id === data.taskId)
+  if (taskNode) {
+    const taskData = taskNode.data as ComputeTaskNodeData
+    availableFields.value = generateAvailableFields(taskData)
+  }
+
+  paramConfigVisible.value = true
+}
+
+/**
+ * 确认参数配置
+ */
+function handleParamConfigConfirm(parameters: ModelParameter[]) {
+  logger.info('[FlowCanvas] Parameter config confirmed', {
+    modelId: currentModelConfig.value?.id,
+    paramCount: parameters.length
+  })
+
+  if (!currentModelConfig.value || !currentTaskId.value) return
+
+  // 更新模型配置的参数
+  const model = currentModelConfig.value
+  model.parameters = parameters
+
+  // 更新计算任务的 models 数组
+  const taskNode = nodes.value.find(n => n.id === currentTaskId.value)
+  if (taskNode) {
+    const taskData = taskNode.data as ComputeTaskNodeData
+    if (taskData.models) {
+      const modelIndex = taskData.models.findIndex(m => m.id === model.id)
+      if (modelIndex !== -1) {
+        taskData.models[modelIndex] = model
+        logger.info('[FlowCanvas] Model parameters updated in task', {
+          taskId: currentTaskId.value,
+          modelId: model.id
+        })
+      }
+    }
+  }
+
+  paramConfigVisible.value = false
+}
+
+/**
+ * 取消参数配置
+ */
+function handleParamConfigCancel() {
+  logger.info('[FlowCanvas] Parameter config dialog cancelled')
+  paramConfigVisible.value = false
+}
+
+/**
  * 创建模型节点
  */
 function createModelNode(
@@ -2071,7 +2152,8 @@ function handleTestDropCompute(event: Event) {
 defineExpose({
   openEditDialog,
   handleExport,
-  handleImport
+  handleImport,
+  handleConfigParams
 })
 
 /**

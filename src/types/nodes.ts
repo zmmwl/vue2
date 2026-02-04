@@ -345,3 +345,47 @@ export interface EnterpriseOption {
   name: string
   resourceType: ResourceTypePriority
 }
+
+// ========== 模型参数配置相关类型 ==========
+
+/** 参数绑定类型 */
+export type ParameterBindingType = 'field' | 'fixed'
+
+/** 参数数据类型（复用 model-mock-service 的枚举值） */
+export enum ParameterDataType {
+  STRING = 1,
+  INT = 2,
+  BIGINT = 3,
+  FLOAT = 4,
+  DOUBLE = 5,
+  BOOLEAN = 6,
+  DATETIME = 7
+}
+
+/** 模型输入参数签名（从 modelParameters 获取） */
+export interface ModelParameterSignature {
+  fid: string                    // 参数唯一ID
+  name: string                   // 参数名称
+  dataSource: string             // 数据来源描述
+  dataType: ParameterDataType    // 参数数据类型
+  isEncrypt: number              // 是否加密（0/1，用作必填标识）
+  description: string            // 参数描述
+}
+
+/** 可用字段选项（用于字段绑定） */
+export interface AvailableFieldOption {
+  id: string                     // 字段唯一ID（格式：participantId.dataset.fieldName）
+  participantId: string          // 参与方ID
+  dataset: string                // 数据集名称
+  fieldName: string              // 字段名称
+  fieldType: string              // 字段类型
+  sourceNodeId: string           // 来源节点ID
+}
+
+/** 参数配置项（运行时状态） */
+export interface ParameterConfigItem extends ModelParameterSignature {
+  bindingType: ParameterBindingType  // 绑定类型
+  fieldRef?: string                   // 绑定的字段引用
+  fixedValue?: string                 // 固定值
+  isConfigured: boolean               // 是否已配置
+}

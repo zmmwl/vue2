@@ -24,6 +24,7 @@
         :view-mode="detailViewMode"
         @edit="handleEditAsset"
         @view-mode-change="handleViewModeChange"
+        @config-params="handleConfigParams"
       />
     </div>
     <!-- 隐藏的文件输入用于导入 -->
@@ -95,6 +96,18 @@ function handleViewModeChange(mode: 'detail' | 'preview') {
 function handleEditAsset(nodeId: string) {
   logger.info('[FlowEditor] Edit asset requested', { nodeId })
   flowCanvasRef.value?.openEditDialog(nodeId)
+}
+
+/**
+ * 处理配置参数事件
+ */
+function handleConfigParams(data: { modelId: string; modelConfig: any; taskId: string }) {
+  logger.info('[FlowEditor] Config params event received', data)
+  // 直接调用 FlowCanvas 中定义的处理函数
+  const flowCanvas = flowCanvasRef.value as any
+  if (flowCanvas && typeof flowCanvas.handleConfigParams === 'function') {
+    flowCanvas.handleConfigParams(data)
+  }
 }
 
 /**
