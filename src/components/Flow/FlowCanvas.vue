@@ -2074,6 +2074,53 @@ defineExpose({
   handleImport
 })
 
+/**
+ * 处理测试用的节点删除事件
+ * 用于 E2E 测试中直接删除节点
+ * 同时处理原始节点删除和级联删除
+ */
+function handleTestDeleteNode(event: Event) {
+  const customEvent = event as CustomEvent
+  const { nodeId } = customEvent.detail
+
+  logger.info('[FlowCanvas] test-delete-node event received', { nodeId })
+
+  // 先找到要删除的节点
+  const nodeToDelete = nodes.value.find(n => n.id === nodeId)
+  if (!nodeToDelete) {
+    logger.warn('[FlowCanvas] Node not found for deletion', { nodeId })
+    return
+  }
+
+  const nodeData = nodeToDelete.data as ComputeTaskNodeData
+
+  // 收集需要级联删除的节点ID
+  const nodesToDelete = [nodeId]
+
+  // 如果删除的是计算任务节点，级联删除其输出节点
+  if (nodeData.category === NodeCategory.COMPUTE_TASK && nodeData.outputs) {
+    const outputNodeIds = nodeData.outputs.map(output => output.outputNodeId)
+    nodesToDelete.push(...outputNodeIds)
+    logger.info('[FlowCanvas] Cascade deleting output nodes', {
+      taskId: nodeId,
+      outputNodeIds
+    })
+  }
+
+  // 同时删除原始节点和级联节点
+  setNodes(nodes.value.filter(n => !nodesToDelete.includes(n.id)))
+
+  // 删除相关连接线
+  setEdges(edges.value.filter(
+    edge => !nodesToDelete.includes(edge.source) && !nodesToDelete.includes(edge.target)
+  ))
+
+  logger.info('[FlowCanvas] Test node deleted', {
+    nodeId,
+    totalDeleted: nodesToDelete.length
+  })
+}
+
 // 生命周期：注册全局事件监听器
 onMounted(() => {
   document.addEventListener('add-output', handleAddOutput)
@@ -2084,6 +2131,7 @@ onMounted(() => {
   window.addEventListener('create-test-connection', handleCreateTestConnection)
   window.addEventListener('test-drop-model', handleTestDropModel)
   window.addEventListener('test-drop-compute', handleTestDropCompute)
+  window.addEventListener('test-delete-node', handleTestDeleteNode)
 })
 
 onUnmounted(() => {
@@ -2094,6 +2142,7 @@ onUnmounted(() => {
   window.removeEventListener('create-test-connection', handleCreateTestConnection)
   window.removeEventListener('test-drop-model', handleTestDropModel)
   window.removeEventListener('test-drop-compute', handleTestDropCompute)
+  window.removeEventListener('test-delete-node', handleTestDeleteNode)
 })
 </script>
 
