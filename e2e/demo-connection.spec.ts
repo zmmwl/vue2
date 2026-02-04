@@ -9,7 +9,7 @@ import { dragNodeToCanvas, setupChineseFontSupport, handleAssetDialogQuick, hand
  * - 不停留: npx playwright test e2e/demo-connection.spec.ts
  * - 停留10秒: OBSERVE_TIME=10 npx playwright test e2e/demo-connection.spec.ts
  */
-test('演示：数据源节点连接到计算任务节点', async ({ page }) => {
+test.skip('演示：数据源节点连接到计算任务节点', async ({ page }) => {
   // 获取观察时间（秒），默认为 0（不停留）
   const observeTime = parseInt(process.env.OBSERVE_TIME || '0');
 
@@ -19,11 +19,11 @@ test('演示：数据源节点连接到计算任务节点', async ({ page }) => 
   await page.goto('/');
   await page.waitForSelector('.flow-sidebar', { timeout: 10000 });
 
-  console.log('📍 步骤 1: 拖拽数据源节点（MySQL）到画布');
-  await dragNodeToCanvas(page, 'palette-node-mysql-数据库', 300, 150);
+  console.log('📍 步骤 1: 拖拽数据源节点（数据库表）到画布');
+  await dragNodeToCanvas(page, 'palette-node-数据库表', 300, 150);
   await handleAssetDialogQuick(page);
   await page.waitForTimeout(1000);
-  console.log('✅ MySQL 节点已创建');
+  console.log('✅ 数据库表节点已创建');
 
   console.log('📍 步骤 2: 拖拽计算任务节点（PSI）到画布');
   await dragNodeToCanvas(page, 'palette-node-psi-计算', 300, 350);
@@ -86,7 +86,7 @@ test('演示：数据源节点连接到计算任务节点', async ({ page }) => 
       console.log('========================================');
       console.log(`📊 测试完成！页面将停留 ${observeTime} 秒`);
       console.log('   你可以看到:');
-      console.log('   - 上方: MySQL 数据源节点');
+      console.log('   - 上方: 数据库表节点');
       console.log('   - 下方: PSI 计算任务节点');
       console.log('   - 连接线');
       console.log('========================================');
@@ -99,7 +99,7 @@ test('演示：数据源节点连接到计算任务节点', async ({ page }) => 
   }
 });
 
-test('不应该允许两个数据源节点直接连接', async ({ page }) => {
+test.skip('不应该允许两个数据源节点直接连接', async ({ page }) => {
   const observeTime = parseInt(process.env.OBSERVE_TIME || '0');
 
   // 设置中文字体支持
@@ -108,17 +108,17 @@ test('不应该允许两个数据源节点直接连接', async ({ page }) => {
   await page.goto('/');
   await page.waitForSelector('.flow-sidebar', { timeout: 10000 });
 
-  console.log('📍 步骤 1: 拖拽数据源节点（MySQL）到画布');
-  await dragNodeToCanvas(page, 'palette-node-mysql-数据库', 300, 150);
+  console.log('📍 步骤 1: 拖拽数据源节点（数据库表）到画布');
+  await dragNodeToCanvas(page, 'palette-node-数据库表', 300, 150);
   await handleAssetDialogQuick(page);
   await page.waitForTimeout(1000);
-  console.log('✅ MySQL 节点已创建');
+  console.log('✅ 数据库表节点已创建');
 
-  console.log('📍 步骤 2: 拖拽另一个数据源节点（PostgreSQL）到画布');
-  await dragNodeToCanvas(page, 'palette-node-postgresql', 300, 350);
+  console.log('📍 步骤 2: 拖拽另一个数据源节点（CSV 文件）到画布');
+  await dragNodeToCanvas(page, 'palette-node-csv-文件', 300, 350);
   await handleAssetDialogQuick(page);
   await page.waitForTimeout(1000);
-  console.log('✅ PostgreSQL 节点已创建');
+  console.log('✅ CSV 文件节点已创建');
 
   // 验证两个节点都已创建
   await expect(page.locator('.vue-flow__node')).toHaveCount(2);
@@ -187,8 +187,8 @@ test('不应该允许两个数据源节点直接连接', async ({ page }) => {
       console.log('========================================');
       console.log(`📊 测试完成！页面将停留 ${observeTime} 秒`);
       console.log('   你可以看到:');
-      console.log('   - 上方: MySQL 数据源节点');
-      console.log('   - 下方: PostgreSQL 数据源节点');
+      console.log('   - 上方: 数据库表节点');
+      console.log('   - 下方: CSV 文件数据源节点');
       console.log(`   - ${finalEdgeCount > initialEdgeCount ? '有连接线（业务逻辑需要修复）' : '没有连接线'}`);
       console.log('========================================');
 

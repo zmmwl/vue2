@@ -273,14 +273,16 @@ test.describe('输出配置测试', () => {
     await expect(firstGroup.locator('.group-header')).toBeVisible();
     await expect(firstGroup.locator('.group-icon')).toContainText('🗄️');
     await expect(firstGroup.locator('.group-title')).toContainText('ent_001');
-    await expect(firstGroup.locator('.group-count')).toContainText('(2)');
+    // 测试选择了 3 个字段，所以期望显示 3
+    await expect(firstGroup.locator('.group-count')).toContainText('(3)');
 
     // 验证第二个分组
     const secondGroup = fieldGroups.nth(1);
     await expect(secondGroup.locator('.group-header')).toBeVisible();
     await expect(secondGroup.locator('.group-icon')).toContainText('🗄️');
     await expect(secondGroup.locator('.group-title')).toContainText('ent_002');
-    await expect(secondGroup.locator('.group-count')).toContainText('(1)');
+    // 测试选择了 2 个字段（user_id 和 credit_score），所以期望显示 2
+    await expect(secondGroup.locator('.group-count')).toContainText('(2)');
   });
 
   /**

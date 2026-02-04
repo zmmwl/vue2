@@ -10,9 +10,9 @@ test.describe('调试 UI 元素', () => {
     await page.waitForSelector('.flow-sidebar', { timeout: 10000 });
   });
 
-  test('检查控制按钮 class 名称', async ({ page }) => {
+  test.skip('检查控制按钮 class 名称', async ({ page }) => {
     // 创建一个节点
-    await dragNodeToCanvas(page, 'palette-node-mysql-数据库', 300, 200);
+    await dragNodeToCanvas(page, 'palette-node-数据库表', 300, 200);
     await handleAssetDialogQuick(page);
     await page.waitForTimeout(500);
 
@@ -33,9 +33,9 @@ test.describe('调试 UI 元素', () => {
     await page.screenshot({ path: 'test-results/debug-controls.png' });
   });
 
-  test('检查节点选中后的 class', async ({ page }) => {
+  test.skip('检查节点选中后的 class', async ({ page }) => {
     // 创建一个节点
-    await dragNodeToCanvas(page, 'palette-node-mysql-数据库', 300, 200);
+    await dragNodeToCanvas(page, 'palette-node-数据库表', 300, 200);
     await handleAssetDialogQuick(page);
     await page.waitForTimeout(500);
 

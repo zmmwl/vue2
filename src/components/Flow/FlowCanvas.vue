@@ -598,15 +598,17 @@ const onConnect = (connection: Connection) => {
  * 处理节点变化（删除、选中状态变化等）
  * 删除节点时，自动删除所有连接到该节点的连接线
  * 删除计算任务节点时，级联删除关联的输出节点
+ * 删除数据源节点时，级联删除计算任务中对应的输入数据配置
  */
 const onNodesChange = (changes: NodeChange[]) => {
   for (const change of changes) {
     if (change.type === 'remove' && change.id) {
       const removedNode = nodes.value.find(n => n.id === change.id)
 
-      // 如果删除的是计算任务节点，级联删除其输出节点
       if (removedNode) {
         const nodeData = removedNode.data as ComputeTaskNodeData
+
+        // 如果删除的是计算任务节点，级联删除其输出节点
         if (nodeData.category === NodeCategory.COMPUTE_TASK && nodeData.outputs) {
           // 收集需要删除的输出节点ID
           const outputNodeIds = nodeData.outputs.map(output => output.outputNodeId)
@@ -615,6 +617,36 @@ const onNodesChange = (changes: NodeChange[]) => {
           logger.info('[FlowCanvas] Cascade deleted output nodes', {
             taskId: change.id,
             outputNodeCount: outputNodeIds.length
+          })
+        }
+
+        // 如果删除的是数据源节点或输出节点，级联删除计算任务中对应的输入数据配置
+        if (nodeData.category === NodeCategory.DATA_SOURCE || nodeData.category === NodeCategory.OUTPUT_DATA) {
+          // 找到所有使用该数据源/输出节点的计算任务
+          const affectedTaskNodes = nodes.value.filter(n => {
+            const taskData = n.data as ComputeTaskNodeData
+            return taskData.category === NodeCategory.COMPUTE_TASK &&
+              taskData.inputProviders?.some(provider => provider.sourceNodeId === change.id)
+          })
+
+          // 更新受影响的计算任务节点
+          affectedTaskNodes.forEach(taskNode => {
+            const taskData = taskNode.data as ComputeTaskNodeData
+            if (taskData.inputProviders) {
+              // 移除对应的输入提供者
+              taskData.inputProviders = taskData.inputProviders.filter(
+                provider => provider.sourceNodeId !== change.id
+              )
+
+              // 重新构建 Join 条件
+              taskData.joinConditions = buildJoinConditions(taskData.inputProviders)
+
+              logger.info('[FlowCanvas] Cascade deleted input provider from task', {
+                taskId: taskNode.id,
+                removedSourceNodeId: change.id,
+                remainingInputProviders: taskData.inputProviders.length
+              })
+            }
           })
         }
       }

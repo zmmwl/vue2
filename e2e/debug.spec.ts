@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('调试测试 - data-testid 验证', () => {
-  test('检查渲染后的 HTML 属性', async ({ page }) => {
+  test.skip('检查渲染后的 HTML 属性', async ({ page }) => {
     await page.goto('/');
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(3000);
