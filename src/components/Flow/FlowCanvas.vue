@@ -123,6 +123,15 @@
       @confirm="handleParamConfigConfirm"
       @cancel="handleParamConfigCancel"
     />
+
+    <!-- 统一资源选择器 -->
+    <UnifiedResourceSelector
+      v-model="showUnifiedSelector"
+      :resourceType="selectorResourceType"
+      :modelTypeFilter="selectorModelTypeFilter"
+      @confirm="handleUnifiedSelectorConfirm"
+      @cancel="handleUnifiedSelectorCancel"
+    />
   </div>
 </template>
 
@@ -154,6 +163,7 @@ import ExpressionEditor from '@/components/Modals/ExpressionEditor.vue'
 import LocalTaskEnterpriseSelector from '@/components/Modals/LocalTaskEnterpriseSelector.vue'
 import CodeBinTypeSelector from '@/components/Modals/CodeBinTypeSelector.vue'
 import ModelParameterConfig from '@/components/Modals/ModelParameterConfig.vue'
+import UnifiedResourceSelector from '@/components/Modals/UnifiedResourceSelector.vue'
 import { createUniqueEdge } from '@/utils/edge-utils'
 import { generateAvailableFields } from '@/utils/model-config-utils'
 import { logger } from '@/utils/logger'
@@ -259,6 +269,15 @@ const paramConfigVisible = ref(false)
 const currentModelConfig = ref<ComputeModelConfig | null>(null)
 const currentTaskId = ref<string>('')
 const availableFields = ref<AvailableFieldOption[]>([])
+
+// 统一资源选择器状态
+const showUnifiedSelector = ref(false)
+const selectorResourceType = ref<'data' | 'model' | 'compute'>('data')
+const selectorModelTypeFilter = ref<string>()
+const pendingSelectorResult = ref<{
+  data?: DroppedNodeData
+  targetTaskNodeId?: string
+}>()
 
 /**
  * 可用的企业选项（按优先级排序）
@@ -831,9 +850,10 @@ const onDrop = (event: DragEvent) => {
           selectedFields: mockFields
         })
       } else {
-        // 数据源节点：弹出资产选择对话框
-        showAssetDialog.value = true
-        logger.info('[FlowCanvas] Opening asset selector dialog for new node')
+        // 数据源节点：使用统一资源选择器
+        showUnifiedSelector.value = true
+        selectorResourceType.value = 'data'
+        logger.info('[FlowCanvas] Opening unified resource selector for data source')
       }
     } else if (data.category === NodeCategory.COMPUTE_TASK) {
       // 检查是否在测试模式（只检查明确设置的标志）
@@ -879,8 +899,14 @@ const onDrop = (event: DragEvent) => {
             selectedCodeBinType.value = ''
             showCodeBinTypeSelectorDialog.value = true
           } else {
-            // 其他模型：弹出企业选择对话框
-            showEnterpriseDialog.value = true
+            // 其他模型：使用统一资源选择器
+            pendingSelectorResult.value = {
+              data,
+              targetTaskNodeId: targetNode.id
+            }
+            selectorResourceType.value = 'model'
+            selectorModelTypeFilter.value = data.modelType
+            showUnifiedSelector.value = true
           }
         } else {
           logger.warn('[FlowCanvas] Model nodes can only be dropped on compute task nodes')
@@ -898,11 +924,13 @@ const onDrop = (event: DragEvent) => {
         const targetNode = nodes.value.find(n => n.id === nodeId)
 
         if (targetNode && targetNode.data?.category === NodeCategory.COMPUTE_TASK) {
-          // 拖拽到计算任务上：弹出企业选择对话框
-          pendingModelOrComputeData.value = data
-          pendingResourceType.value = 'compute'
-          pendingTargetTaskNodeId.value = targetNode.id  // 保存目标任务节点 ID
-          showEnterpriseDialog.value = true
+          // 拖拽到计算任务上：使用统一资源选择器
+          pendingSelectorResult.value = {
+            data,
+            targetTaskNodeId: targetNode.id
+          }
+          selectorResourceType.value = 'compute'
+          showUnifiedSelector.value = true
         } else {
           logger.warn('[FlowCanvas] Compute resource nodes can only be dropped on compute task nodes')
         }
@@ -2221,6 +2249,111 @@ function handleTestDropCompute(event: Event) {
 
   // 弹出企业选择对话框
   showEnterpriseDialog.value = true
+}
+
+/**
+ * 统一资源选择器确认处理
+ */
+function handleUnifiedSelectorConfirm(result: any) {
+  logger.info('[FlowCanvas] Unified selector confirmed', {
+    resourceType: selectorResourceType.value,
+    hasAssetInfo: !!result.assetInfo,
+    hasModelInfo: !!result.modelInfo,
+    hasComputeInfo: !!result.computeInfo
+  })
+
+  if (selectorResourceType.value === 'data' && result.assetInfo) {
+    // 数据源选择确认
+    handleAssetSelected({
+      assetInfo: result.assetInfo,
+      selectedFields: result.selectedFields
+    })
+  } else if (selectorResourceType.value === 'model' && result.modelInfo) {
+    // 模型选择确认
+    if (!pendingSelectorResult.value?.data) {
+      logger.warn('[FlowCanvas] No pending model data')
+      return
+    }
+    createModelNodeForTask(result.modelInfo)
+  } else if (selectorResourceType.value === 'compute' && result.computeInfo) {
+    // 算力选择确认
+    if (!pendingSelectorResult.value?.data) {
+      logger.warn('[FlowCanvas] No pending compute data')
+      return
+    }
+    createComputeNodeForTask(result.computeInfo)
+  }
+
+  // 清理状态
+  showUnifiedSelector.value = false
+  selectorResourceType.value = 'data'
+  selectorModelTypeFilter.value = undefined
+  pendingSelectorResult.value = undefined
+}
+
+/**
+ * 统一资源选择器取消处理
+ */
+function handleUnifiedSelectorCancel() {
+  logger.info('[FlowCanvas] Unified selector cancelled')
+  showUnifiedSelector.value = false
+  selectorResourceType.value = 'data'
+  selectorModelTypeFilter.value = undefined
+  pendingSelectorResult.value = undefined
+}
+
+/**
+ * 为计算任务创建模型节点
+ */
+function createModelNodeForTask(modelInfo: any) {
+  if (!pendingSelectorResult.value?.data || !pendingSelectorResult.value.targetTaskNodeId) {
+    logger.warn('[FlowCanvas] No pending model data or target task')
+    return
+  }
+
+  const data = pendingSelectorResult.value.data
+  const targetTaskNodeId = pendingSelectorResult.value.targetTaskNodeId
+  const targetTaskNode = nodes.value.find(n => n.id === targetTaskNodeId)
+
+  if (!targetTaskNode) {
+    logger.warn('[FlowCanvas] Target task node not found')
+    return
+  }
+
+  // 使用原有的 createModelNode 函数
+  createModelNode(data, modelInfo, modelInfo.participantId)
+
+  // 清理状态
+  pendingSelectorResult.value = undefined
+}
+
+/**
+ * 为计算任务创建算力节点
+ */
+function createComputeNodeForTask(computeInfo: any) {
+  if (!pendingSelectorResult.value?.data || !pendingSelectorResult.value.targetTaskNodeId) {
+    logger.warn('[FlowCanvas] No pending compute data or target task')
+    return
+  }
+
+  const data = pendingSelectorResult.value.data
+  const targetTaskNodeId = pendingSelectorResult.value.targetTaskNodeId
+  const targetTaskNode = nodes.value.find(n => n.id === targetTaskNodeId)
+
+  if (!targetTaskNode) {
+    logger.warn('[FlowCanvas] Target task node not found')
+    return
+  }
+
+  // 设置目标任务节点 ID（createComputeResourceNode 使用这个变量）
+  pendingTargetTaskNodeId.value = targetTaskNode.id
+
+  // 使用原有的 createComputeResourceNode 函数
+  createComputeResourceNode(data, computeInfo, computeInfo.participantId)
+
+  // 清理状态
+  pendingSelectorResult.value = undefined
+  pendingTargetTaskNodeId.value = ''
 }
 
 // 暴露方法供父组件调用

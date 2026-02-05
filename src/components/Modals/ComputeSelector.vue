@@ -66,7 +66,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { getMockComputes } from '@/utils/mock-data'
+import { getMockComputeResources } from '@/utils/mock-data'
 
 interface ComputeInfo {
   id: string
@@ -75,6 +75,11 @@ interface ComputeInfo {
   type: string
   cores: number
   participantId: string
+  groupId: string
+  groupName: string
+  nodeId: string
+  cardSerial: string
+  cardModel: string
 }
 
 interface Props {
@@ -99,10 +104,18 @@ const selectedCompute = ref<ComputeInfo>()
 // 可用算力列表
 const availableComputes = computed(() => {
   if (!props.participantId) return []
-  return getMockComputes(props.participantId).map(compute => ({
-    ...compute,
+  return getMockComputeResources(props.participantId).map(compute => ({
+    id: compute.id,
+    name: `${compute.groupName} - ${compute.cardSerial}`,
     description: `${compute.type} 算力资源`,
-    participantId: props.participantId
+    type: compute.type,
+    cores: compute.cores,
+    participantId: props.participantId,
+    groupId: compute.groupId,
+    groupName: compute.groupName,
+    nodeId: compute.nodeId,
+    cardSerial: compute.cardSerial,
+    cardModel: compute.cardModel
   }))
 })
 

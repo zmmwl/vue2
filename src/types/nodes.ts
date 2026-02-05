@@ -390,3 +390,50 @@ export interface ParameterConfigItem extends ModelParameterSignature {
   fixedValue?: string                 // 固定值
   isConfigured: boolean               // 是否已配置
 }
+
+// ========== 统一资源选择器相关类型 ==========
+
+/** 统一资源选择项 */
+export interface ResourceSelectionItem {
+  id: string                  // 资源唯一ID
+  name: string                // 资源名称
+  participantId: string       // 所属企业 ID
+  participantName: string     // 所属企业名称
+  type: string               // 资源类型标签
+  extraInfo?: Record<string, any>  // 额外信息
+}
+
+/** 统一资源选择结果 */
+export interface ResourceSelectionResult {
+  assetInfo?: AssetInfo       // 数据源类型
+  selectedFields?: FieldInfo[]
+  modelInfo?: ModelInfo       // 模型类型
+  computeInfo?: ComputeInfo   // 算力类型
+}
+
+/** 模型信息（用于统一选择器） */
+export interface ModelInfo {
+  id: string
+  name: string
+  type: string
+  participantId: string
+  entityName?: string
+  description?: string
+  version?: string
+}
+
+/** 算力信息（用于统一选择器） */
+export interface ComputeInfo {
+  id: string
+  name: string
+  type: string
+  participantId: string
+  entityName?: string
+  groupId: string
+  groupName: string
+  nodeId: string
+  cardSerial: string
+  cardModel: string
+  cores?: number
+  description?: string
+}

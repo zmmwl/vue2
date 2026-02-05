@@ -350,26 +350,13 @@ export function getMockComputeResources(participantId: string): Array<{
   nodeId: string
   cardSerial: string
   cardModel: string
-}> {
-  return MOCK_COMPUTE_RESOURCES[participantId] || []
-}
-
-/**
- * 根据 participantId 获取算力资源列表（简化版，用于算力选择器）
- */
-export function getMockComputes(participantId: string): Array<{
-  id: string
-  name: string
   type: string
   cores: number
-  participantId: string
 }> {
   const resources = MOCK_COMPUTE_RESOURCES[participantId] || []
   return resources.map(r => ({
-    id: r.id,
-    name: `${r.groupName} - ${r.cardSerial}`,
+    ...r,
     type: 'TEE_CPU',
-    cores: 8,
-    participantId: participantId
+    cores: 8
   }))
 }
