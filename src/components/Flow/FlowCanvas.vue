@@ -597,7 +597,8 @@ const onConnect = (connection: Connection) => {
         name: field.name,
         dataType: field.dataType,
         dataLength: field.dataLength,
-        description: field.description
+        description: field.description,
+        isPrimaryKey: field.isPrimaryKey || false
       }))
     } else if (sourceData.category === NodeCategory.OUTPUT_DATA) {
       // 输出节点 - 从父任务的输出配置获取字段
@@ -2098,7 +2099,8 @@ function handleCreateTestConnection(event: Event) {
       name: field.name,
       dataType: field.dataType,
       dataLength: field.dataLength,
-      description: field.description
+      description: field.description,
+      isPrimaryKey: field.isPrimaryKey || false
     }))
   } else if (sourceData.category === NodeCategory.OUTPUT_DATA) {
     // 输出节点 - 从父任务的输出配置获取字段
