@@ -2,7 +2,7 @@
  * 模型参数配置工具函数
  */
 
-import type { ComputeTaskNodeData, AvailableFieldOption, ParameterConfigItem, ModelParameter } from '@/types/nodes'
+import type { ComputeTaskNodeData, AvailableFieldOption, ParameterConfigItem, ModelParameter, ModelParameterSignature } from '@/types/nodes'
 
 /**
  * 从计算任务的 inputProviders 生成可用字段列表
@@ -123,4 +123,151 @@ export function groupFieldsByParticipant(fields: AvailableFieldOption[]): Array<
   })
 
   return Array.from(groups.values())
+}
+
+/**
+ * 计算参数配置进度
+ * @param parameters - 模型已配置的参数列表
+ * @param signatures - 模型参数签名定义列表
+ * @returns 进度信息对象
+ */
+export interface ParamProgressInfo {
+  percentage: number        // 配置进度百分比 (0-100)
+  configuredCount: number    // 已配置参数数量
+  totalCount: number         // 总参数数量
+  requiredMissing: number    // 未配置的必填参数数量
+  status: 'unconfigured' | 'partial' | 'complete'  // 配置状态
+}
+
+export function calculateParamProgress(
+  parameters: ModelParameter[],
+  signatures: ModelParameterSignature[]
+): ParamProgressInfo {
+  if (!signatures || signatures.length === 0) {
+    return {
+      percentage: 100,
+      configuredCount: 0,
+      totalCount: 0,
+      requiredMissing: 0,
+      status: 'complete'
+    }
+  }
+
+  // 创建已配置参数的名称映射
+  const configuredParamNames = new Set(parameters?.map(p => p.name) || [])
+
+  // 统计已配置和未配置的必填参数
+  let configuredCount = 0
+  let requiredMissing = 0
+
+  signatures.forEach(sig => {
+    const isConfigured = configuredParamNames.has(sig.name)
+    if (isConfigured) {
+      configuredCount++
+    } else if (sig.isEncrypt === 1) {
+      requiredMissing++
+    }
+  })
+
+  const totalCount = signatures.length
+  const percentage = totalCount > 0 ? Math.round((configuredCount / totalCount) * 100) : 0
+
+  // 判断配置状态
+  let status: 'unconfigured' | 'partial' | 'complete'
+  if (configuredCount === 0) {
+    status = 'unconfigured'
+  } else if (configuredCount === totalCount) {
+    status = 'complete'
+  } else {
+    status = 'partial'
+  }
+
+  return {
+    percentage,
+    configuredCount,
+    totalCount,
+    requiredMissing,
+    status
+  }
+}
+
+/**
+ * 获取单个参数的配置摘要信息
+ * @param param - 参数配置（可能未定义）
+ * @param signature - 参数签名定义
+ * @param availableFields - 可用字段列表
+ * @returns 摘要信息对象
+ */
+export interface ParamSummaryInfo {
+  type: 'field' | 'fixed' | 'unconfigured'  // 配置类型
+  displayValue: string                        // 显示值
+  dataType: string                            // 数据类型
+  isConfigured: boolean                       // 是否已配置
+  isRequired: boolean                         // 是否必填
+  fieldInfo?: {                               // 字段信息（如果是字段绑定）
+    participantId: string
+    dataset: string
+    fieldName: string
+  }
+}
+
+export function getParamSummary(
+  param: ModelParameter | undefined,
+  signature: ModelParameterSignature,
+  availableFields: AvailableFieldOption[]
+): ParamSummaryInfo {
+  const dataType = getDataTypeName(signature.dataType)
+  const isRequired = signature.isEncrypt === 1
+
+  // 如果没有配置
+  if (!param || !isParameterConfigured({
+    ...signature,
+    bindingType: param.bindingType,
+    fieldRef: param.fieldRef,
+    fixedValue: param.fixedValue,
+    isConfigured: false
+  })) {
+    return {
+      type: 'unconfigured',
+      displayValue: '未配置',
+      dataType,
+      isConfigured: false,
+      isRequired
+    }
+  }
+
+  // 字段绑定类型
+  if (param.bindingType === 'field' && param.fieldRef) {
+    const field = availableFields.find(f => f.id === param.fieldRef)
+    if (field) {
+      return {
+        type: 'field',
+        displayValue: `${field.participantId}.${field.dataset}.${field.fieldName}`,
+        dataType,
+        isConfigured: true,
+        isRequired,
+        fieldInfo: {
+          participantId: field.participantId,
+          dataset: field.dataset,
+          fieldName: field.fieldName
+        }
+      }
+    }
+    return {
+      type: 'field',
+      displayValue: param.fieldRef,
+      dataType,
+      isConfigured: true,
+      isRequired
+    }
+  }
+
+  // 固定值类型
+  return {
+    type: 'fixed',
+    displayValue: param.fixedValue || '',
+    dataType,
+    isConfigured: true,
+    isRequired
+  }
 }

@@ -252,4 +252,17 @@ $tag-privacy-text: #f5222d;
   --transition-slow: 0.35s;
   --easing-smooth: cubic-bezier(0.4, 0, 0.2, 1);
   --easing-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  // 参数配置状态颜色
+  --param-status-unconfigured: #8C8C8C;      // 未配置 - 灰色
+  --param-status-partial: #fa8c16;           // 部分配置 - 橙色
+  --param-status-complete: #52C41A;          // 已配置 - 绿色
+  --param-progress-bg: rgba(0, 0, 0, 0.06);  // 进度条背景
+  --param-progress-bar-start: #1890ff;       // 进度条渐变起始色
+  --param-progress-bar-end: #52C41A;         // 进度条渐变结束色
+
+  // 参数预览卡片
+  --param-preview-bg: rgba(0, 0, 0, 0.02);
+  --param-preview-border: rgba(0, 0, 0, 0.06);
+  --param-preview-hover: rgba(14, 165, 233, 0.04);
 }

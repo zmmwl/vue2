@@ -233,20 +233,37 @@
               <div v-if="model.type === 'expression'" class="model-expression">
                 {{ expressionPreview(model) }}
               </div>
-              <div v-else class="model-params">
-                <span class="params-count">
-                  {{ model.parameters?.length || 0 }} 个参数
-                  <span v-if="hasUnconfiguredParams(model)" class="unconfigured-hint">
-                    (未配置)
+              <div v-else class="model-params-content">
+                <!-- 进度条组件 -->
+                <ModelParamProgress
+                  v-if="getModelProgressInfo(model)"
+                  :progress-info="getModelProgressInfo(model)!"
+                />
+
+                <!-- 参数预览组件 -->
+                <ModelParameterPreview
+                  v-if="getModelSignatures(model.id)"
+                  :signatures="getModelSignatures(model.id) || []"
+                  :parameters="model.parameters || []"
+                  :available-fields="getAvailableFieldsForModel()"
+                />
+
+                <!-- 配置按钮 -->
+                <div class="model-params">
+                  <span class="params-count">
+                    {{ model.parameters?.length || 0 }} 个参数
+                    <span v-if="hasUnconfiguredParams(model)" class="unconfigured-hint">
+                      (未配置)
+                    </span>
                   </span>
-                </span>
-                <button
-                  class="config-params-btn"
-                  @click="handleConfigParams(model)"
-                  :title="'配置参数'"
-                >
-                  ⚙️ 配置
-                </button>
+                  <button
+                    class="config-params-btn"
+                    @click="handleConfigParams(model)"
+                    :title="'配置参数'"
+                  >
+                    ⚙️ 配置
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -313,16 +330,23 @@
 <script setup lang="ts">
 import { computed, watch, ref, onMounted } from 'vue'
 import type { Node } from '@vue-flow/core'
-import type { NodeData, ComputeTaskNodeData } from '@/types/nodes'
+import type { NodeData, ComputeTaskNodeData, ModelParameterSignature, AvailableFieldOption } from '@/types/nodes'
 import type { ExportJson } from '@/types/export'
 import { NodeCategory, TechPath } from '@/types/nodes'
 import { logger } from '@/utils/logger'
 import { getEnterpriseList } from '@/services/enterpriseService'
+import { getModelInputSignatures } from '@/services/model-mock-service'
+import { generateAvailableFields, calculateParamProgress } from '@/utils/model-config-utils'
 import CollapsibleSection from './CollapsibleSection.vue'
 import JsonPreviewPanel from './JsonPreviewPanel.vue'
+import ModelParamProgress from './ModelCard/ModelParamProgress.vue'
+import ModelParameterPreview from './ModelCard/ModelParameterPreview.vue'
 
 // 企业数据缓存
 const enterpriseCache = ref<Map<string, { name: string; participantId: string }>>(new Map())
+
+// 模型参数签名缓存
+const modelSignaturesCache = ref<Map<string, ModelParameterSignature[]>>(new Map())
 
 /**
  * 加载企业数据
@@ -342,6 +366,51 @@ async function loadEnterprises() {
 onMounted(() => {
   loadEnterprises()
 })
+
+/**
+ * 加载模型参数签名
+ */
+async function loadModelSignatures(modelId: string) {
+  if (modelSignaturesCache.value.has(modelId)) {
+    return modelSignaturesCache.value.get(modelId)!
+  }
+
+  try {
+    const signatures = await getModelInputSignatures(modelId)
+    modelSignaturesCache.value.set(modelId, signatures)
+    return signatures
+  } catch (error) {
+    logger.error('[FlowDetailPanel] Failed to load model signatures', { modelId, error })
+    return []
+  }
+}
+
+/**
+ * 获取模型参数签名
+ */
+function getModelSignatures(modelId: string): ModelParameterSignature[] | undefined {
+  return modelSignaturesCache.value.get(modelId)
+}
+
+/**
+ * 获取模型可用字段列表
+ */
+function getAvailableFieldsForModel(): AvailableFieldOption[] {
+  if (!taskData.value) return []
+  return generateAvailableFields(taskData.value)
+}
+
+/**
+ * 获取模型配置进度信息
+ */
+function getModelProgressInfo(model: any) {
+  if (model.type === 'expression') return undefined
+
+  const signatures = getModelSignatures(model.id)
+  if (!signatures || signatures.length === 0) return undefined
+
+  return calculateParamProgress(model.parameters || [], signatures)
+}
 
 interface Props {
   panelWidth?: number
@@ -543,6 +612,15 @@ watch(() => props.selectedNode, (node) => {
       nodeType: node.data?.category,
       isConfigured: isConfigured.value
     })
+
+    // 如果是计算任务节点，加载所有模型的参数签名
+    if (isComputeTaskNode.value && taskData.value?.models) {
+      taskData.value.models.forEach(model => {
+        if (model.type !== 'expression') {
+          loadModelSignatures(model.id)
+        }
+      })
+    }
   }
 }, { immediate: true })
 </script>
@@ -1161,6 +1239,48 @@ watch(() => props.selectedNode, (node) => {
   border-radius: 4px;
   line-height: 1.4;
   word-break: break-all;
+}
+
+.model-params-content {
+  // 为参数预览组件留出空间
+  .model-params {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(0, 0, 0, 0.06);
+
+    .params-count {
+      font-size: 11px;
+      color: var(--text-secondary);
+      font-weight: 500;
+      flex: 1;
+
+      .unconfigured-hint {
+        color: #fa8c16;
+        margin-left: 4px;
+      }
+    }
+
+    .config-params-btn {
+      padding: 4px 10px;
+      font-size: 11px;
+      font-weight: 500;
+      color: #1890ff;
+      background: rgba(24, 144, 255, 0.06);
+      border: 1px solid rgba(24, 144, 255, 0.2);
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+
+      &:hover {
+        background: rgba(24, 144, 255, 0.1);
+        border-color: rgba(24, 144, 255, 0.4);
+      }
+    }
+  }
 }
 
 .model-params {
