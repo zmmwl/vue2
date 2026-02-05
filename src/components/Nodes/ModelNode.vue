@@ -41,13 +41,30 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { Handle, Position } from '@vue-flow/core'
 import type { NodeProps } from '@vue-flow/core'
 import type { ModelNodeData } from '@/types/nodes'
 import { ModelType } from '@/types/nodes'
+import { getModelInputSignatures } from '@/services/model-mock-service'
+
+// 模型参数签名缓存
+const modelSignaturesCache = ref<Map<string, number>>(new Map())
 
 const props = defineProps<NodeProps<ModelNodeData>>()
+
+// 组件挂载时加载模型参数签名
+onMounted(async () => {
+  if (props.data?.modelId && props.data?.type !== 'expression') {
+    try {
+      const signatures = await getModelInputSignatures(props.data.modelId)
+      modelSignaturesCache.value.set(props.data.modelId, signatures.length)
+    } catch (error) {
+      console.error('[ModelNode] Failed to load model signatures', error)
+      modelSignaturesCache.value.set(props.data.modelId, 0)
+    }
+  }
+})
 
 // 是否为表达式模型
 const isExpression = computed(() => props.data?.type === 'expression')
@@ -103,8 +120,17 @@ const expressionPreview = computed(() => {
   return expr.length > 30 ? expr.substring(0, 30) + '...' : expr
 })
 
-// 参数数量
+// 参数数量（从签名获取，而不是已配置参数）
 const paramsCount = computed(() => {
+  // 表达式模型没有参数
+  if (isExpression.value) return 0
+
+  // 从缓存获取签名数量
+  if (props.data?.modelId) {
+    return modelSignaturesCache.value.get(props.data.modelId) ?? 0
+  }
+
+  // 降级：显示已配置参数数量
   return props.data?.parameters?.length || 0
 })
 

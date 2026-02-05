@@ -213,6 +213,7 @@ export interface ModelNodeData extends NodeData {
   participantId: string
   entityName?: string       // 企业名称（可选）
   name?: string             // 模型名称
+  modelId?: string          // 模型ID（用于获取参数签名）
   expression?: string       // 表达式内容（仅expression类型）
   parameters?: ModelParameter[]  // 模型参数（非expression类型）
 }
