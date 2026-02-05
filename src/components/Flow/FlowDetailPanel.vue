@@ -369,27 +369,39 @@ onMounted(() => {
 
 /**
  * 加载模型参数签名
+ * 在开始加载时就放入空数组占位符，确保响应式追踪
  */
 async function loadModelSignatures(modelId: string) {
+  // 如果已经缓存，直接返回
   if (modelSignaturesCache.value.has(modelId)) {
     return modelSignaturesCache.value.get(modelId)!
   }
 
+  // 先放入空数组占位符，触发响应式更新
+  modelSignaturesCache.value.set(modelId, [])
+
   try {
     const signatures = await getModelInputSignatures(modelId)
+    // 加载完成后更新缓存
     modelSignaturesCache.value.set(modelId, signatures)
     return signatures
   } catch (error) {
     logger.error('[FlowDetailPanel] Failed to load model signatures', { modelId, error })
+    // 失败时保持空数组
     return []
   }
 }
 
 /**
  * 获取模型参数签名
+ * 确保总是返回缓存中的引用，支持响应式更新
  */
-function getModelSignatures(modelId: string): ModelParameterSignature[] | undefined {
-  return modelSignaturesCache.value.get(modelId)
+function getModelSignatures(modelId: string): ModelParameterSignature[] {
+  if (!modelSignaturesCache.value.has(modelId)) {
+    // 如果缓存中没有，立即创建空数组占位符
+    modelSignaturesCache.value.set(modelId, [])
+  }
+  return modelSignaturesCache.value.get(modelId)!
 }
 
 /**
