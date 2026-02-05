@@ -234,11 +234,6 @@
                 {{ expressionPreview(model) }}
               </div>
               <div v-else class="model-params-content">
-                <!-- 调试信息 -->
-                <div class="debug-info" style="font-size: 10px; color: #999; margin-bottom: 5px;">
-                  调试: model.id = {{ model.id || 'undefined' }}
-                </div>
-
                 <!-- 进度条组件 -->
                 <ModelParamProgress
                   v-if="getModelProgressInfo(model)"
