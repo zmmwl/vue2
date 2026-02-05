@@ -78,6 +78,7 @@
       v-model="showModelSelectorDialog"
       :participant-id="selectedParticipantId || ''"
       :entity-name="selectedEntityName || ''"
+      :model-type="selectedCodeBinType || ''"
       @confirm="handleModelSelected"
       @cancel="handleModelSelectorCancel"
     />
@@ -1437,6 +1438,7 @@ function handleModelSelected(model: any) {
   // 清理状态
   showModelSelectorDialog.value = false
   selectedParticipantId.value = ''
+  selectedCodeBinType.value = ''  // 清空选中的模型类型
   pendingModelOrComputeData.value = null
   pendingTargetTaskNodeId.value = ''
 }
@@ -1449,6 +1451,7 @@ function handleModelSelectorCancel() {
   showModelSelectorDialog.value = false
   selectedParticipantId.value = ''
   selectedEntityName.value = ''
+  selectedCodeBinType.value = ''  // 清空选中的模型类型
   pendingModelOrComputeData.value = null
   pendingTargetTaskNodeId.value = ''
 }
@@ -1538,6 +1541,9 @@ function handleCodeBinTypeSelected(modelType: string) {
     return
   }
 
+  // 保存选中的模型类型
+  selectedCodeBinType.value = modelType
+
   // 更新数据中的 modelType
   const updatedData = {
     ...pendingCodeBinData.value,
@@ -1551,8 +1557,7 @@ function handleCodeBinTypeSelected(modelType: string) {
   // pendingTargetTaskNodeId 已在打开对话框时设置
   showEnterpriseDialog.value = true
 
-  // 清理状态
-  selectedCodeBinType.value = ''
+  // 清理状态（但保留 selectedCodeBinType）
   pendingCodeBinData.value = null
 }
 

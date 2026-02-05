@@ -81,6 +81,7 @@ interface Props {
   modelValue: boolean
   participantId: string
   entityName?: string         // 企业名称（可选）
+  modelType?: string          // 模型类型过滤（可选）
 }
 
 interface Emits {
@@ -99,7 +100,15 @@ const selectedModel = ref<ModelInfo>()
 // 可用模型列表
 const availableModels = computed(() => {
   if (!props.participantId) return []
-  return getMockModels(props.participantId).map(model => ({
+
+  let models = getMockModels(props.participantId)
+
+  // 如果指定了模型类型，按类型过滤
+  if (props.modelType) {
+    models = models.filter(model => model.type === props.modelType)
+  }
+
+  return models.map(model => ({
     ...model,
     description: `${model.type} 模型`,
     version: '1.0.0',
