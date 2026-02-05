@@ -251,7 +251,7 @@
                 <!-- 配置按钮 -->
                 <div class="model-params">
                   <span class="params-count">
-                    {{ model.parameters?.length || 0 }} 个参数
+                    {{ getModelParamCount(model.id) }} 个参数
                     <span v-if="hasUnconfiguredParams(model)" class="unconfigured-hint">
                       (未配置)
                     </span>
@@ -410,6 +410,14 @@ function getModelProgressInfo(model: any) {
   if (!signatures || signatures.length === 0) return undefined
 
   return calculateParamProgress(model.parameters || [], signatures)
+}
+
+/**
+ * 获取模型参数总数（从签名中获取）
+ */
+function getModelParamCount(modelId: string): number {
+  const signatures = getModelSignatures(modelId)
+  return signatures?.length || 0
 }
 
 interface Props {
