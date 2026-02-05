@@ -150,11 +150,40 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import type { ComputeModelConfig, AvailableFieldOption, ParameterConfigItem, ModelParameter } from '@/types/nodes'
 import { getDataTypeName, getDataTypeColor, isParameterConfigured, convertToModelParameters, groupFieldsByParticipant } from '@/utils/model-config-utils'
-import { MOCK_ENTERPRISES } from '@/utils/mock-data'
+import { getEnterpriseList } from '@/services/enterpriseService'
 import { getModelInputSignatures } from '@/services/model-mock-service'
+import { logger } from '@/utils/logger'
+
+// 企业数据缓存
+const enterpriseCache = ref<Map<string, { name: string; participantId: string }>>(new Map())
+
+/**
+ * 加载企业数据
+ */
+async function loadEnterprises() {
+  try {
+    const enterprises = await getEnterpriseList()
+    enterpriseCache.value = new Map(
+      enterprises.map(e => [e.participantId, { name: e.entityName, participantId: e.participantId }])
+    )
+  } catch (error) {
+    logger.error('[ModelParameterConfig] Failed to load enterprises', error)
+  }
+}
+
+// 组件挂载时加载数据
+onMounted(() => {
+  loadEnterprises()
+  // 当对话框打开时也重新加载企业数据
+  watch(() => props.modelValue, (newValue) => {
+    if (newValue) {
+      loadEnterprises()
+    }
+  })
+})
 
 interface Props {
   modelValue: boolean
@@ -208,9 +237,9 @@ const modelTypeLabel = computed(() => {
  */
 function getEnterpriseDisplayName(participantId: string): string {
   if (!participantId) return '-'
-  const enterprise = MOCK_ENTERPRISES.find(e => e.participantId === participantId)
+  const enterprise = enterpriseCache.value.get(participantId)
   if (enterprise) {
-    return `${enterprise.entityName} (${participantId})`
+    return `${enterprise.name} (${participantId})`
   }
   return participantId
 }

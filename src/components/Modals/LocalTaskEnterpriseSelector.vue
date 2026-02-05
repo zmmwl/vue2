@@ -59,10 +59,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-import { MOCK_ENTERPRISES } from '@/utils/mock-data'
+import { ref, onMounted, watch } from 'vue'
+import { getEnterpriseList } from '@/services/enterpriseService'
 import { sortEnterprisesByPriority } from '@/utils/enterprise-sorter'
 import { ResourceTypePriority } from '@/types/nodes'
+import { logger } from '@/utils/logger'
 
 interface EnterpriseOption {
   id: string
@@ -86,14 +87,38 @@ const emit = defineEmits<Emits>()
 // 选中的企业
 const selectedEnterpriseId = ref<string>()
 
-// 可用企业列表（按优先级排序）
-const availableEnterprises = sortEnterprisesByPriority(
-  MOCK_ENTERPRISES.map(ent => ({
-    id: ent.participantId,
-    name: ent.entityName,
-    resourceType: ResourceTypePriority.OTHER
-  }))
-)
+// 可用企业列表
+const availableEnterprises = ref<EnterpriseOption[]>([])
+
+/**
+ * 加载企业列表
+ */
+async function loadEnterprises() {
+  try {
+    const enterprises = await getEnterpriseList()
+    const enterpriseOptions = enterprises.map(ent => ({
+      id: ent.participantId,
+      name: ent.entityName,
+      resourceType: ResourceTypePriority.OTHER
+    }))
+    availableEnterprises.value = sortEnterprisesByPriority(enterpriseOptions)
+  } catch (error) {
+    logger.error('[LocalTaskEnterpriseSelector] Failed to load enterprises', error)
+    availableEnterprises.value = []
+  }
+}
+
+// 组件挂载时加载数据
+onMounted(() => {
+  loadEnterprises()
+})
+
+// 监听对话框打开时重新加载
+watch(() => props.modelValue, (newValue) => {
+  if (newValue) {
+    loadEnterprises()
+  }
+})
 
 /**
  * 选择企业

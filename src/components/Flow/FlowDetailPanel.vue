@@ -311,15 +311,37 @@
 </template>
 
 <script setup lang="ts">
-import { computed, watch } from 'vue'
+import { computed, watch, ref, onMounted } from 'vue'
 import type { Node } from '@vue-flow/core'
 import type { NodeData, ComputeTaskNodeData } from '@/types/nodes'
 import type { ExportJson } from '@/types/export'
 import { NodeCategory, TechPath } from '@/types/nodes'
 import { logger } from '@/utils/logger'
-import { MOCK_ENTERPRISES } from '@/utils/mock-data'
+import { getEnterpriseList } from '@/services/enterpriseService'
 import CollapsibleSection from './CollapsibleSection.vue'
 import JsonPreviewPanel from './JsonPreviewPanel.vue'
+
+// 企业数据缓存
+const enterpriseCache = ref<Map<string, { name: string; participantId: string }>>(new Map())
+
+/**
+ * 加载企业数据
+ */
+async function loadEnterprises() {
+  try {
+    const enterprises = await getEnterpriseList()
+    enterpriseCache.value = new Map(
+      enterprises.map(e => [e.participantId, { name: e.entityName, participantId: e.participantId }])
+    )
+  } catch (error) {
+    logger.error('[FlowDetailPanel] Failed to load enterprises', error)
+  }
+}
+
+// 组件挂载时加载数据
+onMounted(() => {
+  loadEnterprises()
+})
 
 interface Props {
   panelWidth?: number
@@ -464,9 +486,9 @@ function expressionPreview(model: any): string {
  */
 function getEnterpriseDisplayName(participantId: string): string {
   if (!participantId) return '-'
-  const enterprise = MOCK_ENTERPRISES.find(e => e.participantId === participantId)
+  const enterprise = enterpriseCache.value.get(participantId)
   if (enterprise) {
-    return `${enterprise.entityName} (${participantId})`
+    return `${enterprise.name} (${participantId})`
   }
   return participantId
 }

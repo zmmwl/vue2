@@ -161,10 +161,10 @@ import { convertDagToJson } from '@/utils/dag-export'
 import { importGraph, restoreNodes } from '@/utils/exportUtils'
 import { assetCache } from '@/services/assetCache'
 import { buildJoinConditions } from '@/utils/join-builder'
-import { MOCK_ENTERPRISES } from '@/utils/mock-data'
 import { sortEnterprisesByPriority } from '@/utils/enterprise-sorter'
 import { useGraphState } from '@/composables/useGraphState'
 import { EXPRESSION_MODEL_OUTPUT, getDataTypeName } from '@/services/model-mock-service'
+import { getEnterpriseList } from '@/services/enterpriseService'
 
 interface Emits {
   (e: 'node-selected', node: Node<NodeData> | null): void
@@ -260,16 +260,37 @@ const currentTaskId = ref<string>('')
 const availableFields = ref<AvailableFieldOption[]>([])
 
 /**
- * 获取可用的企业列表（按优先级排序）
+ * 可用的企业选项（按优先级排序）
  */
-const availableEnterprises = computed(() => {
-  // 将 MOCK_ENTERPRISES 转换为 EnterpriseOption 格式
-  const enterpriseOptions = MOCK_ENTERPRISES.map(ent => ({
-    id: ent.participantId,
-    name: ent.entityName,
-    resourceType: ResourceTypePriority.OTHER
-  }))
-  return sortEnterprisesByPriority(enterpriseOptions)
+const availableEnterprises = ref<Array<{
+  id: string
+  name: string
+  resourceType: ResourceTypePriority
+}>>([])
+
+/**
+ * 加载企业列表
+ */
+async function loadEnterprises() {
+  try {
+    const enterprises = await getEnterpriseList()
+    // 转换为 EnterpriseOption 格式
+    availableEnterprises.value = enterprises.map(ent => ({
+      id: ent.participantId,
+      name: ent.entityName,
+      resourceType: ResourceTypePriority.OTHER
+    }))
+    // 按优先级排序
+    availableEnterprises.value = sortEnterprisesByPriority(availableEnterprises.value)
+  } catch (error) {
+    logger.error('[FlowCanvas] Failed to load enterprises', error)
+    availableEnterprises.value = []
+  }
+}
+
+// 组件挂载时加载企业列表
+onMounted(() => {
+  loadEnterprises()
 })
 
 /**
