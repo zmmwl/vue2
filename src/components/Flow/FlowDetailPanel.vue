@@ -374,8 +374,11 @@ onMounted(() => {
 async function loadModelSignatures(modelId: string) {
   // 如果已经缓存，直接返回
   if (modelSignaturesCache.value.has(modelId)) {
+    logger.debug('[FlowDetailPanel] Model signatures cached', { modelId, count: modelSignaturesCache.value.get(modelId)!.length })
     return modelSignaturesCache.value.get(modelId)!
   }
+
+  logger.debug('[FlowDetailPanel] Loading model signatures', { modelId })
 
   // 先放入空数组占位符，触发响应式更新
   modelSignaturesCache.value.set(modelId, [])
@@ -384,6 +387,7 @@ async function loadModelSignatures(modelId: string) {
     const signatures = await getModelInputSignatures(modelId)
     // 加载完成后更新缓存
     modelSignaturesCache.value.set(modelId, signatures)
+    logger.debug('[FlowDetailPanel] Model signatures loaded', { modelId, count: signatures.length })
     return signatures
   } catch (error) {
     logger.error('[FlowDetailPanel] Failed to load model signatures', { modelId, error })
@@ -397,11 +401,20 @@ async function loadModelSignatures(modelId: string) {
  * 确保总是返回缓存中的引用，支持响应式更新
  */
 function getModelSignatures(modelId: string): ModelParameterSignature[] {
+  if (!modelId) {
+    logger.warn('[FlowDetailPanel] getModelSignatures called with empty modelId')
+    return []
+  }
+
   if (!modelSignaturesCache.value.has(modelId)) {
     // 如果缓存中没有，立即创建空数组占位符
     modelSignaturesCache.value.set(modelId, [])
+    logger.debug('[FlowDetailPanel] Created empty signature cache for modelId', { modelId })
   }
-  return modelSignaturesCache.value.get(modelId)!
+
+  const signatures = modelSignaturesCache.value.get(modelId)!
+  logger.debug('[FlowDetailPanel] getModelSignatures', { modelId, count: signatures.length })
+  return signatures
 }
 
 /**
@@ -429,6 +442,7 @@ function getModelProgressInfo(model: any) {
  */
 function getModelParamCount(modelId: string): number {
   const signatures = getModelSignatures(modelId)
+  logger.debug('[FlowDetailPanel] getModelParamCount', { modelId, count: signatures?.length || 0 })
   return signatures?.length || 0
 }
 
@@ -635,6 +649,10 @@ watch(() => props.selectedNode, (node) => {
 
     // 如果是计算任务节点，加载所有模型的参数签名
     if (isComputeTaskNode.value && taskData.value?.models) {
+      logger.debug('[FlowDetailPanel] Loading signatures for models', {
+        modelCount: taskData.value.models.length,
+        models: taskData.value.models.map(m => ({ id: m.id, name: m.name, type: m.type }))
+      })
       taskData.value.models.forEach(model => {
         if (model.type !== 'expression') {
           loadModelSignatures(model.id)
