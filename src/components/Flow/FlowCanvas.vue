@@ -163,7 +163,7 @@ import { assetCache } from '@/services/assetCache'
 import { buildJoinConditions } from '@/utils/join-builder'
 import { sortEnterprisesByPriority } from '@/utils/enterprise-sorter'
 import { useGraphState } from '@/composables/useGraphState'
-import { EXPRESSION_MODEL_OUTPUT, getDataTypeName } from '@/services/model-mock-service'
+import { EXPRESSION_MODEL_OUTPUT, getDataTypeName, getModelInputSignatures } from '@/services/model-mock-service'
 import { getEnterpriseList } from '@/services/enterpriseService'
 
 interface Emits {
@@ -1730,6 +1730,53 @@ function createModelNode(
     parentTaskId: targetTaskNode.id,
     edgeId: modelEdge.id
   })
+
+  // 检查模型是否有输入参数，如果有则自动弹出参数配置对话框
+  checkAndOpenParameterConfig(model.id, targetTaskNode.id, modelNodeId)
+}
+
+/**
+ * 检查模型是否有输入参数，如果有则打开参数配置对话框
+ */
+async function checkAndOpenParameterConfig(modelId: string, taskId: string, modelNodeId: string) {
+  try {
+    const signatures = await getModelInputSignatures(modelId)
+
+    // 如果模型有输入参数，自动打开参数配置对话框
+    if (signatures && signatures.length > 0) {
+      logger.info('[FlowCanvas] Model has input parameters, opening parameter config dialog', {
+        modelId,
+        parameterCount: signatures.length
+      })
+
+      // 查找任务节点
+      const taskNode = nodes.value.find(n => n.id === taskId)
+      if (!taskNode) {
+        logger.warn('[FlowCanvas] Task node not found for parameter config', { taskId })
+        return
+      }
+
+      const taskData = taskNode.data as ComputeTaskNodeData
+      const modelInTask = taskData.models?.find(m => m.modelNodeId === modelNodeId)
+
+      if (!modelInTask) {
+        logger.warn('[FlowCanvas] Model not found in task data', { modelNodeId })
+        return
+      }
+
+      // 设置配置对话框数据
+      currentModelConfig.value = modelInTask
+      currentTaskId.value = taskId
+      availableFields.value = generateAvailableFields(taskData)
+
+      // 打开参数配置对话框
+      paramConfigVisible.value = true
+    } else {
+      logger.info('[FlowCanvas] Model has no input parameters, skipping parameter config', { modelId })
+    }
+  } catch (error) {
+    logger.error('[FlowCanvas] Failed to check model input parameters', error)
+  }
 }
 
 /**
