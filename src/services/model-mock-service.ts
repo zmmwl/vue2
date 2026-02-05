@@ -273,6 +273,455 @@ const MOCK_MODEL_DATA: Record<string, ModelDetailResponse['data']> = {
         description: '各方贡献度'
       }
     ]
+  },
+  // 数据清洗模型 - CodeBin-V2，带多个输入参数
+  'codebin_v2_data_clean': {
+    id: 'codebin_v2_data_clean',
+    partyId: 'ent_003',
+    chainId: 1,
+    chainName: '测试链',
+    name: '数据清洗模型',
+    type: 'CodeBin-V2',
+    version: '2.0',
+    category: '["数据预处理"]',
+    description: '对输入数据进行去重、空值处理、异常值检测等清洗操作',
+    modelFileName: 'data_clean.py',
+    modelFile: null,
+    modelFileHash: 'clean001',
+    sourceFile: null,
+    sourceFileName: 'clean.bin',
+    sourceFileHash: 'clean002',
+    programmingLanguage: 'Python',
+    methodName: 'clean_data',
+    methodDescription: '数据清洗方法',
+    status: 1,
+    createTime: '2024-05-10 10:00:00',
+    modelParameters: [
+      {
+        fid: 'param_input_data',
+        name: 'input_data',
+        dataSource: '数据输入',
+        dataType: 1,
+        isEncrypt: 1,
+        description: '待清洗的输入数据集'
+      },
+      {
+        fid: 'param_remove_duplicates',
+        name: 'remove_duplicates',
+        dataSource: '参数配置',
+        dataType: 6,
+        isEncrypt: 0,
+        description: '是否去除重复数据'
+      },
+      {
+        fid: 'param_fill_na_method',
+        name: 'fill_na_method',
+        dataSource: '参数配置',
+        dataType: 1,
+        isEncrypt: 0,
+        description: '空值填充方式：mean/median/drop'
+      },
+      {
+        fid: 'param_outlier_threshold',
+        name: 'outlier_threshold',
+        dataSource: '参数配置',
+        dataType: 4,
+        isEncrypt: 0,
+        description: '异常值检测阈值（标准差倍数）'
+      },
+      {
+        fid: 'param_min_sample_size',
+        name: 'min_sample_size',
+        dataSource: '参数配置',
+        dataType: 2,
+        isEncrypt: 0,
+        description: '最小样本数量'
+      }
+    ],
+    returnParameters: [
+      {
+        fid: 'ret_clean_data',
+        name: 'cleaned_data',
+        dataType: 1,
+        isRequired: 1,
+        description: '清洗后的数据'
+      },
+      {
+        fid: 'ret_clean_report',
+        name: 'clean_report',
+        dataType: 1,
+        isRequired: 1,
+        description: '清洗报告（JSON格式）'
+      },
+      {
+        fid: 'ret_rows_removed',
+        name: 'rows_removed',
+        dataType: 2,
+        isRequired: 0,
+        description: '删除的行数'
+      }
+    ]
+  },
+  // 特征工程模型 - CodeBin-V3-1，带输入参数
+  'codebin_v3_1_feature': {
+    id: 'codebin_v3_1_feature',
+    partyId: 'ent_003',
+    chainId: 1,
+    chainName: '测试链',
+    name: '特征工程模型',
+    type: 'CodeBin-V3-1',
+    version: '3.1',
+    category: '["特征工程"]',
+    description: '进行特征提取、特征转换、特征选择等操作',
+    modelFileName: 'feature_engineering.py',
+    modelFile: null,
+    modelFileHash: 'feat001',
+    sourceFile: null,
+    sourceFileName: 'feature.bin',
+    sourceFileHash: 'feat002',
+    programmingLanguage: 'Python',
+    methodName: 'feature_engineering',
+    methodDescription: '特征工程处理方法',
+    status: 1,
+    createTime: '2024-06-15 14:30:00',
+    modelParameters: [
+      {
+        fid: 'param_raw_features',
+        name: 'raw_features',
+        dataSource: '数据输入',
+        dataType: 1,
+        isEncrypt: 1,
+        description: '原始特征数据'
+      },
+      {
+        fid: 'param_feature_types',
+        name: 'feature_types',
+        dataSource: '参数配置',
+        dataType: 1,
+        isEncrypt: 0,
+        description: '特征类型配置（JSON）'
+      },
+      {
+        fid: 'param_normalization',
+        name: 'normalization',
+        dataSource: '参数配置',
+        dataType: 1,
+        isEncrypt: 0,
+        description: '归一化方法：minmax/zscore/none'
+      },
+      {
+        fid: 'param_feature_count',
+        name: 'max_features',
+        dataSource: '参数配置',
+        dataType: 2,
+        isEncrypt: 0,
+        description: '最大特征数量'
+      }
+    ],
+    returnParameters: [
+      {
+        fid: 'ret_engineered_features',
+        name: 'engineered_features',
+        dataType: 1,
+        isRequired: 1,
+        description: '工程化后的特征'
+      },
+      {
+        fid: 'ret_feature_importance',
+        name: 'feature_importance',
+        dataType: 1,
+        isRequired: 0,
+        description: '特征重要性评分'
+      }
+    ]
+  },
+  // 联合建模模型 - CodeBin-V3-2，带输入参数
+  'codebin_v3_2_joint_train': {
+    id: 'codebin_v3_2_joint_train',
+    partyId: 'ent_003',
+    chainId: 1,
+    chainName: '测试链',
+    name: '联合建模训练模型',
+    type: 'CodeBin-V3-2',
+    version: '3.2',
+    category: '["机器学习"]',
+    description: '多方联合进行模型训练，支持横向和纵向联邦学习',
+    modelFileName: 'joint_training.py',
+    modelFile: null,
+    modelFileHash: 'train001',
+    sourceFile: null,
+    sourceFileName: 'train.bin',
+    sourceFileHash: 'train002',
+    programmingLanguage: 'Python',
+    methodName: 'joint_train',
+    methodDescription: '联合训练方法',
+    status: 1,
+    createTime: '2024-07-20 09:00:00',
+    modelParameters: [
+      {
+        fid: 'param_train_data',
+        name: 'train_data',
+        dataSource: '数据输入',
+        dataType: 1,
+        isEncrypt: 1,
+        description: '训练数据集'
+      },
+      {
+        fid: 'param_model_type',
+        name: 'model_type',
+        dataSource: '参数配置',
+        dataType: 1,
+        isEncrypt: 0,
+        description: '模型类型：lr/dt/xgb'
+      },
+      {
+        fid: 'param_learning_rate',
+        name: 'learning_rate',
+        dataSource: '参数配置',
+        dataType: 4,
+        isEncrypt: 0,
+        description: '学习率'
+      },
+      {
+        fid: 'param_max_iterations',
+        name: 'max_iterations',
+        dataSource: '参数配置',
+        dataType: 2,
+        isEncrypt: 0,
+        description: '最大迭代次数'
+      },
+      {
+        fid: 'param_batch_size',
+        name: 'batch_size',
+        dataSource: '参数配置',
+        dataType: 2,
+        isEncrypt: 0,
+        description: '批次大小'
+      },
+      {
+        fid: 'param_early_stop',
+        name: 'early_stop',
+        dataSource: '参数配置',
+        dataType: 6,
+        isEncrypt: 0,
+        description: '是否启用早停'
+      },
+      {
+        fid: 'param_validation_ratio',
+        name: 'validation_ratio',
+        dataSource: '参数配置',
+        dataType: 4,
+        isEncrypt: 0,
+        description: '验证集比例'
+      }
+    ],
+    returnParameters: [
+      {
+        fid: 'ret_trained_model',
+        name: 'trained_model',
+        dataType: 1,
+        isRequired: 1,
+        description: '训练好的模型'
+      },
+      {
+        fid: 'ret_training_metrics',
+        name: 'training_metrics',
+        dataType: 1,
+        isRequired: 1,
+        description: '训练指标（JSON）'
+      },
+      {
+        fid: 'ret_loss_history',
+        name: 'loss_history',
+        dataType: 1,
+        isRequired: 0,
+        description: '损失历史记录'
+      }
+    ]
+  },
+  // 差分隐私模型 - CodeBin-V2，带输入参数
+  'codebin_v2_dp_noise': {
+    id: 'codebin_v2_dp_noise',
+    partyId: 'ent_003',
+    chainId: 1,
+    chainName: '测试链',
+    name: '差分隐私噪声模型',
+    type: 'CodeBin-V2',
+    version: '2.0',
+    category: '["隐私保护"]',
+    description: '为数据添加差分隐私噪声，保护个人隐私',
+    modelFileName: 'dp_noise.py',
+    modelFile: null,
+    modelFileHash: 'dp001',
+    sourceFile: null,
+    sourceFileName: 'dp.bin',
+    sourceFileHash: 'dp002',
+    programmingLanguage: 'Python',
+    methodName: 'add_dp_noise',
+    methodDescription: '添加差分隐私噪声',
+    status: 1,
+    createTime: '2024-08-05 11:20:00',
+    modelParameters: [
+      {
+        fid: 'param_input_query',
+        name: 'input_query',
+        dataSource: '数据输入',
+        dataType: 1,
+        isEncrypt: 1,
+        description: '输入查询结果'
+      },
+      {
+        fid: 'param_epsilon',
+        name: 'epsilon',
+        dataSource: '参数配置',
+        dataType: 5,
+        isEncrypt: 0,
+        description: '隐私预算 epsilon 值'
+      },
+      {
+        fid: 'param_sensitivity',
+        name: 'sensitivity',
+        dataSource: '参数配置',
+        dataType: 5,
+        isEncrypt: 0,
+        description: '查询的全局敏感度'
+      },
+      {
+        fid: 'param_mechanism',
+        name: 'mechanism',
+        dataSource: '参数配置',
+        dataType: 1,
+        isEncrypt: 0,
+        description: '噪声机制：laplace/gaussian'
+      },
+      {
+        fid: 'param_delta',
+        name: 'delta',
+        dataSource: '参数配置',
+        dataType: 5,
+        isEncrypt: 0,
+        description: '(可选)高斯机制的delta参数'
+      }
+    ],
+    returnParameters: [
+      {
+        fid: 'ret_noisy_result',
+        name: 'noisy_result',
+        dataType: 1,
+        isRequired: 1,
+        description: '添加噪声后的结果'
+      },
+      {
+        fid: 'ret_privacy_spent',
+        name: 'privacy_spent',
+        dataType: 5,
+        isRequired: 1,
+        description: '已使用的隐私预算'
+      },
+      {
+        fid: 'ret_noise_added',
+        name: 'noise_added',
+        dataType: 5,
+        isRequired: 0,
+        description: '实际添加的噪声值'
+      }
+    ]
+  },
+  // SQL 聚合计算模型 - CodeBin-V3-1，带输入参数
+  'codebin_v3_1_sql_agg': {
+    id: 'codebin_v3_1_sql_agg',
+    partyId: 'ent_003',
+    chainId: 1,
+    chainName: '测试链',
+    name: 'SQL聚合计算模型',
+    type: 'CodeBin-V3-1',
+    version: '3.1',
+    category: '["SQL计算"]',
+    description: '支持SQL语句的安全聚合计算，包括SUM、COUNT、AVG等',
+    modelFileName: 'sql_aggregate.py',
+    modelFile: null,
+    modelFileHash: 'sql001',
+    sourceFile: null,
+    sourceFileName: 'sql.bin',
+    sourceFileHash: 'sql002',
+    programmingLanguage: 'Python',
+    methodName: 'sql_aggregate',
+    methodDescription: 'SQL聚合计算',
+    status: 1,
+    createTime: '2024-09-01 16:00:00',
+    modelParameters: [
+      {
+        fid: 'param_sql_query',
+        name: 'sql_query',
+        dataSource: '参数配置',
+        dataType: 1,
+        isEncrypt: 1,
+        description: 'SQL查询语句'
+      },
+      {
+        fid: 'param_table_name',
+        name: 'table_name',
+        dataSource: '参数配置',
+        dataType: 1,
+        isEncrypt: 0,
+        description: '表名'
+      },
+      {
+        fid: 'param_group_by_keys',
+        name: 'group_by_keys',
+        dataSource: '参数配置',
+        dataType: 1,
+        isEncrypt: 0,
+        description: '分组键（逗号分隔）'
+      },
+      {
+        fid: 'param_agg_functions',
+        name: 'agg_functions',
+        dataSource: '参数配置',
+        dataType: 1,
+        isEncrypt: 0,
+        description: '聚合函数列表（JSON）'
+      },
+      {
+        fid: 'param_having_clause',
+        name: 'having_clause',
+        dataSource: '参数配置',
+        dataType: 1,
+        isEncrypt: 0,
+        description: 'Having条件（可选）'
+      },
+      {
+        fid: 'param_limit_rows',
+        name: 'limit_rows',
+        dataSource: '参数配置',
+        dataType: 2,
+        isEncrypt: 0,
+        description: '返回行数限制（可选）'
+      }
+    ],
+    returnParameters: [
+      {
+        fid: 'ret_agg_result',
+        name: 'agg_result',
+        dataType: 1,
+        isRequired: 1,
+        description: '聚合结果（JSON格式）'
+      },
+      {
+        fid: 'ret_row_count',
+        name: 'row_count',
+        dataType: 2,
+        isRequired: 1,
+        description: '结果行数'
+      },
+      {
+        fid: 'ret_execution_time',
+        name: 'execution_time',
+        dataType: 3,
+        isRequired: 0,
+        description: '执行耗时（毫秒）'
+      }
+    ]
   }
 }
 
@@ -335,14 +784,44 @@ export const MOCK_MODELS = [
     participantId: 'ent_003'
   },
   {
+    id: 'codebin_v2_data_clean',
+    name: '数据清洗模型',
+    type: 'CodeBin-V2',
+    participantId: 'ent_003'
+  },
+  {
+    id: 'codebin_v2_dp_noise',
+    name: '差分隐私噪声模型',
+    type: 'CodeBin-V2',
+    participantId: 'ent_003'
+  },
+  {
     id: 'codebin_v3_1_001',
     name: 'MPC统计模型V3.1',
     type: 'CodeBin-V3-1',
     participantId: 'ent_003'
   },
   {
+    id: 'codebin_v3_1_feature',
+    name: '特征工程模型',
+    type: 'CodeBin-V3-1',
+    participantId: 'ent_003'
+  },
+  {
+    id: 'codebin_v3_1_sql_agg',
+    name: 'SQL聚合计算模型',
+    type: 'CodeBin-V3-1',
+    participantId: 'ent_003'
+  },
+  {
     id: 'codebin_v3_2_001',
     name: '联邦学习模型V3.2',
+    type: 'CodeBin-V3-2',
+    participantId: 'ent_003'
+  },
+  {
+    id: 'codebin_v3_2_joint_train',
+    name: '联合建模训练模型',
     type: 'CodeBin-V3-2',
     participantId: 'ent_003'
   },

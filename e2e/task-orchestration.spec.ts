@@ -1426,3 +1426,729 @@ test.describe('表单验证测试', () => {
     await expect(outputConfigConfirmBtn).not.toBeDisabled();
   });
 });
+
+/**
+ * 模型参数配置测试
+ *
+ * 测试新增的带参数模型的参数配置功能
+ */
+test.describe('模型参数配置测试', () => {
+  test.beforeEach(async ({ page }) => {
+    await setupChineseFontSupportOnly(page);
+    await page.goto('/');
+    await page.waitForSelector('.flow-sidebar', { timeout: 10000 });
+    await page.evaluate(() => {
+      (window as any).__PLAYWRIGHT_TEST__ = false;
+    });
+  });
+
+  /**
+   * 辅助函数：创建完整的计算任务（带数据源输入）
+   */
+  async function createTaskWithDataInput(page: any) {
+    // 1. 创建数据源节点
+    await dragNodeToCanvas(page, 'palette-node-数据库表', 200, 200);
+    await page.waitForTimeout(500);
+
+    // 选择企业
+    const enterpriseItems = page.locator('.list-item');
+    await enterpriseItems.first().click({ force: true });
+    await page.waitForTimeout(300);
+
+    const nextBtn1 = page.locator('.dialog-footer .btn.btn-primary').filter({ hasText: '下一步' });
+    await nextBtn1.click({ force: true });
+    await page.waitForTimeout(500);
+
+    // 选择数据资产
+    const assetItems = page.locator('.step-content').nth(1).locator('.list-item');
+    await assetItems.first().click({ force: true });
+    await page.waitForTimeout(300);
+
+    const nextBtn2 = page.locator('.dialog-footer .btn.btn-primary').filter({ hasText: '下一步' });
+    await nextBtn2.click({ force: true });
+    await page.waitForTimeout(500);
+
+    // 选择字段（全选）
+    const selectAllBtn = page.locator('.field-selector-header .btn-text').filter({ hasText: '全选' });
+    await selectAllBtn.click({ force: true });
+    await page.waitForTimeout(300);
+
+    const confirmBtn = page.locator('.dialog-footer .btn.btn-primary').filter({ hasText: '确认' });
+    await confirmBtn.click({ force: true });
+    await page.waitForTimeout(800);
+
+    // 2. 创建计算任务节点并连接
+    const dataSourceNode = page.locator('.vue-flow__node').first();
+    const dsBox = await dataSourceNode.boundingBox();
+
+    if (dsBox) {
+      // 拖拽 PSI 计算任务到画布
+      await dragNodeToCanvas(page, 'palette-node-psi-计算', 500, 400);
+      await page.waitForTimeout(300);
+
+      // 选择技术路径
+      const techOption = page.locator('.tech-path-option').first();
+      await techOption.click({ force: true });
+      await page.waitForTimeout(200);
+
+      const techConfirmBtn = page.locator('.btn.btn-primary');
+      await techConfirmBtn.click({ force: true });
+      await page.waitForTimeout(500);
+
+      // 连接数据源到计算任务
+      await page.evaluate((box) => {
+        const data = {
+          sourceId: null, // 将在 FlowCanvas 中自动查找
+          targetId: null
+        };
+        // 实际连接由页面处理
+      }, dsBox);
+    }
+
+    await page.waitForTimeout(500);
+    return dataSourceNode;
+  }
+
+  /**
+   * 测试：数据清洗模型参数配置
+   */
+  test('应该能够配置数据清洗模型参数', async ({ page }) => {
+    // 创建计算任务
+    await dragNodeToCanvas(page, 'palette-node-psi-计算', 400, 200);
+    await page.waitForTimeout(300);
+
+    const techOption = page.locator('.tech-path-option').first();
+    await techOption.click({ force: true });
+    await page.waitForTimeout(200);
+
+    const confirmBtn = page.locator('.btn.btn-primary');
+    await confirmBtn.click({ force: true });
+    await page.waitForTimeout(500);
+
+    // 获取计算任务节点位置
+    const taskNode = page.locator('.vue-flow__node').first();
+    const taskBox = await taskNode.boundingBox();
+    expect(taskBox).toBeTruthy();
+
+    if (taskBox) {
+      // 模拟添加数据清洗模型
+      await page.evaluate(async (box) => {
+        // 首先需要选择 CodeBin 模型类型
+        const modelData = {
+          type: 'model',
+          label: 'CodeBin模型',
+          category: 'model',
+          icon: '📦',
+          color: '#13C2C2',
+          description: 'CodeBin系列模型（含V2/V3.1/V3.2）',
+          isCodeBin: true,
+          modelType: 'codebin-select'  // 重要：必须设置这个值
+        };
+
+        // 发送模型拖放事件
+        window.dispatchEvent(new CustomEvent('test-drop-model', {
+          detail: { data: modelData, x: box.x + box.width / 2, y: box.y + box.height / 2 }
+        }));
+      }, taskBox);
+
+      await page.waitForTimeout(1000);
+
+      // 选择 CodeBin-V2 类型
+      const codeBinTypeOption = page.locator('.form-select option[value="CodeBin-V2"]');
+      if (await codeBinTypeOption.count() > 0) {
+        await page.locator('.form-select').selectOption('CodeBin-V2');
+        await page.waitForTimeout(300);
+
+        const nextBtn = page.locator('.modal-footer .btn.btn-confirm');
+        await nextBtn.click();
+        await page.waitForTimeout(500);
+      }
+
+      // 选择企业（第三个企业是模型提供商 ent_003）
+      const enterpriseItems = page.locator('.enterprise-item');
+      if (await enterpriseItems.count() > 0) {
+        await enterpriseItems.nth(2).click({ force: true, timeout: 5000 });
+        await page.waitForTimeout(500);
+
+        const enterpriseConfirmBtn = page.locator('.enterprise-selector-modal .modal-footer .btn.btn-primary');
+        await enterpriseConfirmBtn.click({ force: true, timeout: 5000 });
+        await page.waitForTimeout(500);
+
+        // 选择数据清洗模型（第2个模型，索引1）
+        const modelItems = page.locator('.model-item');
+        if (await modelItems.count() > 1) {
+          await modelItems.nth(1).click({ force: true, timeout: 5000 });
+          await page.waitForTimeout(500);
+
+          const modelConfirmBtn = page.locator('.modal-footer .btn.btn-confirm');
+          await modelConfirmBtn.click({ force: true, timeout: 5000 });
+          await page.waitForTimeout(500);
+
+          // 验证模型节点已创建
+          const nodes = page.locator('.vue-flow__node');
+          const nodeCount = await nodes.count();
+          expect(nodeCount).toBeGreaterThanOrEqual(2);
+
+          // 点击模型节点打开参数配置
+          const modelNode = nodes.nth(nodeCount - 1);
+          await modelNode.click();
+          await page.waitForTimeout(300);
+
+          // 检查是否显示参数配置按钮
+          const configParamsBtn = page.locator('.config-params-btn');
+          if (await configParamsBtn.count() > 0) {
+            await configParamsBtn.click();
+            await page.waitForTimeout(500);
+
+            // 验证参数配置对话框显示
+            await expect(page.locator('.modal-title')).toContainText('配置模型参数');
+
+            // 验证参数列表（数据清洗模型有 5 个参数）
+            const paramCards = page.locator('.param-card');
+            const paramCount = await paramCards.count();
+            expect(paramCount).toBe(5);
+
+            // 配置第一个参数（input_data）- 使用固定值
+            const firstParamCard = paramCards.first();
+            await firstParamCard.locator('input[value="fixed"]').click();
+            await page.waitForTimeout(200);
+
+            const fixedValueInput = firstParamCard.locator('.fixed-value-input input[type="text"]');
+            await fixedValueInput.fill('test_data');
+            await page.waitForTimeout(200);
+
+            // 配置第二个参数（remove_duplicates）- 布尔值
+            const secondParamCard = paramCards.nth(1);
+            await secondParamCard.locator('input[value="fixed"]').click();
+            await page.waitForTimeout(200);
+
+            const boolSelect = secondParamCard.locator('.fixed-value-input select');
+            await boolSelect.selectOption('true');
+            await page.waitForTimeout(200);
+
+            // 保存配置
+            const saveBtn = page.locator('.modal-footer .btn.btn-primary').filter({ hasText: '保存配置' });
+            await saveBtn.click();
+            await page.waitForTimeout(500);
+
+            // 验证参数已配置（显示"已配置"标记）
+            const configuredHint = page.locator('.params-count .configured-hint');
+            await expect(configuredHint).toBeVisible();
+          }
+        }
+      }
+    }
+  });
+
+  /**
+   * 测试：差分隐私噪声模型参数配置
+   */
+  test('应该能够配置差分隐私噪声模型参数', async ({ page }) => {
+    // 创建计算任务
+    await dragNodeToCanvas(page, 'palette-node-psi-计算', 400, 200);
+    await page.waitForTimeout(300);
+
+    const techOption = page.locator('.tech-path-option').first();
+    await techOption.click({ force: true });
+    await page.waitForTimeout(200);
+
+    const confirmBtn = page.locator('.btn.btn-primary');
+    await confirmBtn.click({ force: true });
+    await page.waitForTimeout(500);
+
+    const taskNode = page.locator('.vue-flow__node').first();
+    const taskBox = await taskNode.boundingBox();
+    expect(taskBox).toBeTruthy();
+
+    if (taskBox) {
+      // 添加差分隐私模型
+      await page.evaluate(async (box) => {
+        const modelData = {
+          type: 'model',
+          label: 'CodeBin模型',
+          category: 'model',
+          icon: '📦',
+          color: '#13C2C2',
+          description: 'CodeBin系列模型（含V2/V3.1/V3.2）',
+          isCodeBin: true,
+          modelType: 'codebin-select'  // 重要：必须设置这个值
+        };
+
+        window.dispatchEvent(new CustomEvent('test-drop-model', {
+          detail: { data: modelData, x: box.x + box.width / 2, y: box.y + box.height / 2 }
+        }));
+      }, taskBox);
+
+      await page.waitForTimeout(1000);
+
+      // 选择企业和模型
+      // 等待企业选择对话框显示
+      await page.waitForTimeout(500);
+
+      // 检查当前模态框
+      const currentModalTitle = await page.locator('.modal-title').first().textContent();
+      console.log('当前模态框标题:', currentModalTitle);
+
+      // 如果是 CodeBin 类型选择对话框，先选择类型
+      if (currentModalTitle?.includes('CodeBin')) {
+        const formSelect = page.locator('.form-select');
+        if (await formSelect.count() > 0) {
+          // 根据测试选择不同的类型
+          const testInfo = test.info().title;
+          if (testInfo.includes('数据清洗') || testInfo.includes('差分隐私')) {
+            await formSelect.selectOption('CodeBin-V2');
+          } else if (testInfo.includes('特征工程') || testInfo.includes('SQL')) {
+            await formSelect.selectOption('CodeBin-V3-1');
+          } else if (testInfo.includes('联合建模')) {
+            await formSelect.selectOption('CodeBin-V3-2');
+          }
+          await page.waitForTimeout(300);
+
+          const typeConfirmBtn = page.locator('.modal-footer .btn.btn-confirm');
+          await typeConfirmBtn.click();
+          await page.waitForTimeout(800);
+        }
+      }
+
+      // 现在选择企业
+      const enterpriseItems = page.locator('.enterprise-item');
+      const enterpriseCount = await enterpriseItems.count();
+      console.log('企业项目数量:', enterpriseCount);
+
+      if (enterpriseCount > 0) {
+        // 使用点击而不是 filter 来避免超时
+        const firstEnterprise = enterpriseItems.first();
+        await firstEnterprise.click({ force: true, timeout: 5000 });
+        await page.waitForTimeout(500);
+
+        const enterpriseConfirmBtn = page.locator('.enterprise-selector-modal .modal-footer .btn.btn-primary');
+        await enterpriseConfirmBtn.click({ force: true, timeout: 5000 });
+        await page.waitForTimeout(800);
+
+        // 选择差分隐私噪声模型（第3个模型，索引2）
+        const modelItems = page.locator('.model-item');
+        if (await modelItems.count() > 2) {
+          await modelItems.nth(2).click({ force: true, timeout: 5000 });
+          await page.waitForTimeout(500);
+
+          const modelConfirmBtn = page.locator('.modal-footer .btn.btn-confirm');
+          await modelConfirmBtn.click({ force: true, timeout: 5000 });
+          await page.waitForTimeout(500);
+
+          // 点击配置参数按钮
+          const configParamsBtn = page.locator('.config-params-btn');
+          if (await configParamsBtn.count() > 0) {
+            await configParamsBtn.click();
+            await page.waitForTimeout(500);
+
+            // 验证参数数量（5个参数）
+            const paramCards = page.locator('.param-card');
+            expect(await paramCards.count()).toBe(5);
+
+            // 配置 epsilon 参数（浮点数）
+            const epsilonParam = paramCards.filter({ hasText: /epsilon/ });
+            if (await epsilonParam.count() > 0) {
+              await epsilonParam.locator('input[value="fixed"]').click();
+              await page.waitForTimeout(200);
+
+              const numberInput = epsilonParam.locator('.fixed-value-input input[type="number"]');
+              await numberInput.fill('1.5');
+              await page.waitForTimeout(200);
+            }
+
+            // 保存配置
+            const saveBtn = page.locator('.modal-footer .btn.btn-primary').filter({ hasText: '保存配置' });
+            await saveBtn.click();
+            await page.waitForTimeout(500);
+          }
+        }
+      }
+    }
+  });
+
+  /**
+   * 测试：特征工程模型参数配置（CodeBin-V3-1）
+   */
+  test('应该能够配置特征工程模型参数', async ({ page }) => {
+    // 创建计算任务
+    await dragNodeToCanvas(page, 'palette-node-psi-计算', 400, 200);
+    await page.waitForTimeout(300);
+
+    const techOption = page.locator('.tech-path-option').first();
+    await techOption.click({ force: true });
+    await page.waitForTimeout(200);
+
+    const confirmBtn = page.locator('.btn.btn-primary');
+    await confirmBtn.click({ force: true });
+    await page.waitForTimeout(500);
+
+    const taskNode = page.locator('.vue-flow__node').first();
+    const taskBox = await taskNode.boundingBox();
+    expect(taskBox).toBeTruthy();
+
+    if (taskBox) {
+      await page.evaluate(async (box) => {
+        const modelData = {
+          type: 'model',
+          label: 'CodeBin模型',
+          category: 'model',
+          icon: '📦',
+          color: '#13C2C2',
+          description: 'CodeBin系列模型（含V2/V3.1/V3.2）',
+          isCodeBin: true,
+          modelType: 'codebin-select'  // 重要：必须设置这个值
+        };
+
+        window.dispatchEvent(new CustomEvent('test-drop-model', {
+          detail: { data: modelData, x: box.x + box.width / 2, y: box.y + box.height / 2 }
+        }));
+      }, taskBox);
+
+      await page.waitForTimeout(1000);
+
+      // 选择企业和模型
+      // 等待企业选择对话框显示
+      await page.waitForTimeout(500);
+
+      // 检查当前模态框
+      const currentModalTitle = await page.locator('.modal-title').first().textContent();
+      console.log('当前模态框标题:', currentModalTitle);
+
+      // 如果是 CodeBin 类型选择对话框，先选择类型
+      if (currentModalTitle?.includes('CodeBin')) {
+        const formSelect = page.locator('.form-select');
+        if (await formSelect.count() > 0) {
+          // 根据测试选择不同的类型
+          const testInfo = test.info().title;
+          if (testInfo.includes('数据清洗') || testInfo.includes('差分隐私')) {
+            await formSelect.selectOption('CodeBin-V2');
+          } else if (testInfo.includes('特征工程') || testInfo.includes('SQL')) {
+            await formSelect.selectOption('CodeBin-V3-1');
+          } else if (testInfo.includes('联合建模')) {
+            await formSelect.selectOption('CodeBin-V3-2');
+          }
+          await page.waitForTimeout(300);
+
+          const typeConfirmBtn = page.locator('.modal-footer .btn.btn-confirm');
+          await typeConfirmBtn.click();
+          await page.waitForTimeout(800);
+        }
+      }
+
+      // 现在选择企业
+      const enterpriseItems = page.locator('.enterprise-item');
+      const enterpriseCount = await enterpriseItems.count();
+      console.log('企业项目数量:', enterpriseCount);
+
+      if (enterpriseCount > 0) {
+        // 使用点击而不是 filter 来避免超时
+        const firstEnterprise = enterpriseItems.first();
+        await firstEnterprise.click({ force: true, timeout: 5000 });
+        await page.waitForTimeout(500);
+
+        const enterpriseConfirmBtn = page.locator('.enterprise-selector-modal .modal-footer .btn.btn-primary');
+        await enterpriseConfirmBtn.click({ force: true, timeout: 5000 });
+        await page.waitForTimeout(800);
+
+        // 选择特征工程模型（第5个模型，索引4）
+        const modelItems = page.locator('.model-item');
+        if (await modelItems.count() > 4) {
+          await modelItems.nth(4).click({ force: true, timeout: 5000 });
+          await page.waitForTimeout(500);
+
+          const modelConfirmBtn = page.locator('.modal-footer .btn.btn-confirm');
+          await modelConfirmBtn.click({ force: true, timeout: 5000 });
+          await page.waitForTimeout(500);
+
+          // 点击配置参数按钮
+          const configParamsBtn = page.locator('.config-params-btn');
+          if (await configParamsBtn.count() > 0) {
+            await configParamsBtn.click();
+            await page.waitForTimeout(500);
+
+            // 验证参数数量（4个参数）
+            const paramCards = page.locator('.param-card');
+            expect(await paramCards.count()).toBe(4);
+
+            // 配置 max_features 参数（整数）
+            const maxFeaturesParam = paramCards.filter({ hasText: /max_features/ });
+            if (await maxFeaturesParam.count() > 0) {
+              await maxFeaturesParam.locator('input[value="fixed"]').click();
+              await page.waitForTimeout(200);
+
+              const intInput = maxFeaturesParam.locator('.fixed-value-input input[type="number"]');
+              await intInput.fill('100');
+              await page.waitForTimeout(200);
+            }
+
+            // 保存配置
+            const saveBtn = page.locator('.modal-footer .btn.btn-primary').filter({ hasText: '保存配置' });
+            await saveBtn.click();
+            await page.waitForTimeout(500);
+          }
+        }
+      }
+    }
+  });
+
+  /**
+   * 测试：SQL聚合计算模型参数配置
+   */
+  test('应该能够配置SQL聚合计算模型参数', async ({ page }) => {
+    // 创建计算任务
+    await dragNodeToCanvas(page, 'palette-node-psi-计算', 400, 200);
+    await page.waitForTimeout(300);
+
+    const techOption = page.locator('.tech-path-option').first();
+    await techOption.click({ force: true });
+    await page.waitForTimeout(200);
+
+    const confirmBtn = page.locator('.btn.btn-primary');
+    await confirmBtn.click({ force: true });
+    await page.waitForTimeout(500);
+
+    const taskNode = page.locator('.vue-flow__node').first();
+    const taskBox = await taskNode.boundingBox();
+    expect(taskBox).toBeTruthy();
+
+    if (taskBox) {
+      await page.evaluate(async (box) => {
+        const modelData = {
+          type: 'model',
+          label: 'CodeBin模型',
+          category: 'model',
+          icon: '📦',
+          color: '#13C2C2',
+          description: 'CodeBin系列模型（含V2/V3.1/V3.2）',
+          isCodeBin: true,
+          modelType: 'codebin-select'  // 重要：必须设置这个值
+        };
+
+        window.dispatchEvent(new CustomEvent('test-drop-model', {
+          detail: { data: modelData, x: box.x + box.width / 2, y: box.y + box.height / 2 }
+        }));
+      }, taskBox);
+
+      await page.waitForTimeout(1000);
+
+      // 选择企业和模型
+      // 等待企业选择对话框显示
+      await page.waitForTimeout(500);
+
+      // 检查当前模态框
+      const currentModalTitle = await page.locator('.modal-title').first().textContent();
+      console.log('当前模态框标题:', currentModalTitle);
+
+      // 如果是 CodeBin 类型选择对话框，先选择类型
+      if (currentModalTitle?.includes('CodeBin')) {
+        const formSelect = page.locator('.form-select');
+        if (await formSelect.count() > 0) {
+          // 根据测试选择不同的类型
+          const testInfo = test.info().title;
+          if (testInfo.includes('数据清洗') || testInfo.includes('差分隐私')) {
+            await formSelect.selectOption('CodeBin-V2');
+          } else if (testInfo.includes('特征工程') || testInfo.includes('SQL')) {
+            await formSelect.selectOption('CodeBin-V3-1');
+          } else if (testInfo.includes('联合建模')) {
+            await formSelect.selectOption('CodeBin-V3-2');
+          }
+          await page.waitForTimeout(300);
+
+          const typeConfirmBtn = page.locator('.modal-footer .btn.btn-confirm');
+          await typeConfirmBtn.click();
+          await page.waitForTimeout(800);
+        }
+      }
+
+      // 现在选择企业
+      const enterpriseItems = page.locator('.enterprise-item');
+      const enterpriseCount = await enterpriseItems.count();
+      console.log('企业项目数量:', enterpriseCount);
+
+      if (enterpriseCount > 0) {
+        // 使用点击而不是 filter 来避免超时
+        const firstEnterprise = enterpriseItems.first();
+        await firstEnterprise.click({ force: true, timeout: 5000 });
+        await page.waitForTimeout(500);
+
+        const enterpriseConfirmBtn = page.locator('.enterprise-selector-modal .modal-footer .btn.btn-primary');
+        await enterpriseConfirmBtn.click({ force: true, timeout: 5000 });
+        await page.waitForTimeout(800);
+
+        // 选择SQL聚合计算模型（第6个模型，索引5）
+        const modelItems = page.locator('.model-item');
+        if (await modelItems.count() > 5) {
+          await modelItems.nth(5).click({ force: true, timeout: 5000 });
+          await page.waitForTimeout(500);
+
+          const modelConfirmBtn = page.locator('.modal-footer .btn.btn-confirm');
+          await modelConfirmBtn.click({ force: true, timeout: 5000 });
+          await page.waitForTimeout(500);
+
+          // 点击配置参数按钮
+          const configParamsBtn = page.locator('.config-params-btn');
+          if (await configParamsBtn.count() > 0) {
+            await configParamsBtn.click();
+            await page.waitForTimeout(500);
+
+            // 验证参数数量（6个参数）
+            const paramCards = page.locator('.param-card');
+            expect(await paramCards.count()).toBe(6);
+
+            // 配置 sql_query 参数（字符串）
+            const sqlQueryParam = paramCards.filter({ hasText: /sql_query/ });
+            if (await sqlQueryParam.count() > 0) {
+              await sqlQueryParam.locator('input[value="fixed"]').click();
+              await page.waitForTimeout(200);
+
+              const textInput = sqlQueryParam.locator('.fixed-value-input input[type="text"]');
+              await textInput.fill('SELECT COUNT(*) FROM table1');
+              await page.waitForTimeout(200);
+            }
+
+            // 保存配置
+            const saveBtn = page.locator('.modal-footer .btn.btn-primary').filter({ hasText: '保存配置' });
+            await saveBtn.click();
+            await page.waitForTimeout(500);
+          }
+        }
+      }
+    }
+  });
+
+  /**
+   * 测试：联合建模训练模型参数配置（CodeBin-V3-2）
+   */
+  test('应该能够配置联合建模训练模型参数', async ({ page }) => {
+    // 创建计算任务
+    await dragNodeToCanvas(page, 'palette-node-psi-计算', 400, 200);
+    await page.waitForTimeout(300);
+
+    const techOption = page.locator('.tech-path-option').first();
+    await techOption.click({ force: true });
+    await page.waitForTimeout(200);
+
+    const confirmBtn = page.locator('.btn.btn-primary');
+    await confirmBtn.click({ force: true });
+    await page.waitForTimeout(500);
+
+    const taskNode = page.locator('.vue-flow__node').first();
+    const taskBox = await taskNode.boundingBox();
+    expect(taskBox).toBeTruthy();
+
+    if (taskBox) {
+      await page.evaluate(async (box) => {
+        const modelData = {
+          type: 'model',
+          label: 'CodeBin模型',
+          category: 'model',
+          icon: '📦',
+          color: '#13C2C2',
+          description: 'CodeBin系列模型（含V2/V3.1/V3.2）',
+          isCodeBin: true,
+          modelType: 'codebin-select'  // 重要：必须设置这个值
+        };
+
+        window.dispatchEvent(new CustomEvent('test-drop-model', {
+          detail: { data: modelData, x: box.x + box.width / 2, y: box.y + box.height / 2 }
+        }));
+      }, taskBox);
+
+      await page.waitForTimeout(1000);
+
+      // 选择企业和模型
+      // 等待企业选择对话框显示
+      await page.waitForTimeout(500);
+
+      // 检查当前模态框
+      const currentModalTitle = await page.locator('.modal-title').first().textContent();
+      console.log('当前模态框标题:', currentModalTitle);
+
+      // 如果是 CodeBin 类型选择对话框，先选择类型
+      if (currentModalTitle?.includes('CodeBin')) {
+        const formSelect = page.locator('.form-select');
+        if (await formSelect.count() > 0) {
+          // 根据测试选择不同的类型
+          const testInfo = test.info().title;
+          if (testInfo.includes('数据清洗') || testInfo.includes('差分隐私')) {
+            await formSelect.selectOption('CodeBin-V2');
+          } else if (testInfo.includes('特征工程') || testInfo.includes('SQL')) {
+            await formSelect.selectOption('CodeBin-V3-1');
+          } else if (testInfo.includes('联合建模')) {
+            await formSelect.selectOption('CodeBin-V3-2');
+          }
+          await page.waitForTimeout(300);
+
+          const typeConfirmBtn = page.locator('.modal-footer .btn.btn-confirm');
+          await typeConfirmBtn.click();
+          await page.waitForTimeout(800);
+        }
+      }
+
+      // 现在选择企业
+      const enterpriseItems = page.locator('.enterprise-item');
+      const enterpriseCount = await enterpriseItems.count();
+      console.log('企业项目数量:', enterpriseCount);
+
+      if (enterpriseCount > 0) {
+        // 使用点击而不是 filter 来避免超时
+        const firstEnterprise = enterpriseItems.first();
+        await firstEnterprise.click({ force: true, timeout: 5000 });
+        await page.waitForTimeout(500);
+
+        const enterpriseConfirmBtn = page.locator('.enterprise-selector-modal .modal-footer .btn.btn-primary');
+        await enterpriseConfirmBtn.click({ force: true, timeout: 5000 });
+        await page.waitForTimeout(800);
+
+        // 选择联合建模训练模型（第8个模型，索引7）
+        const modelItems = page.locator('.model-item');
+        if (await modelItems.count() > 7) {
+          await modelItems.nth(7).click({ force: true, timeout: 5000 });
+          await page.waitForTimeout(500);
+
+          const modelConfirmBtn = page.locator('.modal-footer .btn.btn-confirm');
+          await modelConfirmBtn.click({ force: true, timeout: 5000 });
+          await page.waitForTimeout(500);
+
+          // 点击配置参数按钮
+          const configParamsBtn = page.locator('.config-params-btn');
+          if (await configParamsBtn.count() > 0) {
+            await configParamsBtn.click();
+            await page.waitForTimeout(500);
+
+            // 验证参数数量（7个参数）
+            const paramCards = page.locator('.param-card');
+            expect(await paramCards.count()).toBe(7);
+
+            // 配置 learning_rate 参数（浮点数）
+            const lrParam = paramCards.filter({ hasText: /learning_rate/ });
+            if (await lrParam.count() > 0) {
+              await lrParam.locator('input[value="fixed"]').click();
+              await page.waitForTimeout(200);
+
+              const floatInput = lrParam.locator('.fixed-value-input input[type="number"]');
+              await floatInput.fill('0.01');
+              await page.waitForTimeout(200);
+            }
+
+            // 配置 early_stop 参数（布尔值）
+            const earlyStopParam = paramCards.filter({ hasText: /early_stop/ });
+            if (await earlyStopParam.count() > 0) {
+              await earlyStopParam.locator('input[value="fixed"]').click();
+              await page.waitForTimeout(200);
+
+              const boolSelect = earlyStopParam.locator('.fixed-value-input select');
+              await boolSelect.selectOption('true');
+              await page.waitForTimeout(200);
+            }
+
+            // 保存配置
+            const saveBtn = page.locator('.modal-footer .btn.btn-primary').filter({ hasText: '保存配置' });
+            await saveBtn.click();
+            await page.waitForTimeout(500);
+          }
+        }
+      }
+    }
+  });
+});

@@ -228,19 +228,49 @@ export const MOCK_ASSET_DETAILS: Record<string, AssetInfo> = {
 export const MOCK_MODELS: Record<string, Array<{ id: string; name: string; type: string }>> = {
   'ent_003': [
     {
-      id: 'model_001',
-      name: '线性回归模型',
+      id: 'codebin_v2_001',
+      name: 'PSI求交模型V2',
       type: 'CodeBin-V2'
     },
     {
-      id: 'model_002',
-      name: '逻辑回归模型',
+      id: 'codebin_v2_data_clean',
+      name: '数据清洗模型',
+      type: 'CodeBin-V2'
+    },
+    {
+      id: 'codebin_v2_dp_noise',
+      name: '差分隐私噪声模型',
+      type: 'CodeBin-V2'
+    },
+    {
+      id: 'codebin_v3_1_001',
+      name: 'MPC统计模型V3.1',
       type: 'CodeBin-V3-1'
     },
     {
-      id: 'model_003',
-      name: '决策树模型',
+      id: 'codebin_v3_1_feature',
+      name: '特征工程模型',
+      type: 'CodeBin-V3-1'
+    },
+    {
+      id: 'codebin_v3_1_sql_agg',
+      name: 'SQL聚合计算模型',
+      type: 'CodeBin-V3-1'
+    },
+    {
+      id: 'codebin_v3_2_001',
+      name: '联邦学习模型V3.2',
       type: 'CodeBin-V3-2'
+    },
+    {
+      id: 'codebin_v3_2_joint_train',
+      name: '联合建模训练模型',
+      type: 'CodeBin-V3-2'
+    },
+    {
+      id: 'spdz_001',
+      name: 'SPDZ计算模型',
+      type: 'SPDZ'
     }
   ]
 }
