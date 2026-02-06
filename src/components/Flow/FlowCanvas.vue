@@ -741,6 +741,33 @@ const onNodesChange = (changes: NodeChange[]) => {
             }
           })
         }
+
+        // 如果删除的是算力资源节点，级联删除计算任务中对应的算力资源配置
+        if (nodeData.category === 'computeResource') {
+          // 找到所有包含该算力资源节点的计算任务
+          const affectedTaskNodes = nodes.value.filter(n => {
+            const taskData = n.data as ComputeTaskNodeData
+            return taskData.category === NodeCategory.COMPUTE_TASK &&
+              taskData.computeProviders?.some(provider => provider.resourceNodeId === change.id)
+          })
+
+          // 更新受影响的计算任务节点
+          affectedTaskNodes.forEach(taskNode => {
+            const taskData = taskNode.data as ComputeTaskNodeData
+            if (taskData.computeProviders) {
+              // 移除对应的算力资源配置
+              taskData.computeProviders = taskData.computeProviders.filter(
+                provider => provider.resourceNodeId !== change.id
+              )
+
+              logger.info('[FlowCanvas] Cascade deleted compute resource from task', {
+                taskId: taskNode.id,
+                removedResourceNodeId: change.id,
+                remainingProviders: taskData.computeProviders.length
+              })
+            }
+          })
+        }
       }
 
       // 删除所有与该节点相关的连接线
@@ -2129,6 +2156,44 @@ function handleCreateTestTaskNode(event: Event) {
 }
 
 /**
+ * 处理测试用的算力资源节点创建事件
+ */
+function handleCreateTestComputeResourceNode(event: Event) {
+  logger.info('[FlowCanvas] create-test-compute-resource-node event received')
+  const customEvent = event as CustomEvent
+  const { position } = customEvent.detail
+
+  // 保存节点位置
+  const nodePosition = position || { x: 150, y: 300 }
+  pendingNodePosition.value = nodePosition
+
+  // 创建算力资源节点
+  const computeResourceId = `compute_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+  const computePosition = nodePosition
+
+  const computeResourceNode: Node = {
+    id: computeResourceId,
+    type: 'computeResource',
+    position: computePosition,
+    data: {
+      label: '测试算力资源',
+      category: 'computeResource',
+      color: '#FA8C16',
+      icon: '⚡',
+      participantId: 'test-participant',
+      resourceId: 'test-compute-id',
+      resourceType: 'TEE_CPU'
+    } as any
+  }
+
+  addNode(computeResourceNode)
+  logger.info('[FlowCanvas] Test compute resource node created', {
+    computeResourceId,
+    position: computePosition
+  })
+}
+
+/**
  * 处理测试用的连接创建事件
  * 用于 E2E 测试中直接创建节点连接并触发字段选择对话框
  */
@@ -2296,9 +2361,14 @@ function handleTestDropModel(event: Event) {
  * 用于 E2E 测试中模拟拖拽算力资源节点到计算任务节点上
  */
 function handleTestDropCompute(event: Event) {
-  logger.info('[FlowCanvas] test-drop-compute event received')
+  logger.info('[FlowCanvas] ===== test-drop-compute event START =====')
   const customEvent = event as CustomEvent
   const { data } = customEvent.detail
+
+  logger.info('[FlowCanvas] test-drop-compute data received', {
+    data: data,
+    dataKeys: data ? Object.keys(data) : 'no data'
+  })
 
   // 查找第一个计算任务节点
   const targetTaskNode = nodes.value.find(n => n.data?.category === NodeCategory.COMPUTE_TASK)
@@ -2313,13 +2383,28 @@ function handleTestDropCompute(event: Event) {
     targetNodeId: targetTaskNode.id
   })
 
-  // 保存数据和状态
-  pendingModelOrComputeData.value = data
-  pendingResourceType.value = 'compute'
-  pendingTargetTaskNodeId.value = targetTaskNode.id
+  // 关闭所有可能打开的对话框
+  logger.info('[FlowCanvas] Closing all dialogs before opening unified selector')
+  showEnterpriseDialog.value = false
+  showModelSelectorDialog.value = false
+  showComputeSelectorDialog.value = false
 
-  // 弹出企业选择对话框
-  showEnterpriseDialog.value = true
+  // 等待一下确保对话框关闭状态生效
+  setTimeout(() => {
+    // 使用统一资源选择器（与当前实现保持一致）
+    pendingSelectorResult.value = {
+      data,
+      targetTaskNodeId: targetTaskNode.id
+    }
+    selectorResourceType.value = 'compute'
+    showUnifiedSelector.value = true
+
+    logger.info('[FlowCanvas] ===== Unified selector opened =====', {
+      resourceType: selectorResourceType.value,
+      showDialog: showUnifiedSelector.value,
+      showEnterpriseDialog: showEnterpriseDialog.value
+    })
+  }, 50)
 }
 
 /**
@@ -2589,6 +2674,7 @@ onMounted(() => {
   window.addEventListener('create-test-node', handleCreateTestNode)
   window.addEventListener('create-test-task-with-output', handleCreateTestTaskWithOutput)
   window.addEventListener('create-test-task-node', handleCreateTestTaskNode)
+  window.addEventListener('create-test-compute-resource-node', handleCreateTestComputeResourceNode)
   window.addEventListener('create-test-connection', handleCreateTestConnection)
   window.addEventListener('test-drop-model', handleTestDropModel)
   window.addEventListener('test-drop-compute', handleTestDropCompute)
@@ -2600,6 +2686,7 @@ onUnmounted(() => {
   window.removeEventListener('create-test-node', handleCreateTestNode)
   window.removeEventListener('create-test-task-with-output', handleCreateTestTaskWithOutput)
   window.removeEventListener('create-test-task-node', handleCreateTestTaskNode)
+  window.removeEventListener('create-test-compute-resource-node', handleCreateTestComputeResourceNode)
   window.removeEventListener('create-test-connection', handleCreateTestConnection)
   window.removeEventListener('test-drop-model', handleTestDropModel)
   window.removeEventListener('test-drop-compute', handleTestDropCompute)
