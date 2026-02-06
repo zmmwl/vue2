@@ -31,6 +31,14 @@
         >
           重新配置
         </button>
+        <button
+          v-if="viewMode === 'detail' && selectedNode && isOutputDataNode"
+          class="edit-button"
+          @click="handleEditOutput"
+          aria-label="编辑输出配置"
+        >
+          编辑输出配置
+        </button>
       </div>
     </div>
 
@@ -318,6 +326,111 @@
         </CollapsibleSection>
       </div>
 
+      <!-- 输出数据节点 -->
+      <div v-else-if="isOutputDataNode" class="detail-info">
+        <!-- 基本信息 -->
+        <div class="info-section">
+          <h4 class="section-title">基本信息</h4>
+          <div class="info-grid">
+            <div class="info-item">
+              <span class="info-label">接收方企业</span>
+              <span class="info-value">{{ outputData?.entityName || outputData?.participantId || '-' }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">数据集名称</span>
+              <span class="info-value">{{ outputData?.dataset || '-' }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">所属任务</span>
+              <span class="info-value">{{ parentTaskNode?.data?.label || '-' }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">输出字段数</span>
+              <span class="info-value">{{ outputData?.fields?.length || 0 }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 输出字段（按来源分组） -->
+        <CollapsibleSection title="输出字段" :count="outputData?.fields?.length || 0">
+          <div v-if="!outputData?.fields || outputData.fields.length === 0" class="empty-inputs">
+            <div class="empty-icon">📋</div>
+            <p>暂无输出字段</p>
+          </div>
+          <div v-else class="output-fields-grouped">
+            <!-- 输入数据源字段 -->
+            <div v-if="fieldGroups.inputFields.length > 0" class="field-source-group">
+              <div
+                v-for="[sourceId, sourceInfo] in inputFieldSources"
+                :key="sourceId"
+                class="source-card"
+              >
+                <div class="source-header">
+                  <span class="source-icon">🗄️</span>
+                  <span class="source-title">{{ getEnterpriseDisplayName(sourceInfo.participantId) }}</span>
+                  <span class="source-dataset">{{ sourceInfo.dataset }}</span>
+                </div>
+                <div class="source-fields">
+                  <div
+                    v-for="field in sourceInfo.fields"
+                    :key="field.columnName"
+                    class="field-item"
+                  >
+                    <span class="field-name">{{ field.columnAlias || field.columnName }}</span>
+                    <span class="field-type">{{ field.columnType }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 模型输出字段 -->
+            <div v-if="fieldGroups.modelFields.length > 0" class="field-source-group">
+              <div
+                v-for="[modelId, modelInfo] in modelFieldSources"
+                :key="modelId"
+                class="source-card"
+              >
+                <div class="source-header">
+                  <span class="source-icon">{{ modelInfo.type === 'expression' ? '📝' : '📦' }}</span>
+                  <span class="source-title">{{ modelInfo.type === 'expression' ? '表达式模型' : modelInfo.name }}</span>
+                  <span class="source-count">({{ modelInfo.fields.length }})</span>
+                </div>
+                <div class="source-fields">
+                  <div
+                    v-for="field in modelInfo.fields"
+                    :key="field.columnName"
+                    class="field-item"
+                  >
+                    <span class="field-name">{{ field.columnAlias || field.columnName }}</span>
+                    <span class="field-type">{{ field.columnType }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 无法追溯来源的字段 -->
+            <div v-if="hasUntracedFields" class="field-source-group">
+              <div class="source-card unknown-source">
+                <div class="source-header">
+                  <span class="source-icon">❓</span>
+                  <span class="source-title">未知来源</span>
+                </div>
+                <div class="source-fields">
+                  <div
+                    v-for="field in untracedFields"
+                    :key="field.columnName"
+                    class="field-item"
+                  >
+                    <span class="field-name">{{ field.columnAlias || field.columnName }}</span>
+                    <span class="field-type">{{ field.columnType }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </CollapsibleSection>
+      </div>
+
       <!-- 其他节点类型 -->
       <div v-else class="empty-state">
         <div class="empty-icon">ℹ️</div>
@@ -330,7 +443,7 @@
 <script setup lang="ts">
 import { computed, watch, ref, onMounted } from 'vue'
 import type { Node } from '@vue-flow/core'
-import type { NodeData, ComputeTaskNodeData, ModelParameterSignature, AvailableFieldOption } from '@/types/nodes'
+import type { NodeData, ComputeTaskNodeData, OutputDataNodeData, ModelParameterSignature, AvailableFieldOption } from '@/types/nodes'
 import type { ExportJson } from '@/types/export'
 import { NodeCategory, TechPath } from '@/types/nodes'
 import { logger } from '@/utils/logger'
@@ -451,16 +564,19 @@ interface Props {
   selectedNode: Node<NodeData> | null
   exportJson: ExportJson | null
   viewMode: 'detail' | 'preview'
+  nodes: Node<NodeData>[]  // 所有节点，用于追溯字段来源
 }
 
 interface Emits {
   (e: 'edit', nodeId: string): void
   (e: 'viewModeChange', mode: 'detail' | 'preview'): void
   (e: 'configParams', data: { modelId: string; modelConfig: any; taskId: string }): void
+  (e: 'editOutput', nodeId: string): void  // 编辑输出数据节点
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  panelWidth: 400
+  panelWidth: 400,
+  nodes: () => []
 })
 const emit = defineEmits<Emits>()
 
@@ -472,6 +588,11 @@ const isDataSourceNode = computed(() => {
 // 判断是否为计算任务节点
 const isComputeTaskNode = computed(() => {
   return props.selectedNode?.data?.category === NodeCategory.COMPUTE_TASK
+})
+
+// 判断是否为输出数据节点
+const isOutputDataNode = computed(() => {
+  return props.selectedNode?.data?.category === NodeCategory.OUTPUT_DATA
 })
 
 // 判断数据源节点是否已配置
@@ -562,6 +683,134 @@ const outputs = computed(() => {
 // 输出数量
 const outputsCount = computed(() => outputs.value.length)
 
+// ========== 输出数据节点相关 ==========
+
+// 输出数据节点数据
+const outputData = computed(() => {
+  if (!isOutputDataNode.value) return null
+  return props.selectedNode?.data as any
+})
+
+// 获取父任务节点
+const parentTaskNode = computed(() => {
+  if (!outputData.value?.parentTaskId || !props.nodes?.length) return null
+  return props.nodes.find(n => n.id === outputData.value.parentTaskId)
+})
+
+// 父任务数据
+const parentTaskData = computed(() => {
+  if (!parentTaskNode.value) return null
+  return parentTaskNode.value.data as ComputeTaskNodeData
+})
+
+// 字段分组（按 input/model 来源）
+const fieldGroups = computed(() => {
+  if (!outputData.value?.fields) {
+    return { inputFields: [], modelFields: [] }
+  }
+
+  const inputFields: any[] = []
+  const modelFields: any[] = []
+
+  outputData.value.fields.forEach((field: any) => {
+    if (field.source === 'input') {
+      inputFields.push(field)
+    } else {
+      modelFields.push(field)
+    }
+  })
+
+  return { inputFields, modelFields }
+})
+
+// 输入字段来源信息（追溯字段来源节点）
+const inputFieldSources = computed(() => {
+  const sources: Map<string, { participantId: string; dataset: string; fields: any[] }> = new Map()
+
+  if (!parentTaskData.value?.inputProviders) {
+    return sources
+  }
+
+  parentTaskData.value.inputProviders.forEach((provider) => {
+    const key = provider.sourceNodeId
+    if (!sources.has(key)) {
+      sources.set(key, {
+        participantId: provider.participantId,
+        dataset: provider.dataset,
+        fields: []
+      })
+    }
+
+    // 找出该数据源提供的字段
+    const providerFields = fieldGroups.value.inputFields.filter(field => {
+      // 通过字段名匹配判断是否来自该数据源
+      return provider.fields.some(pf => pf.columnName === field.columnName)
+    })
+
+    sources.get(key)!.fields = providerFields
+  })
+
+  return sources
+})
+
+// 模型字段来源信息
+const modelFieldSources = computed(() => {
+  const sources: Map<string, { name: string; type: string; fields: any[] }> = new Map()
+
+  if (!parentTaskData.value?.models) {
+    return sources
+  }
+
+  parentTaskData.value.models.forEach((model) => {
+    const modelId = model.id || model.modelNodeId || ''
+
+    // 找出该模型提供的字段
+    const modelFields = fieldGroups.value.modelFields.filter(field => {
+      // 对于表达式模型，字段名通常是 result
+      if (model.type === 'expression') {
+        return field.columnName === 'result'
+      }
+      // 对于其他模型，通过匹配字段来源判断
+      return field.columnAlias?.includes(model.name) || field.columnName.includes('result') || field.columnName.includes('accuracy')
+    })
+
+    if (modelFields.length > 0) {
+      sources.set(modelId, {
+        name: model.name,
+        type: model.type,
+        fields: modelFields
+      })
+    }
+  })
+
+  return sources
+})
+
+// 无法追溯来源的字段
+const untracedFields = computed(() => {
+  const tracedFields = new Set<string>()
+
+  // 收集所有已追溯的字段
+  inputFieldSources.value.forEach(source => {
+    source.fields.forEach((field: any) => {
+      tracedFields.add(field.columnName)
+    })
+  })
+
+  modelFieldSources.value.forEach(source => {
+    source.fields.forEach((field: any) => {
+      tracedFields.add(field.columnName)
+    })
+  })
+
+  // 返回未追溯的字段
+  return fieldGroups.value.inputFields.concat(fieldGroups.value.modelFields)
+    .filter(field => !tracedFields.has(field.columnName))
+})
+
+// 是否有无法追溯的字段
+const hasUntracedFields = computed(() => untracedFields.value.length > 0)
+
 /**
  * 获取模型类型标签
  */
@@ -602,6 +851,14 @@ function handleEdit() {
 
   logger.info('[FlowDetailPanel] Edit clicked', { nodeId: props.selectedNode.id })
   emit('edit', props.selectedNode.id)
+}
+
+// 处理编辑输出数据节点
+function handleEditOutput() {
+  if (!props.selectedNode) return
+
+  logger.info('[FlowDetailPanel] Edit output clicked', { nodeId: props.selectedNode.id })
+  emit('editOutput', props.selectedNode.id)
 }
 
 // 处理视图模式切换
@@ -1467,6 +1724,115 @@ watch(() => props.selectedNode, (node) => {
     font-size: 11px;
     color: var(--text-secondary);
     font-weight: 500;
+  }
+}
+
+// ========== 输出数据节点详情样式 ==========
+
+// 字段来源分组容器
+.output-fields-grouped {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.field-source-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+// 字段来源卡片
+.source-card {
+  background: var(--glass-bg);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 8px;
+  padding: 12px;
+  transition: all var(--transition-base) var(--easing-smooth);
+
+  &:hover {
+    border-color: rgba(14, 165, 233, 0.2);
+    box-shadow: 0 2px 8px rgba(14, 165, 233, 0.08);
+  }
+
+  &.unknown-source {
+    border-color: rgba(250, 173, 20, 0.2);
+    opacity: 0.7;
+
+    &:hover {
+      border-color: rgba(250, 173, 20, 0.3);
+    }
+  }
+}
+
+.source-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+
+  .source-icon {
+    font-size: 16px;
+  }
+
+  .source-title {
+    flex: 1;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .source-dataset {
+    font-size: 11px;
+    color: var(--text-secondary);
+    padding: 2px 8px;
+    background: rgba(0, 0, 0, 0.04);
+    border-radius: 4px;
+  }
+
+  .source-count {
+    font-size: 11px;
+    color: var(--text-secondary);
+    padding: 2px 8px;
+    background: rgba(0, 0, 0, 0.04);
+    border-radius: 10px;
+  }
+}
+
+.source-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  .field-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 10px;
+    background: rgba(0, 0, 0, 0.02);
+    border-radius: 6px;
+    font-size: 12px;
+
+    .field-name {
+      flex: 1;
+      color: var(--text-primary);
+      font-weight: 500;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .field-type {
+      flex-shrink: 0;
+      font-size: 11px;
+      color: var(--text-secondary);
+      padding: 2px 6px;
+      background: rgba(0, 0, 0, 0.04);
+      border-radius: 4px;
+      font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+    }
   }
 }
 </style>

@@ -235,6 +235,7 @@ const pendingOutputConfig = ref<{
   dataset: string
   fields: OutputField[]
 } | undefined>(undefined)
+const editingOutputNodeId = ref<string | undefined>(undefined)  // 正在编辑的输出节点 ID
 
 // 企业选择对话框状态（用于模型和算力）
 const showEnterpriseDialog = ref(false)
@@ -1303,6 +1304,7 @@ function handleAddOutput(event: Event) {
 
 /**
  * 处理输出配置确认
+ * 支持新建和编辑两种模式
  */
 function handleOutputConfigConfirmed(config: {
   participantId: string
@@ -1311,6 +1313,7 @@ function handleOutputConfigConfirmed(config: {
 }) {
   logger.info('[FlowCanvas] Output config confirmed', {
     taskId: pendingOutputTaskId.value,
+    isEditMode: !!editingOutputNodeId.value,
     participantId: config.participantId,
     fieldCount: config.fields.length
   })
@@ -1328,64 +1331,98 @@ function handleOutputConfigConfirmed(config: {
 
   const taskData = taskNode.data as ComputeTaskNodeData
 
-  // 在计算任务下方创建输出节点
-  const outputNodeId = `output_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-  const outputPosition = {
-    x: taskNode.position.x,
-    y: taskNode.position.y + 150
-  }
-
   // 根据 participantId 查找企业名称
   const enterprise = availableEnterprises.value.find(e => e.id === config.participantId)
   const entityName = enterprise?.name || ''
 
-  const outputNode: Node = {
-    id: outputNodeId,
-    type: 'outputData',
-    position: outputPosition,
-    data: {
+  // 编辑模式：更新现有输出节点
+  if (editingOutputNodeId.value) {
+    const outputNode = nodes.value.find(n => n.id === editingOutputNodeId.value)
+    if (!outputNode) {
+      logger.warn('[FlowCanvas] Output node not found for editing')
+      return
+    }
+
+    // 更新输出节点数据
+    outputNode.data = {
+      ...outputNode.data,
       label: config.dataset,
-      category: NodeCategory.OUTPUT_DATA,
-      color: '#52C41A',
-      icon: 'download',
-      description: `输出到 ${config.participantId}`,
-      parentTaskId: pendingOutputTaskId.value,
       participantId: config.participantId,
       entityName: entityName,
       dataset: config.dataset,
       fields: config.fields
-    } as any
+    }
+
+    // 更新父任务的 outputs 配置
+    if (taskData.outputs) {
+      const outputConfig = taskData.outputs.find(o => o.outputNodeId === editingOutputNodeId.value)
+      if (outputConfig) {
+        outputConfig.participantId = config.participantId
+        outputConfig.dataset = config.dataset
+        outputConfig.outputFields = config.fields
+      }
+    }
+
+    logger.info('[FlowCanvas] Output node updated', {
+      outputNodeId: editingOutputNodeId.value,
+      parentTaskId: pendingOutputTaskId.value
+    })
+  } else {
+    // 新建模式：创建新的输出节点
+    const outputNodeId = `output_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    const outputPosition = {
+      x: taskNode.position.x,
+      y: taskNode.position.y + 150
+    }
+
+    const outputNode: Node = {
+      id: outputNodeId,
+      type: 'outputData',
+      position: outputPosition,
+      data: {
+        label: config.dataset,
+        category: NodeCategory.OUTPUT_DATA,
+        color: '#52C41A',
+        icon: 'download',
+        description: `输出到 ${config.participantId}`,
+        parentTaskId: pendingOutputTaskId.value,
+        participantId: config.participantId,
+        entityName: entityName,
+        dataset: config.dataset,
+        fields: config.fields
+      } as any
+    }
+
+    addNode(outputNode)
+
+    // 创建从计算任务到输出节点的连接
+    const outputEdge = createUniqueEdge({
+      source: pendingOutputTaskId.value,
+      target: outputNodeId,
+      sourceHandle: 'output',
+      targetHandle: 'input'
+    }, edges.value)
+    edges.value.push(outputEdge)
+
+    // 更新计算任务的 outputs 数组
+    if (!taskData.outputs) {
+      taskData.outputs = []
+    }
+
+    taskData.outputs.push({
+      id: `output_config_${Date.now()}`,
+      participantId: config.participantId,
+      dataset: config.dataset,
+      outputFields: config.fields,
+      outputNodeId: outputNodeId
+    })
+
+    logger.info('[FlowCanvas] Output node created and linked', {
+      outputNodeId,
+      parentTaskId: pendingOutputTaskId.value,
+      edgeId: outputEdge.id
+    })
   }
-
-  addNode(outputNode)
-
-  // 创建从计算任务到输出节点的连接
-  const outputEdge = createUniqueEdge({
-    source: pendingOutputTaskId.value,
-    target: outputNodeId,
-    sourceHandle: 'output',
-    targetHandle: 'input'
-  }, edges.value)
-  edges.value.push(outputEdge)
-
-  // 更新计算任务的 outputs 数组
-  if (!taskData.outputs) {
-    taskData.outputs = []
-  }
-
-  taskData.outputs.push({
-    id: `output_config_${Date.now()}`,
-    participantId: config.participantId,
-    dataset: config.dataset,
-    outputFields: config.fields,
-    outputNodeId: outputNodeId
-  })
-
-  logger.info('[FlowCanvas] Output node created and linked', {
-    outputNodeId,
-    parentTaskId: pendingOutputTaskId.value,
-    edgeId: outputEdge.id
-  })
 
   // 清理状态
   clearOutputConfigState()
@@ -1407,6 +1444,7 @@ function handleOutputConfigCancelled() {
 function clearOutputConfigState() {
   pendingOutputTaskId.value = ''
   pendingOutputConfig.value = undefined
+  editingOutputNodeId.value = undefined
   showOutputConfigDialog.value = false
 }
 
@@ -2356,9 +2394,46 @@ function createComputeNodeForTask(computeInfo: any) {
   pendingTargetTaskNodeId.value = ''
 }
 
+/**
+ * 打开编辑输出配置对话框
+ * @param outputNodeId 要编辑的输出节点 ID
+ */
+function openEditOutputDialog(outputNodeId: string) {
+  const outputNode = nodes.value.find(n => n.id === outputNodeId)
+  if (!outputNode) {
+    logger.warn('[FlowCanvas] Output node not found for editing', { outputNodeId })
+    return
+  }
+
+  const outputData = outputNode.data as any
+  const parentTaskId = outputData.parentTaskId
+
+  if (!parentTaskId) {
+    logger.warn('[FlowCanvas] Output node has no parent task', { outputNodeId })
+    return
+  }
+
+  // 设置编辑模式状态
+  editingOutputNodeId.value = outputNodeId
+  pendingOutputTaskId.value = parentTaskId
+  pendingOutputConfig.value = {
+    participantId: outputData.participantId,
+    dataset: outputData.dataset,
+    fields: outputData.fields || []
+  }
+
+  // 打开编辑对话框
+  showOutputConfigDialog.value = true
+  logger.info('[FlowCanvas] Opening output config dialog for editing', {
+    outputNodeId,
+    parentTaskId
+  })
+}
+
 // 暴露方法供父组件调用
 defineExpose({
   openEditDialog,
+  openEditOutputDialog,
   handleExport,
   handleImport,
   handleConfigParams

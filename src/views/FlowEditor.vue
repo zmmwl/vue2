@@ -22,9 +22,11 @@
         :selected-node="selectedNode"
         :export-json="exportJson"
         :view-mode="detailViewMode"
+        :nodes="nodes"
         @edit="handleEditAsset"
         @view-mode-change="handleViewModeChange"
         @config-params="handleConfigParams"
+        @edit-output="handleEditOutput"
       />
     </div>
     <!-- 隐藏的文件输入用于导入 -->
@@ -108,6 +110,14 @@ function handleConfigParams(data: { modelId: string; modelConfig: any; taskId: s
   if (flowCanvas && typeof flowCanvas.handleConfigParams === 'function') {
     flowCanvas.handleConfigParams(data)
   }
+}
+
+/**
+ * 处理编辑输出节点事件
+ */
+function handleEditOutput(nodeId: string) {
+  logger.info('[FlowEditor] Edit output requested', { nodeId })
+  flowCanvasRef.value?.openEditOutputDialog(nodeId)
 }
 
 /**
