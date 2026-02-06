@@ -2413,20 +2413,79 @@ function openEditOutputDialog(outputNodeId: string) {
     return
   }
 
+  // 获取父任务节点
+  const taskNode = nodes.value.find(n => n.id === parentTaskId)
+  if (!taskNode) {
+    logger.warn('[FlowCanvas] Parent task node not found', { parentTaskId })
+    return
+  }
+
+  const taskData = taskNode.data as ComputeTaskNodeData
+
+  // 构建字段来源信息映射
+  const fieldSourceMap = new Map<string, { sourceType: 'input' | 'model'; sourceNodeId?: string; modelId?: string; modelNodeId?: string }>()
+
+  // 从 inputProviders 构建 input 字段来源映射
+  taskData.inputProviders?.forEach((provider) => {
+    provider.fields.forEach((field) => {
+      const key = `input-${field.columnName}`
+      fieldSourceMap.set(key, {
+        sourceType: 'input',
+        sourceNodeId: provider.sourceNodeId
+      })
+    })
+  })
+
+  // 从 models 构建 model 字段来源映射
+  taskData.models?.forEach((model) => {
+    const modelId = model.id || model.modelNodeId || ''
+    if (model.type === 'expression') {
+      // 表达式模型：输出字段固定为 result
+      const key = `model-result`
+      fieldSourceMap.set(key, {
+        sourceType: 'model',
+        modelId: modelId,
+        modelNodeId: model.modelNodeId
+      })
+    } else {
+      // 其他模型：根据输出字段类型确定字段名
+      // 这里简化处理，假设常见输出字段
+      const commonFields = ['result', 'accuracy', 'loss', 'intersection_result', 'intersection_size', 'statistic_value', 'model_accuracy', 'training_loss']
+      commonFields.forEach(fieldName => {
+        const key = `model-${fieldName}`
+        if (!fieldSourceMap.has(key)) {
+          fieldSourceMap.set(key, {
+            sourceType: 'model',
+            modelId: modelId,
+            modelNodeId: model.modelNodeId
+          })
+        }
+      })
+    }
+  })
+
+  // 为每个输出字段构建来源信息
+  const fieldSources = outputData.fields?.map((field) => {
+    const key = `${field.source}-${field.columnName}`
+    return fieldSourceMap.get(key) || { sourceType: field.source }
+  })
+
   // 设置编辑模式状态
   editingOutputNodeId.value = outputNodeId
   pendingOutputTaskId.value = parentTaskId
   pendingOutputConfig.value = {
     participantId: outputData.participantId,
     dataset: outputData.dataset,
-    fields: outputData.fields || []
+    fields: outputData.fields || [],
+    fieldSources: fieldSources
   }
 
   // 打开编辑对话框
   showOutputConfigDialog.value = true
   logger.info('[FlowCanvas] Opening output config dialog for editing', {
     outputNodeId,
-    parentTaskId
+    parentTaskId,
+    fieldCount: outputData.fields?.length || 0
   })
 }
 

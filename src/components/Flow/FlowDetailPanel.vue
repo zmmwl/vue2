@@ -766,12 +766,30 @@ const modelFieldSources = computed(() => {
 
     // 找出该模型提供的字段
     const modelFields = fieldGroups.value.modelFields.filter(field => {
-      // 对于表达式模型，字段名通常是 result
+      // 对于表达式模型，字段名是 result
       if (model.type === 'expression') {
         return field.columnName === 'result'
       }
-      // 对于其他模型，通过匹配字段来源判断
-      return field.columnAlias?.includes(model.name) || field.columnName.includes('result') || field.columnName.includes('accuracy')
+
+      // 对于其他模型，通过父任务的 outputs 配置追溯
+      // 检查父任务的 outputs 中是否包含该模型
+      const parentOutputs = parentTaskData.value.outputs || []
+      const modelOutput = parentOutputs.find((output: any) =>
+        output.outputFields?.some((f: any) =>
+          f.source === 'model' &&
+          f.columnName === field.columnName &&
+          output.participantId === model.participantId
+        )
+      )
+
+      // 如果在 outputs 配置中找到该字段，并且属于当前模型
+      if (modelOutput) {
+        return true
+      }
+
+      // 兜容方案：通过常见字段名模式匹配
+      const commonModelFields = ['result', 'accuracy', 'loss', 'intersection_result', 'intersection_size', 'statistic_value', 'model_accuracy', 'training_loss', 'compute_result']
+      return commonModelFields.some(name => field.columnName.includes(name))
     })
 
     if (modelFields.length > 0) {

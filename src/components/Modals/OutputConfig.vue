@@ -164,6 +164,13 @@ interface Props {
     participantId: string
     dataset: string
     fields: OutputField[]
+    // 新增：字段完整来源信息，用于编辑模式匹配
+    fieldSources?: Array<{
+      sourceType: 'input' | 'model'
+      sourceNodeId?: string  // input 字段的源节点 ID
+      modelId?: string      // model 字段的模型 ID
+      modelNodeId?: string  // 模型节点 ID（兼容）
+    }>
   }
   closeOnOverlay?: boolean
 }
@@ -293,9 +300,28 @@ function initializeConfig() {
   if (props.initialConfig) {
     selectedEnterpriseId.value = props.initialConfig.participantId
     datasetName.value = props.initialConfig.dataset
-    selectedFieldIds.value = new Set(
-      props.initialConfig.fields.map(f => `${f.source}-${f.columnName}`)
-    )
+
+    // 使用完整来源信息生成正确的字段 ID
+    const fieldIds: string[] = []
+    props.initialConfig.fields.forEach((field, index) => {
+      const fieldSource = props.initialConfig?.fieldSources?.[index]
+
+      if (field.source === 'input' && fieldSource?.sourceNodeId) {
+        // 输入字段：使用 sourceNodeId 生成 ID
+        fieldIds.push(`input-${fieldSource.sourceNodeId}-${field.columnName}`)
+      } else if (field.source === 'model' && (fieldSource?.modelId || fieldSource?.modelNodeId)) {
+        // 模型字段：使用 modelId/modelNodeId 生成 ID
+        const modelId = fieldSource.modelId || fieldSource.modelNodeId || ''
+        // 根据字段名确定（表达式模型固定为 result）
+        const fieldName = field.columnName
+        fieldIds.push(`model-${modelId}-${fieldName}`)
+      } else {
+        // 兼容旧格式：如果没有来源信息，使用简单格式
+        fieldIds.push(`${field.source}-${field.columnName}`)
+      }
+    })
+
+    selectedFieldIds.value = new Set(fieldIds)
   } else {
     // 默认数据集名称
     datasetName.value = `output_${props.taskId}_${Date.now()}`
