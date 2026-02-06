@@ -793,6 +793,7 @@ const onNodesChange = (changes: NodeChange[]) => {
 /**
  * 处理连接线变化（删除等）
  * 删除输出节点的连线时，自动删除该输出节点
+ * 删除数据源到计算任务的连线时，清除计算任务的输入配置
  */
 const onEdgesChange = (changes: EdgeChange[]) => {
   for (const change of changes) {
@@ -801,25 +802,53 @@ const onEdgesChange = (changes: EdgeChange[]) => {
       const removedEdge = edges.value.find(e => e.id === change.id)
 
       if (removedEdge) {
-        // 检查是否是从计算任务到输出节点的连接
+        const sourceNode = nodes.value.find(n => n.id === removedEdge.source)
         const targetNode = nodes.value.find(n => n.id === removedEdge.target)
-        if (targetNode) {
+
+        if (sourceNode && targetNode) {
+          const sourceData = sourceNode.data as NodeData
           const targetData = targetNode.data as NodeData
+
+          // 情况1: 从计算任务到输出节点的连接
           if (targetData.category === NodeCategory.OUTPUT_DATA) {
             // 删除输出节点
             setNodes(nodes.value.filter(n => n.id !== targetNode.id))
 
             // 从父任务的 outputs 数组中移除该输出配置
-            const sourceNode = nodes.value.find(n => n.id === removedEdge.source)
-            if (sourceNode) {
-              const sourceData = sourceNode.data as ComputeTaskNodeData
-              if (sourceData.outputs) {
-                sourceData.outputs = sourceData.outputs.filter(
+            if (sourceData.category === NodeCategory.COMPUTE_TASK) {
+              const sourceTaskData = sourceData as ComputeTaskNodeData
+              if (sourceTaskData.outputs) {
+                sourceTaskData.outputs = sourceTaskData.outputs.filter(
                   output => output.outputNodeId !== targetNode.id
                 )
                 logger.info('[FlowCanvas] Auto-deleted output node on edge removal', {
                   outputNodeId: targetNode.id,
                   parentTaskId: sourceNode.id
+                })
+              }
+            }
+          }
+
+          // 情况2: 从数据源节点到计算任务的连接
+          if (sourceData.category === NodeCategory.DATA_SOURCE &&
+              targetData.category === NodeCategory.COMPUTE_TASK) {
+            const taskData = targetData as ComputeTaskNodeData
+            // 从计算任务的 inputProviders 中移除对应的输入配置
+            if (taskData.inputProviders) {
+              const beforeCount = taskData.inputProviders.length
+              taskData.inputProviders = taskData.inputProviders.filter(
+                provider => provider.sourceNodeId !== sourceNode.id
+              )
+
+              if (taskData.inputProviders.length < beforeCount) {
+                // 重新构建 Join 条件
+                taskData.joinConditions = buildJoinConditions(taskData.inputProviders)
+
+                logger.info('[FlowCanvas] Input provider removed from task on edge deletion', {
+                  sourceNodeId: sourceNode.id,
+                  targetTaskId: targetNode.id,
+                  removedCount: beforeCount - taskData.inputProviders.length,
+                  remainingCount: taskData.inputProviders.length
                 })
               }
             }
@@ -2663,8 +2692,65 @@ function handleTestDeleteNode(event: Event) {
 
   logger.info('[FlowCanvas] Test node deleted', {
     nodeId,
-    totalDeleted: nodesToDelete.length
+    cascadedCount: nodesToDelete.length - 1
   })
+}
+
+/**
+ * 处理测试用的连接线删除事件
+ * 用于 E2E 测试中直接删除连接线并验证级联删除
+ */
+function handleTestDeleteEdge(event: Event) {
+  const customEvent = event as CustomEvent
+  const { edgeId } = customEvent.detail
+
+  logger.info('[FlowCanvas] test-delete-edge event received', { edgeId })
+
+  // 找到要删除的连接线
+  const edgeToDelete = edges.value.find(e => e.id === edgeId)
+  if (!edgeToDelete) {
+    logger.warn('[FlowCanvas] Edge not found for deletion', { edgeId })
+    return
+  }
+
+  const sourceNode = nodes.value.find(n => n.id === edgeToDelete.source)
+  const targetNode = nodes.value.find(n => n.id === edgeToDelete.target)
+
+  // 处理数据源到计算任务的连接删除
+  if (sourceNode && targetNode) {
+    const sourceData = sourceNode.data as NodeData
+    const targetData = targetNode.data as NodeData
+
+    if (sourceData.category === NodeCategory.DATA_SOURCE &&
+        targetData.category === NodeCategory.COMPUTE_TASK) {
+      const taskData = targetData as ComputeTaskNodeData
+
+      // 从计算任务的 inputProviders 中移除对应的输入配置
+      if (taskData.inputProviders) {
+        const beforeCount = taskData.inputProviders.length
+        taskData.inputProviders = taskData.inputProviders.filter(
+          provider => provider.sourceNodeId !== sourceNode.id
+        )
+
+        if (taskData.inputProviders.length < beforeCount) {
+          // 重新构建 Join 条件
+          taskData.joinConditions = buildJoinConditions(taskData.inputProviders)
+
+          logger.info('[FlowCanvas] Input provider removed from task on edge deletion (test)', {
+            sourceNodeId: sourceNode.id,
+            targetTaskId: targetNode.id,
+            removedCount: beforeCount - taskData.inputProviders.length,
+            remainingCount: taskData.inputProviders.length
+          })
+        }
+      }
+    }
+  }
+
+  // 从 edges 数组中删除连接线
+  setEdges(edges.value.filter(e => e.id !== edgeId))
+
+  logger.info('[FlowCanvas] Test edge deleted', { edgeId })
 }
 
 // 生命周期：注册全局事件监听器
@@ -2679,6 +2765,7 @@ onMounted(() => {
   window.addEventListener('test-drop-model', handleTestDropModel)
   window.addEventListener('test-drop-compute', handleTestDropCompute)
   window.addEventListener('test-delete-node', handleTestDeleteNode)
+  window.addEventListener('test-delete-edge', handleTestDeleteEdge)
 })
 
 onUnmounted(() => {
@@ -2691,6 +2778,7 @@ onUnmounted(() => {
   window.removeEventListener('test-drop-model', handleTestDropModel)
   window.removeEventListener('test-drop-compute', handleTestDropCompute)
   window.removeEventListener('test-delete-node', handleTestDeleteNode)
+  window.removeEventListener('test-delete-edge', handleTestDeleteEdge)
 })
 </script>
 

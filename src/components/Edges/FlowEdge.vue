@@ -18,15 +18,18 @@ const path = computed(() =>
 
 <template>
   <g class="flow-edge">
-    <!-- 主连接线 -->
+    <!-- 主连接线 - 增加透明填充区域以扩大点击范围 -->
     <BaseEdge
       :id="id"
       :path="path[0]"
       :marker-end="markerEnd"
       :style="{
         stroke: selected ? '#1890ff' : '#999999',
-        strokeWidth: 2
+        strokeWidth: 2,
+        pointerEvents: 'stroke',
+        cursor: 'pointer'
       }"
+      class="edge-path"
     />
 
     <!-- 流动的光点粒子 -->
@@ -50,6 +53,13 @@ const path = computed(() =>
 
 <style scoped>
 .flow-edge {
-  pointer-events: none;
+  /* 启用连接线的交互，支持选择和删除 */
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.flow-edge:hover :deep(path) {
+  stroke: #1890ff;
+  stroke-width: 3;
 }
 </style>
