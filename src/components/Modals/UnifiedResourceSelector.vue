@@ -890,7 +890,8 @@ $card-shadow-selected: 0 4px 16px rgba(14, 165, 233, 0.3);
   display: flex;
   flex-direction: column;
   height: 100%;
-  overflow: hidden;
+  overflow: hidden;  // 防止滚动溢出
+  min-height: 0;     // 允许 flex 子元素正确收缩
 }
 
 // 搜索区域
@@ -971,7 +972,9 @@ $card-shadow-selected: 0 4px 16px rgba(14, 165, 233, 0.3);
   overflow-y: auto;
   padding: 16px 24px;
   background: var(--glass-bg);
-  max-height: 400px;
+  min-height: 0;     // 允许收缩
+
+  // 移除 max-height: 400px - 让 flex 自动分配高度
 
   &::-webkit-scrollbar {
     width: 6px;
@@ -992,7 +995,7 @@ $card-shadow-selected: 0 4px 16px rgba(14, 165, 233, 0.3);
 }
 
 .field-selection-body {
-  max-height: 350px;
+  // 移除 max-height - 让 flex 自动分配高度，由父容器控制
 }
 
 .loading-state {
@@ -1233,25 +1236,7 @@ $card-shadow-selected: 0 4px 16px rgba(14, 165, 233, 0.3);
   display: flex;
   flex-direction: column;
   gap: 4px;
-  max-height: 300px;
-  overflow-y: auto;
-
-  &::-webkit-scrollbar {
-    width: 8px;
-  }
-
-  &::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background: #d1d5db;
-    border-radius: 4px;
-
-    &:hover {
-      background: #9ca3af;
-    }
-  }
+  // 移除 max-height 和 overflow-y - 让外层 modal-body 负责滚动
 }
 
 .field-item {
@@ -1487,27 +1472,11 @@ $card-shadow-selected: 0 4px 16px rgba(14, 165, 233, 0.3);
 
 // ========== 资源容器（支持多种视图） ==========
 .resource-container {
-  flex: 1;
-  overflow-y: auto;
+  // 移除 overflow-y: auto - 不再需要内层滚动
+  // 移除 flex: 1 - 让内容自然排列
+
   padding: 16px 24px;
   background: var(--glass-bg);
-
-  &::-webkit-scrollbar {
-    width: 6px;
-  }
-
-  &::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background: rgba(0, 0, 0, 0.1);
-    border-radius: 3px;
-
-    &:hover {
-      background: rgba(0, 0, 0, 0.15);
-    }
-  }
 }
 
 // ========== 卡片视图样式 ==========
