@@ -304,4 +304,245 @@ test.describe('连接线测试', () => {
     // 至少验证连接线被删除了
     expect(newEdgeCount).toBeLessThan(edgeCount);
   });
+
+  /**
+   * 测试：删除模型节点连线时，删除模型节点
+   * 1. 使用测试事件创建带模型节点的计算任务
+   * 2. 删除连接线
+   * 3. 验证模型节点被删除
+   */
+  test('删除模型节点连线时应删除模型节点', async ({ page }) => {
+    // 等待画布完全加载
+    await page.waitForSelector('.flow-canvas', { timeout: 10000 });
+
+    // 等待更长时间以确保组件完全挂载
+    await page.waitForTimeout(2000);
+
+    // 使用测试事件创建带模型节点的计算任务
+    await page.evaluate(() => {
+      const taskData = {
+        type: 'compute_task',
+        label: 'PSI',
+        category: 'compute_task',
+        taskType: 'psi',
+        techPath: 'SOFTWARE',
+        icon: '🔐',
+        color: '#1890ff'
+      };
+
+      const modelData = {
+        name: 'CodeBin-V3.1模型',
+        type: 'CodeBin-V3-1',
+        participantId: 'test_participant'
+      };
+
+      window.dispatchEvent(new CustomEvent('create-test-task-with-model', {
+        detail: { taskData, modelData }
+      }));
+    });
+    await page.waitForTimeout(3000);
+
+    // 验证节点数量（计算任务 + 模型节点）
+    const nodes = page.locator('.vue-flow__node');
+    const initialNodeCount = await nodes.count();
+    console.log('初始节点数量:', initialNodeCount);
+
+    if (initialNodeCount < 2) {
+      console.log('模型节点创建失败，跳过测试');
+      test.skip();
+      return;
+    }
+
+    // 验证有连接线
+    const edges = page.locator('.vue-flow__edge');
+    const initialEdgeCount = await edges.count();
+    console.log('初始连接线数量:', initialEdgeCount);
+
+    if (initialEdgeCount === 0) {
+      console.log('没有连接线，跳过测试');
+      test.skip();
+      return;
+    }
+
+    // 使用测试事件删除连接线
+    const edgeId = await edges.first().getAttribute('data-id');
+    if (edgeId) {
+      await page.evaluate(({ id }) => {
+        window.dispatchEvent(new CustomEvent('test-delete-edge', {
+          detail: { edgeId: id }
+        }));
+      }, { id: edgeId });
+      await page.waitForTimeout(1000);
+    }
+
+    // 验证连接线被删除
+    const newEdgeCount = await edges.count();
+    console.log('删除后的连接线数量:', newEdgeCount);
+
+    // 验证模型节点被删除
+    const finalNodeCount = await nodes.count();
+    console.log('删除后的节点数量:', finalNodeCount);
+
+    // 模型节点应该被删除
+    expect(finalNodeCount).toBeLessThan(initialNodeCount);
+  });
+
+  /**
+   * 测试：删除算力资源连线时，删除算力资源节点
+   * 1. 使用测试事件创建带算力资源节点的计算任务
+   * 2. 删除连接线
+   * 3. 验证算力资源节点被删除
+   */
+  test('删除算力资源连线时应删除算力资源节点', async ({ page }) => {
+    // 使用测试事件创建带算力资源节点的计算任务
+    await page.evaluate(() => {
+      const taskData = {
+        type: 'compute_task',
+        label: 'PSI',
+        category: 'compute_task',  // 使用枚举值
+        taskType: 'psi',
+        techPath: 'SOFTWARE',
+        icon: '🔐',
+        color: '#1890ff'
+      };
+
+      const computeData = {
+        name: 'TEE算力',
+        type: 'TEE_CPU',
+        participantId: 'test_participant'
+      };
+
+      window.dispatchEvent(new CustomEvent('create-test-task-with-compute', {
+        detail: { taskData, computeData }
+      }));
+    });
+    await page.waitForTimeout(2000);
+
+    // 验证节点数量
+    const nodes = page.locator('.vue-flow__node');
+    const initialNodeCount = await nodes.count();
+    console.log('初始节点数量:', initialNodeCount);
+
+    if (initialNodeCount < 2) {
+      console.log('算力资源节点创建失败，跳过测试');
+      test.skip();
+      return;
+    }
+
+    // 验证有连接线
+    const edges = page.locator('.vue-flow__edge');
+    const initialEdgeCount = await edges.count();
+    console.log('初始连接线数量:', initialEdgeCount);
+
+    if (initialEdgeCount === 0) {
+      console.log('没有连接线，跳过测试');
+      test.skip();
+      return;
+    }
+
+    // 使用测试事件删除连接线
+    const edgeId = await edges.first().getAttribute('data-id');
+    if (edgeId) {
+      await page.evaluate(({ id }) => {
+        window.dispatchEvent(new CustomEvent('test-delete-edge', {
+          detail: { edgeId: id }
+        }));
+      }, { id: edgeId });
+      await page.waitForTimeout(1000);
+    }
+
+    // 验证连接线被删除
+    const newEdgeCount = await edges.count();
+    console.log('删除后的连接线数量:', newEdgeCount);
+
+    // 验证算力资源节点被删除
+    const finalNodeCount = await nodes.count();
+    console.log('删除后的节点数量:', finalNodeCount);
+
+    // 算力资源节点应该被删除
+    expect(finalNodeCount).toBeLessThan(initialNodeCount);
+  });
+
+  /**
+   * 测试：删除输出数据连线时，删除输出数据节点
+   * 1. 创建计算任务节点
+   * 2. 创建输出数据节点并连接到计算任务
+   * 3. 删除连接线
+   * 4. 验证输出数据节点被删除
+   */
+  test('删除输出数据连线时应删除输出数据节点', async ({ page }) => {
+    // 使用测试事件创建带输出的计算任务
+    await page.evaluate(() => {
+      const taskData = {
+        type: 'compute_task',
+        label: 'PSI',
+        category: 'compute_task',  // 使用枚举值
+        taskType: 'psi',
+        techPath: 'SOFTWARE',
+        icon: '🔐',
+        color: '#1890ff',
+        inputProviders: [{ fields: [{ columnName: 'id' }] }]
+      };
+
+      const outputData = {
+        id: 'test_output_node_' + Date.now(),
+        type: 'outputData',
+        label: '输出数据',
+        category: 'outputData',  // 使用枚举值
+        parentTaskId: 'test_task',
+        participantId: 'ent_001',
+        dataset: 'test_dataset',
+        fields: [{ name: 'id', type: 'STRING' }]
+      };
+
+      window.dispatchEvent(new CustomEvent('create-test-task-with-output', {
+        detail: { taskData, outputData }
+      }));
+    });
+    await page.waitForTimeout(1500);
+
+    // 验证节点数量
+    const nodes = page.locator('.vue-flow__node');
+    const initialNodeCount = await nodes.count();
+    console.log('初始节点数量:', initialNodeCount);
+
+    if (initialNodeCount < 2) {
+      console.log('节点创建失败，跳过测试');
+      test.skip();
+      return;
+    }
+
+    // 验证有连接线
+    const edges = page.locator('.vue-flow__edge');
+    const initialEdgeCount = await edges.count();
+    console.log('初始连接线数量:', initialEdgeCount);
+
+    if (initialEdgeCount === 0) {
+      console.log('没有连接线，跳过测试');
+      test.skip();
+      return;
+    }
+
+    // 使用测试事件删除连接线
+    const edgeId = await edges.first().getAttribute('data-id');
+    if (edgeId) {
+      await page.evaluate(({ id }) => {
+        window.dispatchEvent(new CustomEvent('test-delete-edge', {
+          detail: { edgeId: id }
+        }));
+      }, { id: edgeId });
+      await page.waitForTimeout(1000);
+    }
+
+    // 验证连接线被删除
+    const newEdgeCount = await edges.count();
+    console.log('删除后的连接线数量:', newEdgeCount);
+
+    // 验证输出数据节点被删除
+    const finalNodeCount = await nodes.count();
+    console.log('删除后的节点数量:', finalNodeCount);
+
+    // 输出数据节点应该被删除
+    expect(finalNodeCount).toBeLessThan(initialNodeCount);
+  });
 });

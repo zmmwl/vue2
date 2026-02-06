@@ -853,6 +853,66 @@ const onEdgesChange = (changes: EdgeChange[]) => {
               }
             }
           }
+
+          // 情况3: 从模型节点到计算任务的连接 - 删除模型节点
+          if (sourceData.category === NodeCategory.MODEL &&
+              targetData.category === NodeCategory.COMPUTE_TASK) {
+            const taskData = targetData as ComputeTaskNodeData
+            // 从计算任务的 models 数组中移除对应的模型配置
+            if (taskData.models) {
+              const beforeCount = taskData.models.length
+              taskData.models = taskData.models.filter(
+                model => model.modelNodeId !== sourceNode.id
+              )
+
+              if (taskData.models.length < beforeCount) {
+                logger.info('[FlowCanvas] Model removed from task on edge deletion', {
+                  modelNodeId: sourceNode.id,
+                  targetTaskId: targetNode.id,
+                  removedCount: beforeCount - taskData.models.length,
+                  remainingCount: taskData.models.length
+                })
+              }
+            }
+
+            // 删除模型节点
+            setNodes(nodes.value.filter(n => n.id !== sourceNode.id))
+
+            logger.info('[FlowCanvas] Auto-deleted model node on edge removal', {
+              modelNodeId: sourceNode.id,
+              parentTaskId: targetNode.id
+            })
+          }
+
+          // 情况4: 从算力资源节点到计算任务的连接 - 删除算力资源节点
+          if (sourceData.category === NodeCategory.COMPUTE_RESOURCE &&
+              targetData.category === NodeCategory.COMPUTE_TASK) {
+            const taskData = targetData as ComputeTaskNodeData
+            // 从计算任务的 computeProviders 数组中移除对应的算力资源配置
+            if (taskData.computeProviders) {
+              const beforeCount = taskData.computeProviders.length
+              taskData.computeProviders = taskData.computeProviders.filter(
+                provider => provider.resourceNodeId !== sourceNode.id
+              )
+
+              if (taskData.computeProviders.length < beforeCount) {
+                logger.info('[FlowCanvas] Compute provider removed from task on edge deletion', {
+                  resourceNodeId: sourceNode.id,
+                  targetTaskId: targetNode.id,
+                  removedCount: beforeCount - taskData.computeProviders.length,
+                  remainingCount: taskData.computeProviders.length
+                })
+              }
+            }
+
+            // 删除算力资源节点
+            setNodes(nodes.value.filter(n => n.id !== sourceNode.id))
+
+            logger.info('[FlowCanvas] Auto-deleted compute resource node on edge removal', {
+              computeNodeId: sourceNode.id,
+              parentTaskId: targetNode.id
+            })
+          }
         }
       }
     }
@@ -2147,6 +2207,15 @@ function handleCreateTestTaskWithOutput(event: Event) {
 
   addNode(outputNode)
 
+  // 创建从计算任务到输出节点的连接
+  const outputEdge = createUniqueEdge({
+    source: taskNode.id,
+    target: outputNode.id,
+    sourceHandle: 'output',
+    targetHandle: 'input'
+  }, edges.value)
+  edges.value.push(outputEdge)
+
   // 更新计算任务节点的输出配置
   const nodeData = taskNode.data as ComputeTaskNodeData
   if (!nodeData.outputs) {
@@ -2162,7 +2231,182 @@ function handleCreateTestTaskWithOutput(event: Event) {
 
   logger.info('[FlowCanvas] Created task with output', {
     taskId: taskNode.id,
-    outputId: outputNode.id
+    outputId: outputNode.id,
+    edgeId: outputEdge.id
+  })
+}
+
+/**
+ * 处理测试用的带模型节点的任务创建事件
+ * 用于 E2E 测试中直接创建已连接模型节点的计算任务
+ */
+function handleCreateTestTaskWithModel(event: Event) {
+  logger.info('[FlowCanvas] create-test-task-with-model event received')
+  const customEvent = event as CustomEvent
+  const { taskData, modelData, position: taskPos } = customEvent.detail
+
+  // 创建计算任务节点
+  const taskPosition = taskPos || { x: 400, y: 200 }
+  pendingNodePosition.value = taskPosition
+  pendingNodeData.value = taskData
+
+  const techPath = taskData.techPath || TechPath.SOFTWARE
+  createNode(taskData as DroppedNodeData, { x: 0, y: 0 }, techPath)
+
+  // 获取刚创建的计算任务节点
+  const taskNode = nodes.value[nodes.value.length - 1]
+  if (!taskNode) {
+    logger.warn('[FlowCanvas] Failed to create task node')
+    return
+  }
+
+  logger.info('[FlowCanvas] Creating model node for test', {
+    taskId: taskNode.id,
+    modelData
+  })
+
+  // 创建模型节点
+  const modelNodeId = `model_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+  const modelPosition = {
+    x: taskNode.position.x - 200,
+    y: taskNode.position.y
+  }
+
+  const modelNode: Node = {
+    id: modelNodeId,
+    type: 'modelNode',
+    position: modelPosition,
+    data: {
+      label: modelData.name || '测试模型',
+      category: 'model',
+      color: '#8B5CF6',
+      icon: '📦',
+      type: modelData.type || 'CodeBin-V3-1',
+      modelId: modelData.id || 'test_model',
+      participantId: modelData.participantId || 'test_participant',
+      expression: modelData.expression,
+      parameters: []
+    } as any
+  }
+
+  addNode(modelNode)
+
+  // 创建连接
+  const modelEdge = createUniqueEdge({
+    source: modelNodeId,
+    target: taskNode.id,
+    sourceHandle: 'output',
+    targetHandle: 'input'
+  }, edges.value)
+  edges.value.push(modelEdge)
+
+  // 更新计算任务的 models 数组
+  const nodeData = taskNode.data as ComputeTaskNodeData
+  if (!nodeData.models) {
+    nodeData.models = []
+  }
+
+  nodeData.models.push({
+    type: modelData.type || 'CodeBin-V3-1',
+    id: modelData.id || 'test_model',
+    name: modelData.name || '测试模型',
+    participantId: modelData.participantId || 'test_participant',
+    expression: modelData.expression,
+    parameters: [],
+    modelNodeId: modelNodeId
+  })
+
+  logger.info('[FlowCanvas] Created task with model', {
+    taskId: taskNode.id,
+    modelNodeId,
+    totalModels: nodeData.models.length
+  })
+}
+
+/**
+ * 处理测试用的带算力资源节点的任务创建事件
+ * 用于 E2E 测试中直接创建已连接算力资源节点的计算任务
+ */
+function handleCreateTestTaskWithCompute(event: Event) {
+  logger.info('[FlowCanvas] create-test-task-with-compute event received')
+  const customEvent = event as CustomEvent
+  const { taskData, computeData, position: taskPos } = customEvent.detail
+
+  // 创建计算任务节点
+  const taskPosition = taskPos || { x: 400, y: 200 }
+  pendingNodePosition.value = taskPosition
+  pendingNodeData.value = taskData
+
+  const techPath = taskData.techPath || TechPath.SOFTWARE
+  createNode(taskData as DroppedNodeData, { x: 0, y: 0 }, techPath)
+
+  // 获取刚创建的计算任务节点
+  const taskNode = nodes.value[nodes.value.length - 1]
+  if (!taskNode) {
+    logger.warn('[FlowCanvas] Failed to create task node')
+    return
+  }
+
+  logger.info('[FlowCanvas] Creating compute resource node for test', {
+    taskId: taskNode.id,
+    computeData
+  })
+
+  // 创建算力资源节点
+  const computeNodeId = `compute_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+  const computePosition = {
+    x: taskNode.position.x + 300,
+    y: taskNode.position.y
+  }
+
+  const computeNode: Node = {
+    id: computeNodeId,
+    type: 'computeResource',
+    position: computePosition,
+    data: {
+      label: computeData.name || '测试算力',
+      category: 'computeResource',
+      color: '#FA8C16',
+      icon: '⚡',
+      participantId: computeData.participantId || 'test_participant',
+      resourceId: computeData.id || 'test_compute',
+      resourceType: computeData.type || 'TEE_CPU'
+    } as any
+  }
+
+  addNode(computeNode)
+
+  // 创建连接
+  const computeEdge = createUniqueEdge({
+    source: computeNodeId,
+    target: taskNode.id,
+    sourceHandle: 'output',
+    targetHandle: 'compute-input'
+  }, edges.value)
+  edges.value.push(computeEdge)
+
+  // 更新计算任务的 computeProviders 数组
+  const nodeData = taskNode.data as ComputeTaskNodeData
+  if (!nodeData.computeProviders) {
+    nodeData.computeProviders = []
+  }
+
+  nodeData.computeProviders.push({
+    participantId: computeData.participantId || 'test_participant',
+    id: computeData.id || 'test_compute',
+    type: computeData.type || 'TEE_CPU',
+    groupId: computeData.groupId || 'test_group',
+    groupName: computeData.groupName || '测试组',
+    nodeId: computeData.nodeId || 'test_node',
+    cardSerial: computeData.cardSerial || 'SN001',
+    cardModel: computeData.cardModel || 'TestModel',
+    resourceNodeId: computeNodeId
+  })
+
+  logger.info('[FlowCanvas] Created task with compute resource', {
+    taskId: taskNode.id,
+    computeNodeId,
+    totalProviders: nodeData.computeProviders.length
   })
 }
 
@@ -2716,16 +2960,15 @@ function handleTestDeleteEdge(event: Event) {
   const sourceNode = nodes.value.find(n => n.id === edgeToDelete.source)
   const targetNode = nodes.value.find(n => n.id === edgeToDelete.target)
 
-  // 处理数据源到计算任务的连接删除
+  // 处理不同类型的连接删除
   if (sourceNode && targetNode) {
     const sourceData = sourceNode.data as NodeData
     const targetData = targetNode.data as NodeData
 
+    // 情况1: 从数据源到计算任务的连接 - 清除输入配置
     if (sourceData.category === NodeCategory.DATA_SOURCE &&
         targetData.category === NodeCategory.COMPUTE_TASK) {
       const taskData = targetData as ComputeTaskNodeData
-
-      // 从计算任务的 inputProviders 中移除对应的输入配置
       if (taskData.inputProviders) {
         const beforeCount = taskData.inputProviders.length
         taskData.inputProviders = taskData.inputProviders.filter(
@@ -2733,9 +2976,7 @@ function handleTestDeleteEdge(event: Event) {
         )
 
         if (taskData.inputProviders.length < beforeCount) {
-          // 重新构建 Join 条件
           taskData.joinConditions = buildJoinConditions(taskData.inputProviders)
-
           logger.info('[FlowCanvas] Input provider removed from task on edge deletion (test)', {
             sourceNodeId: sourceNode.id,
             targetTaskId: targetNode.id,
@@ -2743,6 +2984,83 @@ function handleTestDeleteEdge(event: Event) {
             remainingCount: taskData.inputProviders.length
           })
         }
+      }
+    }
+
+    // 情况2: 从模型节点到计算任务的连接 - 删除模型节点
+    if (sourceData.category === NodeCategory.MODEL &&
+        targetData.category === NodeCategory.COMPUTE_TASK) {
+      const taskData = targetData as ComputeTaskNodeData
+      if (taskData.models) {
+        const beforeCount = taskData.models.length
+        taskData.models = taskData.models.filter(
+          model => model.modelNodeId !== sourceNode.id
+        )
+
+        if (taskData.models.length < beforeCount) {
+          logger.info('[FlowCanvas] Model removed from task on edge deletion (test)', {
+            modelNodeId: sourceNode.id,
+            targetTaskId: targetNode.id,
+            removedCount: beforeCount - taskData.models.length,
+            remainingCount: taskData.models.length
+          })
+        }
+      }
+
+      // 删除模型节点
+      setNodes(nodes.value.filter(n => n.id !== sourceNode.id))
+
+      logger.info('[FlowCanvas] Auto-deleted model node on edge removal (test)', {
+        modelNodeId: sourceNode.id,
+        parentTaskId: targetNode.id
+      })
+    }
+
+    // 情况3: 从算力资源节点到计算任务的连接 - 删除算力资源节点
+    if (sourceData.category === NodeCategory.COMPUTE_RESOURCE &&
+        targetData.category === NodeCategory.COMPUTE_TASK) {
+      const taskData = targetData as ComputeTaskNodeData
+      if (taskData.computeProviders) {
+        const beforeCount = taskData.computeProviders.length
+        taskData.computeProviders = taskData.computeProviders.filter(
+          provider => provider.resourceNodeId !== sourceNode.id
+        )
+
+        if (taskData.computeProviders.length < beforeCount) {
+          logger.info('[FlowCanvas] Compute provider removed from task on edge deletion (test)', {
+            resourceNodeId: sourceNode.id,
+            targetTaskId: targetNode.id,
+            removedCount: beforeCount - taskData.computeProviders.length,
+            remainingCount: taskData.computeProviders.length
+          })
+        }
+      }
+
+      // 删除算力资源节点
+      setNodes(nodes.value.filter(n => n.id !== sourceNode.id))
+
+      logger.info('[FlowCanvas] Auto-deleted compute resource node on edge removal (test)', {
+        computeNodeId: sourceNode.id,
+        parentTaskId: targetNode.id
+      })
+    }
+
+    // 情况4: 从计算任务到输出节点的连接 - 删除输出节点
+    if (sourceData.category === NodeCategory.COMPUTE_TASK &&
+        targetData.category === NodeCategory.OUTPUT_DATA) {
+      // 删除输出节点
+      setNodes(nodes.value.filter(n => n.id !== targetNode.id))
+
+      // 从父任务的 outputs 数组中移除该输出配置
+      const sourceTaskData = sourceData as ComputeTaskNodeData
+      if (sourceTaskData.outputs) {
+        sourceTaskData.outputs = sourceTaskData.outputs.filter(
+          output => output.outputNodeId !== targetNode.id
+        )
+        logger.info('[FlowCanvas] Auto-deleted output node on edge removal (test)', {
+          outputNodeId: targetNode.id,
+          parentTaskId: sourceNode.id
+        })
       }
     }
   }
@@ -2759,6 +3077,8 @@ onMounted(() => {
   // 监听 window 上的事件，与测试中的 window.dispatchEvent 匹配
   window.addEventListener('create-test-node', handleCreateTestNode)
   window.addEventListener('create-test-task-with-output', handleCreateTestTaskWithOutput)
+  window.addEventListener('create-test-task-with-model', handleCreateTestTaskWithModel)
+  window.addEventListener('create-test-task-with-compute', handleCreateTestTaskWithCompute)
   window.addEventListener('create-test-task-node', handleCreateTestTaskNode)
   window.addEventListener('create-test-compute-resource-node', handleCreateTestComputeResourceNode)
   window.addEventListener('create-test-connection', handleCreateTestConnection)
@@ -2772,6 +3092,8 @@ onUnmounted(() => {
   document.removeEventListener('add-output', handleAddOutput)
   window.removeEventListener('create-test-node', handleCreateTestNode)
   window.removeEventListener('create-test-task-with-output', handleCreateTestTaskWithOutput)
+  window.removeEventListener('create-test-task-with-model', handleCreateTestTaskWithModel)
+  window.removeEventListener('create-test-task-with-compute', handleCreateTestTaskWithCompute)
   window.removeEventListener('create-test-task-node', handleCreateTestTaskNode)
   window.removeEventListener('create-test-compute-resource-node', handleCreateTestComputeResourceNode)
   window.removeEventListener('create-test-connection', handleCreateTestConnection)
