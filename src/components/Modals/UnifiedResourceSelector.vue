@@ -70,6 +70,43 @@
               </div>
             </div>
 
+            <!-- 视图切换按钮 -->
+            <div class="view-toggle-section">
+              <div class="view-toggle-buttons">
+                <button
+                  :class="['view-toggle-btn', { 'is-active': viewMode === 'card' }]"
+                  @click="toggleViewMode('card')"
+                  title="卡片视图"
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="7" height="7" rx="1"/>
+                    <rect x="14" y="3" width="7" height="7" rx="1"/>
+                    <rect x="3" y="14" width="7" height="7" rx="1"/>
+                    <rect x="14" y="14" width="7" height="7" rx="1"/>
+                  </svg>
+                  <span>卡片</span>
+                </button>
+                <button
+                  :class="['view-toggle-btn', { 'is-active': viewMode === 'list' }]"
+                  @click="toggleViewMode('list')"
+                  title="列表视图"
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="8" y1="6" x2="21" y2="6"/>
+                    <line x1="8" y1="12" x2="21" y2="12"/>
+                    <line x1="8" y1="18" x2="21" y2="18"/>
+                    <line x1="3" y1="6" x2="3.01" y2="6"/>
+                    <line x1="3" y1="12" x2="3.01" y2="12"/>
+                    <line x1="3" y1="18" x2="3.01" y2="18"/>
+                  </svg>
+                  <span>列表</span>
+                </button>
+              </div>
+              <div class="result-count">
+                共 {{ filteredResources.length }} 项
+              </div>
+            </div>
+
             <!-- 资源列表 -->
             <div class="modal-body">
               <div v-if="loading" class="loading-state">
@@ -83,20 +120,67 @@
                 <p v-if="hasActiveFilters" class="empty-hint">请调整筛选条件</p>
               </div>
 
-              <div v-else class="resource-list">
-                <div
-                  v-for="resource in filteredResources"
-                  :key="resource.id"
-                  :class="['resource-item', { 'is-selected': selectedResourceId === resource.id }]"
-                  @click="selectResource(resource)"
-                >
-                  <div class="resource-icon">{{ resourceIcon }}</div>
-                  <div class="resource-info">
-                    <div class="resource-name">{{ resource.name }}</div>
-                    <div class="resource-company">{{ resource.participantName }}</div>
-                    <div class="resource-type">{{ resource.type }}</div>
+              <div v-else :class="['resource-container', `resource-container--${viewMode}`]">
+                <!-- 卡片视图 -->
+                <div v-if="viewMode === 'card'" class="resource-grid">
+                  <div
+                    v-for="resource in filteredResources"
+                    :key="resource.id"
+                    :class="['asset-card', 'resource-item', { 'is-selected': selectedResourceId === resource.id }]"
+                    @click="selectResource(resource)"
+                  >
+                    <div class="asset-card-header">
+                      <div class="asset-icon">📄</div>
+                      <div v-if="selectedResourceId === resource.id" class="check-badge">✓</div>
+                    </div>
+                    <div class="asset-card-body">
+                      <h4 class="asset-name" :title="resource.name">{{ resource.name }}</h4>
+                      <div class="asset-meta">
+                        <span class="asset-company">{{ resource.participantName }}</span>
+                        <span class="asset-type-tag">{{ resource.type }}</span>
+                      </div>
+                      <div v-if="resource.assetNumber" class="asset-number">
+                        编号：{{ resource.assetNumber }}
+                      </div>
+                      <div v-if="resource.intro" class="asset-desc">
+                        {{ resource.intro }}
+                      </div>
+                    </div>
                   </div>
-                  <div v-if="selectedResourceId === resource.id" class="check-icon">✓</div>
+                </div>
+
+                <!-- 列表详情视图 -->
+                <div v-else class="resource-list-detailed">
+                  <div
+                    v-for="resource in filteredResources"
+                    :key="resource.id"
+                    :class="['resource-item-detailed', 'resource-item', { 'is-selected': selectedResourceId === resource.id }]"
+                    @click="selectResource(resource)"
+                  >
+                    <div class="resource-item-main">
+                      <div class="resource-icon-large">📄</div>
+                      <div class="resource-info-detailed">
+                        <div class="resource-header-row">
+                          <h4 class="resource-name-detailed">{{ resource.name }}</h4>
+                          <span class="resource-type-badge">{{ resource.type }}</span>
+                        </div>
+                        <div class="resource-company-detailed">{{ resource.participantName }}</div>
+                        <div v-if="resource.assetNumber" class="resource-asset-number">
+                          资产编号：{{ resource.assetNumber }}
+                        </div>
+                        <div v-if="resource.intro" class="resource-intro">
+                          {{ resource.intro }}
+                        </div>
+                      </div>
+                    </div>
+                    <div class="resource-item-action">
+                      <div v-if="selectedResourceId === resource.id" class="check-indicator">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <polyline points="20 6 9 17 4 12"/>
+                        </svg>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -197,6 +281,17 @@ interface ResourceItem {
   participantId: string
   participantName: string
   type: string
+
+  // 新增字段（从 enterpriseAssetList 可直接获取）
+  assetNumber?: string        // 资产编号
+  intro?: string              // 资产描述
+
+  // 详情字段（懒加载获取）
+  scale?: string              // 数据规模
+  cycle?: string              // 更新周期
+  timeSpan?: string           // 时间跨度
+  databaseName?: string       // 数据库名
+  tableName?: string          // 表名
 }
 
 interface Props {
@@ -231,6 +326,9 @@ const selectedResource = ref<ResourceItem>()
 const availableFields = ref<FieldInfo[]>([])
 const selectedFields = ref<Set<string>>(new Set())
 
+// 视图模式：'card' | 'list'
+const viewMode = ref<'card' | 'list'>('card')
+
 // 计算属性
 const dialogTitle = computed(() => {
   switch (props.resourceType) {
@@ -245,14 +343,6 @@ const resourceNamePlaceholder = computed(() => {
     case 'data': return '搜索资产名称...'
     case 'model': return '搜索模型名称...'
     case 'compute': return '搜索算力名称...'
-  }
-})
-
-const resourceIcon = computed(() => {
-  switch (props.resourceType) {
-    case 'data': return '📄'
-    case 'model': return '📦'
-    case 'compute': return '⚡'
   }
 })
 
@@ -314,7 +404,10 @@ async function loadDataResources() {
       name: asset.assetName,
       participantId: ent.participantId,
       participantName: ent.entityName,
-      type: '数据资产'
+      type: '数据资产',
+      // 新增基础字段
+      assetNumber: asset.assetNumber,
+      intro: asset.intro,
     }))
   )
   logger.info('[UnifiedResourceSelector] Data resources loaded', { count: allResources.value.length })
@@ -567,11 +660,27 @@ function handleKeydown(event: KeyboardEvent) {
 import { onMounted, onUnmounted } from 'vue'
 onMounted(() => {
   document.addEventListener('keydown', handleKeydown)
+
+  // 从 localStorage 恢复视图模式
+  const saved = localStorage.getItem('resource-selector-view-mode')
+  if (saved === 'card' || saved === 'list') {
+    viewMode.value = saved
+  }
 })
 
 onUnmounted(() => {
   document.removeEventListener('keydown', handleKeydown)
 })
+
+// 监听视图模式变化并保存
+watch(viewMode, (mode) => {
+  localStorage.setItem('resource-selector-view-mode', mode)
+})
+
+// 切换视图模式
+function toggleViewMode(mode: 'card' | 'list') {
+  viewMode.value = mode
+}
 </script>
 
 <style scoped lang="scss">
@@ -1315,6 +1424,436 @@ $card-shadow-selected: 0 4px 16px rgba(14, 165, 233, 0.3);
 
   .modal-container {
     transform: scale(0.9);
+  }
+}
+
+// ========== 视图切换区域 ==========
+.view-toggle-section {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 24px;
+  background: var(--glass-bg);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.view-toggle-buttons {
+  display: flex;
+  gap: 8px;
+  background: var(--bg-tertiary);
+  padding: 4px;
+  border-radius: 8px;
+}
+
+.view-toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-base) var(--easing-smooth);
+
+  svg {
+    opacity: 0.7;
+  }
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.8);
+    color: var(--datasource-blue);
+  }
+
+  &.is-active {
+    background: white;
+    color: var(--datasource-blue);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+
+    svg {
+      opacity: 1;
+    }
+  }
+}
+
+.result-count {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+// ========== 资源容器（支持多种视图） ==========
+.resource-container {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 24px;
+  background: var(--glass-bg);
+
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 3px;
+
+    &:hover {
+      background: rgba(0, 0, 0, 0.15);
+    }
+  }
+}
+
+// ========== 卡片视图样式 ==========
+.resource-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.asset-card {
+  background: var(--info-card-bg);
+  border: 1px solid var(--info-card-border);
+  border-radius: var(--info-card-radius);
+  padding: 16px;
+  cursor: pointer;
+  transition: all var(--transition-base) var(--easing-smooth);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--datasource-blue), var(--datasource-blue-light));
+    transform: scaleX(0);
+    transition: transform var(--transition-base) var(--easing-smooth);
+  }
+
+  &:hover {
+    background: white;
+    border-color: var(--list-item-selected-border);
+    transform: translateY(-2px);
+    box-shadow: var(--card-shadow-hover);
+
+    &::before {
+      transform: scaleX(1);
+    }
+  }
+
+  &.is-selected {
+    background: var(--list-item-selected-bg);
+    border-color: var(--datasource-blue);
+    box-shadow: var(--card-shadow-selected);
+
+    &::before {
+      transform: scaleX(1);
+    }
+
+    .asset-name {
+      color: var(--datasource-blue);
+    }
+  }
+}
+
+.asset-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.asset-icon {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.15), rgba(14, 165, 233, 0.08));
+  border-radius: 12px;
+  font-size: 24px;
+}
+
+.check-badge {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #52C41A, #67D888);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: bold;
+  box-shadow: 0 2px 8px rgba(82, 196, 26, 0.4);
+}
+
+.asset-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.asset-name {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.asset-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.asset-company {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.asset-type-tag {
+  font-size: 11px;
+  padding: 3px 8px;
+  background: rgba(14, 165, 233, 0.1);
+  color: var(--datasource-blue);
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.asset-number {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+}
+
+.asset-desc {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+// ========== 列表详情视图样式 ==========
+.resource-list-detailed {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.resource-item-detailed {
+  background: var(--info-card-bg);
+  border: 1px solid var(--info-card-border);
+  border-radius: var(--list-item-radius);
+  padding: 16px;
+  cursor: pointer;
+  transition: all var(--transition-base) var(--easing-smooth);
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  position: relative;
+
+  &::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 16px;
+    bottom: 16px;
+    width: 3px;
+    background: var(--datasource-blue);
+    transform: scaleY(0);
+    transition: transform var(--transition-base) var(--easing-smooth);
+    border-radius: 0 3px 3px 0;
+  }
+
+  &:hover {
+    background: var(--list-item-hover-bg);
+    border-color: var(--list-item-selected-border);
+    transform: translateX(4px);
+    box-shadow: var(--card-shadow-hover);
+
+    &::before {
+      transform: scaleY(1);
+    }
+
+    .resource-name-detailed {
+      color: var(--datasource-blue);
+    }
+  }
+
+  &.is-selected {
+    background: var(--list-item-selected-bg);
+    border-color: var(--datasource-blue);
+    box-shadow: var(--card-shadow-selected);
+
+    &::before {
+      transform: scaleY(1);
+    }
+
+    .resource-name-detailed {
+      color: var(--datasource-blue);
+      font-weight: 600;
+    }
+  }
+}
+
+.resource-item-main {
+  flex: 1;
+  display: flex;
+  gap: 16px;
+  min-width: 0;
+}
+
+.resource-icon-large {
+  flex-shrink: 0;
+  width: 56px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.15), rgba(14, 165, 233, 0.08));
+  border-radius: 12px;
+  font-size: 28px;
+}
+
+.resource-info-detailed {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.resource-header-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.resource-name-detailed {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.resource-type-badge {
+  flex-shrink: 0;
+  font-size: 11px;
+  padding: 4px 10px;
+  background: rgba(14, 165, 233, 0.1);
+  color: var(--datasource-blue);
+  border-radius: 6px;
+  font-weight: 600;
+}
+
+.resource-company-detailed {
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.resource-asset-number {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+  font-weight: 500;
+}
+
+.resource-intro {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.resource-item-action {
+  flex-shrink: 0;
+  display: flex;
+  align-items: flex-start;
+  padding-top: 4px;
+}
+
+.check-indicator {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #52C41A, #67D888);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(82, 196, 26, 0.3);
+
+  svg {
+    width: 16px;
+    height: 16px;
+    stroke-width: 3;
+  }
+}
+
+// ========== 响应式设计 ==========
+@media (max-width: 768px) {
+  .resource-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .view-toggle-section {
+    flex-direction: column;
+    gap: 12px;
+    align-items: stretch;
+  }
+
+  .view-toggle-buttons {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .result-count {
+    text-align: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .resource-item-detailed {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .resource-item-main {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .resource-icon-large {
+    width: 48px;
+    height: 48px;
+    font-size: 24px;
   }
 }
 </style>
