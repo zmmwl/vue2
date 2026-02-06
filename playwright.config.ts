@@ -15,9 +15,10 @@ export default defineConfig({
   /* 输出目录 - 使用新目录避免权限问题 */
   outputDir: 'test-results-output',
 
-  /* 使用单个 worker，方便观察测试过程 */
-  fullyParallel: false,
-  workers: 1,
+  /* 并行运行测试以加快速度 */
+  fullyParallel: true,
+  /* 设置多个 worker，根据 CPU 核心数自动调整 */
+  workers: process.env.CI ? 2 : 4,
 
   /* 在 CI 中禁止使用 test.only */
   forbidOnly: !!process.env.CI,
