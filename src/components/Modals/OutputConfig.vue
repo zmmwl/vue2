@@ -540,16 +540,40 @@ function handleClose() {
     padding: 4px;
   }
 
+  // 字段分组卡片样式（参考节点详情面板）
   .field-group {
+    background: #ffffff;
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    border-radius: 12px;
+    padding: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    transition: all 0.2s ease;
+
+    &:hover {
+      box-shadow: 0 2px 8px rgba(14, 165, 233, 0.1);
+      border-color: rgba(14, 165, 233, 0.15);
+    }
+
     .group-header {
       display: flex;
       align-items: center;
       gap: 8px;
-      padding: 8px 12px;
-      background: linear-gradient(135deg, #f0f7ff, #e6f4ff);
-      border-radius: 8px;
-      margin-bottom: 8px;
-      border-left: 3px solid #409eff;
+      padding-bottom: 10px;
+      margin-bottom: 10px;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+      position: relative;
+
+      // 蓝色渐变装饰条
+      &::before {
+        content: '';
+        position: absolute;
+        left: -12px;
+        top: 0;
+        bottom: -10px;
+        width: 3px;
+        background: linear-gradient(180deg, #0EA5E9, #38BDF8);
+        border-radius: 2px;
+      }
 
       .group-icon {
         font-size: 16px;
@@ -565,9 +589,10 @@ function handleClose() {
       .group-count {
         font-size: 11px;
         color: #909399;
-        padding: 2px 8px;
-        background: rgba(255, 255, 255, 0.6);
+        padding: 3px 8px;
+        background: rgba(0, 0, 0, 0.04);
         border-radius: 10px;
+        font-weight: 500;
       }
     }
 
@@ -575,7 +600,6 @@ function handleClose() {
       display: flex;
       flex-direction: column;
       gap: 6px;
-      padding-left: 8px;
     }
   }
 
