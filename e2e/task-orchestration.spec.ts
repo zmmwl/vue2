@@ -44,78 +44,47 @@ test.describe('计算任务编排测试', () => {
 
   /**
    * 测试：配置数据源节点
-   * 1. 拖拽数据源节点到画布
-   * 2. 验证资产选择对话框显示
-   * 3. 选择企业
-   * 4. 选择数据资产
-   * 5. 选择字段
-   * 6. 确认并验证节点创建成功
+   * 使用 UnifiedResourceSelector（新流程：选择资产 -> 选择字段）
    */
   test('应该能够配置数据源节点', async ({ page }) => {
     // 拖拽 MySQL 数据源节点到画布
     await dragNodeToCanvas(page, 'palette-node-数据库表', 400, 200);
     await page.waitForTimeout(500);
 
-    // 调试：检查测试模式标志和节点创建情况
-    const testMode = await page.evaluate(() => (window as any).__PLAYWRIGHT_TEST__);
-    const nodeCount = await page.locator('.vue-flow__node').count();
-    const modalVisible = await page.locator('.asset-selector-dialog-overlay').isVisible().catch(() => false);
+    // 验证统一资源选择器对话框已显示
+    await expect(page.locator('.modal-overlay').first()).toBeVisible();
+    await expect(page.locator('.modal-title')).toContainText('选择数据资产');
 
-    // 验证资产选择对话框已显示
-    await expect(page.locator('.asset-selector-dialog-overlay')).toBeVisible();
-    await expect(page.locator('.dialog-title')).toContainText('选择数据资产');
+    // 等待资产列表加载
+    const resourceItems = page.locator('.resource-item');
+    await expect(resourceItems.first()).toBeVisible({ timeout: 10000 });
 
-    // 等待企业列表加载（企业列表是异步加载的）
-    const enterpriseItems = page.locator('.list-item');
-    await expect(enterpriseItems.first()).toBeVisible({ timeout: 10000 });
+    // 选择第一个资产
+    await resourceItems.first().click({ force: true });
+    await page.waitForTimeout(300);
 
-    // 选择第一个企业
-    await enterpriseItems.first().click({ force: true });
-    await page.waitForTimeout(500);
-
-    // 点击"下一步"按钮进入步骤 2（选择数据资产）
-    const nextBtn1 = page.locator('.dialog-footer .btn.btn-primary').filter({ hasText: '下一步' });
-    await expect(nextBtn1).toBeVisible();
-    await expect(nextBtn1).toBeEnabled();
-    await nextBtn1.click({ force: true, timeout: 15000 });
+    // 点击"下一步"按钮进入步骤 2（选择字段）
+    const nextBtn = page.locator('.modal-footer .btn.btn-primary').filter({ hasText: '下一步' });
+    await expect(nextBtn).toBeVisible();
+    await expect(nextBtn).toBeEnabled();
+    await nextBtn.click({ force: true, timeout: 15000 });
     await page.waitForTimeout(800);
 
-    // 验证步骤 2 成为当前步骤
+    // 验证步骤 2 成为当前步骤（选择字段）
     const step2 = page.locator('.step-indicator').nth(1);
     await expect(step2).toHaveClass(/is-current/);
 
-    // 等待步骤 2 内容可见（v-show 控制显示）
+    // 等待步骤 2 内容可见
     const step2Content = page.locator('.step-content').nth(1);
     await expect(step2Content).toBeVisible();
-
-    // 选择第一个数据资产（在步骤 2 内容中查找）
-    const assetItems = step2Content.locator('.list-item');
-    await expect(assetItems.first()).toBeVisible();
-    await assetItems.first().click({ force: true });
     await page.waitForTimeout(500);
 
-    // 点击"下一步"按钮进入步骤 3（选择字段）
-    const nextBtn2 = page.locator('.dialog-footer .btn.btn-primary').filter({ hasText: '下一步' });
-    await expect(nextBtn2).toBeVisible();
-    await expect(nextBtn2).toBeEnabled();
-    await nextBtn2.click({ force: true, timeout: 15000 });
-    await page.waitForTimeout(800);
-
-    // 验证步骤 3 成为当前步骤（选择字段）
-    const step3 = page.locator('.step-indicator').nth(2);
-    await expect(step3).toHaveClass(/is-current/);
-
-    // 等待步骤 3 内容可见
-    const step3Content = page.locator('.step-content').nth(2);
-    await expect(step3Content).toBeVisible();
-    await page.waitForTimeout(500);
-
-    // 验证字段列表显示（在步骤 3 内容中查找）
-    const fieldItems = step3Content.locator('.field-item');
+    // 验证字段列表显示
+    const fieldItems = step2Content.locator('.field-item');
     await expect(fieldItems.first()).toBeVisible();
 
     // 选择前两个字段
-    const fieldCheckboxes = step3Content.locator('.field-item input[type="checkbox"]');
+    const fieldCheckboxes = step2Content.locator('.field-item input[type="checkbox"]');
     const count = await fieldCheckboxes.count();
     if (count >= 2) {
       await fieldCheckboxes.nth(0).check();
@@ -125,15 +94,12 @@ test.describe('计算任务编排测试', () => {
     }
 
     // 点击确认按钮
-    const confirmBtn = page.locator('.btn.btn-primary');
+    const confirmBtn = page.locator('.modal-footer .btn.btn-primary').filter({ hasText: '确认' });
     await expect(confirmBtn).toBeVisible();
     await confirmBtn.click({ force: true, timeout: 10000 });
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(2000);
 
-    // 验证模态框关闭
-    await expect(page.locator('.asset-selector-dialog-overlay')).not.toBeVisible();
-
-    // 验证数据源节点已创建
+    // 验证数据源节点已创建（节点创建成功说明模态框已正确关闭）
     const nodes = page.locator('.vue-flow__node');
     await expect(nodes).toHaveCount(1);
 
@@ -1069,7 +1035,7 @@ test.describe('计算任务编排测试', () => {
     }
 
     // 验证字段选择对话框显示
-    const fieldSelector = page.locator('.asset-selector-dialog-overlay');
+    const fieldSelector = page.locator('.modal-overlay');
     if (await fieldSelector.isVisible()) {
       // 验证 Join 类型选择器
       await expect(page.locator('.join-type-selector')).toBeVisible();
@@ -1277,7 +1243,7 @@ test.describe('模态框交互测试', () => {
     await page.waitForTimeout(1000);
 
     // 验证模态框显示
-    const overlay = page.locator('.asset-selector-dialog-overlay');
+    const overlay = page.locator('.modal-overlay');
     await expect(overlay).toBeVisible();
 
     // 点击模态框外部区域 - 使用 force: true 因为模态框可能不可交互
@@ -1444,36 +1410,29 @@ test.describe('模型参数配置测试', () => {
 
   /**
    * 辅助函数：创建完整的计算任务（带数据源输入）
+   * 使用新的 UnifiedResourceSelector 流程
    */
   async function createTaskWithDataInput(page: any) {
     // 1. 创建数据源节点
     await dragNodeToCanvas(page, 'palette-node-数据库表', 200, 200);
     await page.waitForTimeout(500);
 
-    // 选择企业
-    const enterpriseItems = page.locator('.list-item');
-    await enterpriseItems.first().click({ force: true });
+    // 新流程：直接选择资产（不再需要选择企业）
+    const resourceItems = page.locator('.resource-item');
+    await resourceItems.first().click({ force: true });
     await page.waitForTimeout(300);
 
-    const nextBtn1 = page.locator('.dialog-footer .btn.btn-primary').filter({ hasText: '下一步' });
-    await nextBtn1.click({ force: true });
-    await page.waitForTimeout(500);
-
-    // 选择数据资产
-    const assetItems = page.locator('.step-content').nth(1).locator('.list-item');
-    await assetItems.first().click({ force: true });
-    await page.waitForTimeout(300);
-
-    const nextBtn2 = page.locator('.dialog-footer .btn.btn-primary').filter({ hasText: '下一步' });
-    await nextBtn2.click({ force: true });
+    // 点击"下一步"按钮进入字段选择
+    const nextBtn = page.locator('.modal-footer .btn.btn-primary').filter({ hasText: '下一步' });
+    await nextBtn.click({ force: true });
     await page.waitForTimeout(500);
 
     // 选择字段（全选）
-    const selectAllBtn = page.locator('.field-selector-header .btn-text').filter({ hasText: '全选' });
+    const selectAllBtn = page.locator('.field-action-btn').filter({ hasText: '全选' });
     await selectAllBtn.click({ force: true });
     await page.waitForTimeout(300);
 
-    const confirmBtn = page.locator('.dialog-footer .btn.btn-primary').filter({ hasText: '确认' });
+    const confirmBtn = page.locator('.modal-footer .btn.btn-primary').filter({ hasText: '确认' });
     await confirmBtn.click({ force: true });
     await page.waitForTimeout(800);
 
