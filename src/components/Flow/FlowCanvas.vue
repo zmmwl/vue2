@@ -660,6 +660,7 @@ const onConnect = (connection: Connection) => {
  * 删除节点时，自动删除所有连接到该节点的连接线
  * 删除计算任务节点时，级联删除关联的输出节点
  * 删除数据源节点时，级联删除计算任务中对应的输入数据配置
+ * 删除模型节点时，级联删除计算任务中对应的模型配置
  */
 const onNodesChange = (changes: NodeChange[]) => {
   for (const change of changes) {
@@ -709,6 +710,33 @@ const onNodesChange = (changes: NodeChange[]) => {
                 taskId: taskNode.id,
                 removedSourceNodeId: change.id,
                 remainingInputProviders: taskData.inputProviders.length
+              })
+            }
+          })
+        }
+
+        // 如果删除的是模型节点，级联删除计算任务中对应的模型配置
+        if (nodeData.category === 'model') {
+          // 找到所有包含该模型节点的计算任务
+          const affectedTaskNodes = nodes.value.filter(n => {
+            const taskData = n.data as ComputeTaskNodeData
+            return taskData.category === NodeCategory.COMPUTE_TASK &&
+              taskData.models?.some(model => model.modelNodeId === change.id)
+          })
+
+          // 更新受影响的计算任务节点
+          affectedTaskNodes.forEach(taskNode => {
+            const taskData = taskNode.data as ComputeTaskNodeData
+            if (taskData.models) {
+              // 移除对应的模型配置
+              taskData.models = taskData.models.filter(
+                model => model.modelNodeId !== change.id
+              )
+
+              logger.info('[FlowCanvas] Cascade deleted model from task', {
+                taskId: taskNode.id,
+                removedModelNodeId: change.id,
+                remainingModels: taskData.models.length
               })
             }
           })
