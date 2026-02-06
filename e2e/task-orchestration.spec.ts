@@ -1794,28 +1794,23 @@ test.describe('模型参数配置测试', () => {
         }
       }
 
-      // 现在选择企业
-      const enterpriseItems = page.locator('.enterprise-item');
-      const enterpriseCount = await enterpriseItems.count();
-      console.log('企业项目数量:', enterpriseCount);
+      // 现在直接在 UnifiedResourceSelector 中选择模型（使用双搜索框）
+      // 不再需要先选择企业
+      const modalTitle = await page.locator('.modal-title').first().textContent();
+      console.log('当前模态框标题:', modalTitle);
 
-      if (enterpriseCount > 0) {
-        // 使用点击而不是 filter 来避免超时
-        const firstEnterprise = enterpriseItems.first();
-        await firstEnterprise.click({ force: true, timeout: 5000 });
-        await page.waitForTimeout(500);
+      if (modalTitle?.includes('计算模型')) {
+        // 使用 UnifiedResourceSelector 的资源列表选择模型
+        const resourceItems = page.locator('.resource-item');
+        const resourceCount = await resourceItems.count();
+        console.log('可用模型数量:', resourceCount);
 
-        const enterpriseConfirmBtn = page.locator('.enterprise-selector-modal .modal-footer .btn.btn-primary');
-        await enterpriseConfirmBtn.click({ force: true, timeout: 5000 });
-        await page.waitForTimeout(800);
-
-        // 选择特征工程模型（第5个模型，索引4）
-        const modelItems = page.locator('.model-item');
-        if (await modelItems.count() > 4) {
-          await modelItems.nth(4).click({ force: true, timeout: 5000 });
+        if (resourceCount > 0) {
+          // 点击第一个模型
+          await resourceItems.first().click({ force: true, timeout: 5000 });
           await page.waitForTimeout(500);
 
-          const modelConfirmBtn = page.locator('.modal-footer .btn.btn-confirm');
+          const modelConfirmBtn = page.locator('.modal-footer .btn.btn-primary');
           await modelConfirmBtn.click({ force: true, timeout: 5000 });
           await page.waitForTimeout(500);
 
@@ -1919,28 +1914,23 @@ test.describe('模型参数配置测试', () => {
         }
       }
 
-      // 现在选择企业
-      const enterpriseItems = page.locator('.enterprise-item');
-      const enterpriseCount = await enterpriseItems.count();
-      console.log('企业项目数量:', enterpriseCount);
+      // 现在直接在 UnifiedResourceSelector 中选择模型（使用双搜索框）
+      // 不再需要先选择企业
+      const modalTitle = await page.locator('.modal-title').first().textContent();
+      console.log('当前模态框标题:', modalTitle);
 
-      if (enterpriseCount > 0) {
-        // 使用点击而不是 filter 来避免超时
-        const firstEnterprise = enterpriseItems.first();
-        await firstEnterprise.click({ force: true, timeout: 5000 });
-        await page.waitForTimeout(500);
+      if (modalTitle?.includes('计算模型')) {
+        // 使用 UnifiedResourceSelector 的资源列表选择模型
+        const resourceItems = page.locator('.resource-item');
+        const resourceCount = await resourceItems.count();
+        console.log('可用模型数量:', resourceCount);
 
-        const enterpriseConfirmBtn = page.locator('.enterprise-selector-modal .modal-footer .btn.btn-primary');
-        await enterpriseConfirmBtn.click({ force: true, timeout: 5000 });
-        await page.waitForTimeout(800);
-
-        // 选择SQL聚合计算模型（第6个模型，索引5）
-        const modelItems = page.locator('.model-item');
-        if (await modelItems.count() > 5) {
-          await modelItems.nth(5).click({ force: true, timeout: 5000 });
+        if (resourceCount > 1) {
+          // 点击第二个模型（索引1）
+          await resourceItems.nth(1).click({ force: true, timeout: 5000 });
           await page.waitForTimeout(500);
 
-          const modelConfirmBtn = page.locator('.modal-footer .btn.btn-confirm');
+          const modelConfirmBtn = page.locator('.modal-footer .btn.btn-primary');
           await modelConfirmBtn.click({ force: true, timeout: 5000 });
           await page.waitForTimeout(500);
 
@@ -2044,28 +2034,23 @@ test.describe('模型参数配置测试', () => {
         }
       }
 
-      // 现在选择企业
-      const enterpriseItems = page.locator('.enterprise-item');
-      const enterpriseCount = await enterpriseItems.count();
-      console.log('企业项目数量:', enterpriseCount);
+      // 现在直接在 UnifiedResourceSelector 中选择模型（使用双搜索框）
+      // 不再需要先选择企业
+      const modalTitle = await page.locator('.modal-title').first().textContent();
+      console.log('当前模态框标题:', modalTitle);
 
-      if (enterpriseCount > 0) {
-        // 使用点击而不是 filter 来避免超时
-        const firstEnterprise = enterpriseItems.first();
-        await firstEnterprise.click({ force: true, timeout: 5000 });
-        await page.waitForTimeout(500);
+      if (modalTitle?.includes('计算模型')) {
+        // 使用 UnifiedResourceSelector 的资源列表选择模型
+        const resourceItems = page.locator('.resource-item');
+        const resourceCount = await resourceItems.count();
+        console.log('可用模型数量:', resourceCount);
 
-        const enterpriseConfirmBtn = page.locator('.enterprise-selector-modal .modal-footer .btn.btn-primary');
-        await enterpriseConfirmBtn.click({ force: true, timeout: 5000 });
-        await page.waitForTimeout(800);
-
-        // 选择联合建模训练模型（第8个模型，索引7）
-        const modelItems = page.locator('.model-item');
-        if (await modelItems.count() > 7) {
-          await modelItems.nth(7).click({ force: true, timeout: 5000 });
+        if (resourceCount > 2) {
+          // 点击第三个模型（索引2）
+          await resourceItems.nth(2).click({ force: true, timeout: 5000 });
           await page.waitForTimeout(500);
 
-          const modelConfirmBtn = page.locator('.modal-footer .btn.btn-confirm');
+          const modelConfirmBtn = page.locator('.modal-footer .btn.btn-primary');
           await modelConfirmBtn.click({ force: true, timeout: 5000 });
           await page.waitForTimeout(500);
 

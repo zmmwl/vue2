@@ -443,7 +443,7 @@
 <script setup lang="ts">
 import { computed, watch, ref, onMounted } from 'vue'
 import type { Node } from '@vue-flow/core'
-import type { NodeData, ComputeTaskNodeData, OutputDataNodeData, ModelParameterSignature, AvailableFieldOption } from '@/types/nodes'
+import type { NodeData, ComputeTaskNodeData, ModelParameterSignature, AvailableFieldOption } from '@/types/nodes'
 import type { ExportJson } from '@/types/export'
 import { NodeCategory, TechPath } from '@/types/nodes'
 import { logger } from '@/utils/logger'
@@ -773,7 +773,7 @@ const modelFieldSources = computed(() => {
 
       // 对于其他模型，通过父任务的 outputs 配置追溯
       // 检查父任务的 outputs 中是否包含该模型
-      const parentOutputs = parentTaskData.value.outputs || []
+      const parentOutputs = parentTaskData.value?.outputs || []
       const modelOutput = parentOutputs.find((output: any) =>
         output.outputFields?.some((f: any) =>
           f.source === 'model' &&

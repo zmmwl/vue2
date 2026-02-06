@@ -144,7 +144,7 @@ import { MiniMap } from '@vue-flow/minimap'
 import type { Node, Connection, EdgeChange, NodeChange, GraphNode } from '@vue-flow/core'
 import type { DroppedNodeData } from '@/types/graph'
 import { NodeCategory, ComputeTaskType, TechPath, ResourceTypePriority } from '@/types/nodes'
-import type { NodeData, AssetInfo, FieldInfo, FieldMapping, ComputeTaskNodeData, OutputField, ComputeModelConfig, ModelParameter, AvailableFieldOption } from '@/types/nodes'
+import type { NodeData, AssetInfo, FieldInfo, FieldMapping, ComputeTaskNodeData, OutputDataNodeData, OutputField, ComputeModelConfig, ModelParameter, AvailableFieldOption } from '@/types/nodes'
 import DataSourceNode from '@/components/Nodes/DataSourceNode.vue'
 import ComputeTaskNode from '@/components/Nodes/ComputeTaskNode.vue'
 import OutputDataNode from '@/components/Nodes/OutputDataNode.vue'
@@ -234,6 +234,7 @@ const pendingOutputConfig = ref<{
   participantId: string
   dataset: string
   fields: OutputField[]
+  fieldSources?: Array<{ sourceType: 'model' | 'input'; sourceNodeId?: string; modelId?: string; modelNodeId?: string }>
 } | undefined>(undefined)
 const editingOutputNodeId = ref<string | undefined>(undefined)  // 正在编辑的输出节点 ID
 
@@ -1351,7 +1352,7 @@ function handleOutputConfigConfirmed(config: {
       entityName: entityName,
       dataset: config.dataset,
       fields: config.fields
-    }
+    } as OutputDataNodeData
 
     // 更新父任务的 outputs 配置
     if (taskData.outputs) {
@@ -1617,15 +1618,19 @@ function handleCodeBinTypeSelected(modelType: string) {
     modelType
   }
 
-  // 关闭类型选择对话框，打开企业选择对话框
+  // 关闭类型选择对话框，直接打开统一资源选择器（使用双搜索框模糊匹配）
   showCodeBinTypeSelectorDialog.value = false
-  pendingModelOrComputeData.value = updatedData
-  pendingResourceType.value = 'model'
-  // pendingTargetTaskNodeId 已在打开对话框时设置
-  showEnterpriseDialog.value = true
+  pendingSelectorResult.value = {
+    data: updatedData,
+    targetTaskNodeId: pendingTargetTaskNodeId.value
+  }
+  selectorResourceType.value = 'model'
+  selectorModelTypeFilter.value = modelType
+  showUnifiedSelector.value = true
 
   // 清理状态（但保留 selectedCodeBinType）
   pendingCodeBinData.value = null
+  pendingTargetTaskNodeId.value = ''
 }
 
 /**
@@ -2358,11 +2363,15 @@ function createModelNodeForTask(modelInfo: any) {
     return
   }
 
+  // 设置 pendingTargetTaskNodeId 供 createModelNode 使用
+  pendingTargetTaskNodeId.value = targetTaskNodeId
+
   // 使用原有的 createModelNode 函数
   createModelNode(data, modelInfo, modelInfo.participantId)
 
   // 清理状态
   pendingSelectorResult.value = undefined
+  pendingTargetTaskNodeId.value = ''
 }
 
 /**
@@ -2465,7 +2474,7 @@ function openEditOutputDialog(outputNodeId: string) {
   })
 
   // 为每个输出字段构建来源信息
-  const fieldSources = outputData.fields?.map((field) => {
+  const fieldSources = outputData.fields?.map((field: OutputField) => {
     const key = `${field.source}-${field.columnName}`
     return fieldSourceMap.get(key) || { sourceType: field.source }
   })
