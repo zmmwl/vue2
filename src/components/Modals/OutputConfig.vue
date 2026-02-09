@@ -160,6 +160,7 @@ interface Props {
   enterprises: EnterpriseOption[]
   inputFields: AvailableField[]
   modelOutputFields?: AvailableField[]
+  taskData?: any  // 任务节点数据（用于检查是否有分组统计模型）
   initialConfig?: {
     participantId: string
     dataset: string
@@ -207,16 +208,110 @@ const selectedFieldIds = ref<Set<string>>(new Set())
 
 // 所有可用字段
 const availableFields = computed(() => {
+  // 检查是否有分组统计模型
+  const hasGroupByModel = props.taskData?.models?.some((m: any) => m.type === 'GROUP_STAT')
+
+  if (hasGroupByModel) {
+    // 如果有分组统计模型，只返回分组统计的输出字段
+    return getGroupByOutputFields()
+  }
+
+  // 否则返回输入字段和模型输出字段
   return [...props.inputFields, ...props.modelOutputFields]
 })
+
+/**
+ * 获取分组统计模型的输出字段
+ */
+function getGroupByOutputFields(): AvailableField[] {
+  const taskModels = props.taskData?.models || []
+  const groupByModel = taskModels.find((m: any) => m.type === 'GROUP_STAT')
+
+  if (!groupByModel || !groupByModel.groupByConfig) {
+    return []
+  }
+
+  const fields: AvailableField[] = []
+  const config = groupByModel.groupByConfig
+
+  // 添加分组字段
+  config.groupByFields.forEach((field: any) => {
+    fields.push({
+      id: `groupby-${field.fieldId}`,
+      name: field.fieldAlias || field.fieldName,
+      type: field.fieldType,
+      source: `分组统计-${groupByModel.name}`,
+      sourceNodeId: undefined,
+      participantId: groupByModel.participantId,
+      modelId: groupByModel.id,
+      modelType: 'GROUP_STAT'
+    })
+  })
+
+  // 添加统计字段
+  config.statistics.forEach((stat: any) => {
+    const resultType = inferAggregationType(stat.functionType)
+
+    fields.push({
+      id: `groupby-stat-${stat.id}`,
+      name: stat.resultAlias,
+      type: resultType,
+      source: `分组统计-${groupByModel.name}`,
+      sourceNodeId: undefined,
+      participantId: groupByModel.participantId,
+      modelId: groupByModel.id,
+      modelType: 'GROUP_STAT'
+    })
+  })
+
+  return fields
+}
+
+/**
+ * 推断聚合函数结果类型
+ */
+function inferAggregationType(func: string): string {
+  switch (func) {
+    case 'SUM':
+    case 'AVG':
+      return 'DOUBLE'
+    case 'COUNT':
+      return 'BIGINT'
+    case 'MAX':
+    case 'MIN':
+      return 'VARCHAR'
+    default:
+      return 'VARCHAR'
+  }
+}
 
 /**
  * 将字段按来源分组
  * 1. 输入数据源字段：按数据源分组
  * 2. 模型输出字段：按模型分组
+ * 3. 分组统计字段：单独一个分组
  */
 const fieldGroups = computed<FieldGroup[]>(() => {
   const groups: FieldGroup[] = []
+
+  // 检查是否有分组统计模型
+  const hasGroupByModel = props.taskData?.models?.some((m: any) => m.type === 'GROUP_STAT')
+
+  if (hasGroupByModel) {
+    // 如果有分组统计模型，所有字段都来自分组统计
+    const groupByFields = availableFields.value.filter(f => f.modelType === 'GROUP_STAT')
+    if (groupByFields.length > 0) {
+      groups.push({
+        id: 'groupby-fields',
+        title: '分组统计输出字段',
+        icon: '📊',
+        fields: groupByFields
+      })
+    }
+    return groups
+  }
+
+  // 原有逻辑：按数据源和模型分组
   let inputGroupIndex = 0
   let modelGroupIndex = 0
 

@@ -132,6 +132,16 @@
       @confirm="handleUnifiedSelectorConfirm"
       @cancel="handleUnifiedSelectorCancel"
     />
+
+    <!-- 分组统计配置对话框 -->
+    <GroupByConfig
+      v-model="showGroupByConfigDialog"
+      :taskData="getGroupByTaskData()"
+      :initialConfig="getInitialGroupByConfig()"
+      :modelId="currentGroupByModelId"
+      @confirm="handleGroupByConfigConfirm"
+      @cancel="handleGroupByConfigCancel"
+    />
   </div>
 </template>
 
@@ -143,7 +153,7 @@ import { Controls } from '@vue-flow/controls'
 import { MiniMap } from '@vue-flow/minimap'
 import type { Node, Connection, EdgeChange, NodeChange, GraphNode } from '@vue-flow/core'
 import type { DroppedNodeData } from '@/types/graph'
-import { NodeCategory, ComputeTaskType, TechPath, ResourceTypePriority } from '@/types/nodes'
+import { NodeCategory, ComputeTaskType, TechPath, ResourceTypePriority, ModelType } from '@/types/nodes'
 import type { NodeData, AssetInfo, FieldInfo, FieldMapping, ComputeTaskNodeData, OutputDataNodeData, OutputField, ComputeModelConfig, ModelParameter, AvailableFieldOption } from '@/types/nodes'
 import DataSourceNode from '@/components/Nodes/DataSourceNode.vue'
 import ComputeTaskNode from '@/components/Nodes/ComputeTaskNode.vue'
@@ -164,6 +174,7 @@ import LocalTaskEnterpriseSelector from '@/components/Modals/LocalTaskEnterprise
 import CodeBinTypeSelector from '@/components/Modals/CodeBinTypeSelector.vue'
 import ModelParameterConfig from '@/components/Modals/ModelParameterConfig.vue'
 import UnifiedResourceSelector from '@/components/Modals/UnifiedResourceSelector.vue'
+import GroupByConfig from '@/components/Modals/GroupByConfig.vue'
 import { createUniqueEdge } from '@/utils/edge-utils'
 import { generateAvailableFields } from '@/utils/model-config-utils'
 import { logger } from '@/utils/logger'
@@ -280,6 +291,11 @@ const pendingSelectorResult = ref<{
   data?: DroppedNodeData
   targetTaskNodeId?: string
 }>()
+
+// 分组统计配置对话框状态
+const showGroupByConfigDialog = ref(false)
+const currentGroupByModelId = ref<string>('')
+const currentGroupByTaskId = ref<string>('')
 
 /**
  * 可用的企业选项（按优先级排序）
@@ -1044,6 +1060,12 @@ const onDrop = (event: DragEvent) => {
             pendingTargetTaskNodeId.value = targetNode.id
             selectedCodeBinType.value = ''
             showCodeBinTypeSelectorDialog.value = true
+          } else if (data.modelType === 'GROUP_STAT') {
+            // 分组统计模型：直接打开配置对话框
+            currentGroupByTaskId.value = targetNode.id
+            // 生成临时模型ID用于配置
+            currentGroupByModelId.value = `groupby_temp_${Date.now()}`
+            showGroupByConfigDialog.value = true
           } else {
             // 其他模型：使用统一资源选择器
             pendingSelectorResult.value = {
@@ -1836,6 +1858,18 @@ function handleConfigParams(data: { modelId: string; modelConfig: ComputeModelCo
 }
 
 /**
+ * 处理分组统计配置事件（从 FlowDetailPanel 触发）
+ */
+function handleConfigGroupBy(data: { modelId: string; taskId: string }) {
+  logger.info('[FlowCanvas] Config GroupBy event received', data)
+
+  currentGroupByModelId.value = data.modelId
+  currentGroupByTaskId.value = data.taskId
+
+  showGroupByConfigDialog.value = true
+}
+
+/**
  * 确认参数配置
  */
 function handleParamConfigConfirm(parameters: ModelParameter[]) {
@@ -1875,6 +1909,150 @@ function handleParamConfigConfirm(parameters: ModelParameter[]) {
 function handleParamConfigCancel() {
   logger.info('[FlowCanvas] Parameter config dialog cancelled')
   paramConfigVisible.value = false
+}
+
+/**
+ * 获取分组统计对话框的任务数据
+ */
+function getGroupByTaskData() {
+  const taskNode = nodes.value.find(n => n.id === currentGroupByTaskId.value)
+  return taskNode?.data as ComputeTaskNodeData | undefined
+}
+
+/**
+ * 获取分组统计初始配置
+ */
+function getInitialGroupByConfig() {
+  // 新建模型时不返回初始配置
+  if (currentGroupByModelId.value.startsWith('groupby_temp_')) {
+    return undefined
+  }
+
+  const taskNode = nodes.value.find(n => n.id === currentGroupByTaskId.value)
+  if (!taskNode) return undefined
+
+  const taskData = taskNode.data as ComputeTaskNodeData
+  const model = taskData.models?.find(m => m.id === currentGroupByModelId.value)
+  return model?.groupByConfig
+}
+
+/**
+ * 确认分组统计配置
+ */
+function handleGroupByConfigConfirm(config: any) {
+  logger.info('[FlowCanvas] GroupBy config confirmed', {
+    modelId: currentGroupByModelId.value,
+    taskId: currentGroupByTaskId.value
+  })
+
+  const taskNode = nodes.value.find(n => n.id === currentGroupByTaskId.value)
+  if (!taskNode) {
+    logger.warn('[FlowCanvas] Task node not found')
+    showGroupByConfigDialog.value = false
+    return
+  }
+
+  const taskData = taskNode.data as ComputeTaskNodeData
+
+  // 检查是否是新建模型（临时ID）
+  const isNewModel = currentGroupByModelId.value.startsWith('groupby_temp_')
+
+  if (isNewModel) {
+    // 新建模型：创建模型节点和连接线
+    const modelNodeId = `model_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    const modelPosition = {
+      x: taskNode.position.x - 200,
+      y: taskNode.position.y
+    }
+
+    // 生成正式的模型ID
+    const finalModelId = `groupby_${Date.now()}`
+
+    // 创建模型节点
+    const modelNode: Node = {
+      id: modelNodeId,
+      type: 'modelNode',
+      position: modelPosition,
+      data: {
+        label: '分组统计',
+        category: 'model',
+        color: '#13C2C2',
+        icon: '📊',
+        type: ModelType.GROUP_STAT,
+        participantId: taskData.inputProviders?.[0]?.participantId || '', // 使用第一个输入提供者的企业
+        name: '分组统计',
+        modelId: finalModelId
+      } as any
+    }
+
+    addNode(modelNode)
+
+    // 创建连接线
+    const modelEdge = createUniqueEdge({
+      source: modelNodeId,
+      target: taskNode.id,
+      sourceHandle: 'output',
+      targetHandle: 'input'
+    }, edges.value)
+    edges.value.push(modelEdge)
+
+    // 将模型添加到任务的 models 列表
+    const newModel: ComputeModelConfig = {
+      id: finalModelId,
+      type: ModelType.GROUP_STAT,
+      participantId: taskData.inputProviders?.[0]?.participantId || '',
+      name: '分组统计',
+      groupByConfig: config,
+      modelNodeId: modelNodeId
+    }
+
+    const updatedModels = [...(taskData.models || []), newModel]
+    setNodes(
+      nodes.value.map(n =>
+        n.id === currentGroupByTaskId.value
+          ? { ...n, data: { ...(n.data || {}), models: updatedModels } as any }
+          : n
+      ) as any
+    )
+
+    logger.info('[FlowCanvas] GroupBy model created', {
+      modelId: finalModelId,
+      modelNodeId,
+      taskId: currentGroupByTaskId.value
+    })
+  } else {
+    // 编辑现有模型：更新配置
+    if (taskData.models) {
+      const updatedModels = taskData.models.map(m => {
+        if (m.id === currentGroupByModelId.value) {
+          return { ...m, groupByConfig: config }
+        }
+        return m
+      })
+
+      setNodes(
+        nodes.value.map(n =>
+          n.id === currentGroupByTaskId.value
+            ? { ...n, data: { ...(n.data || {}), models: updatedModels } as any }
+            : n
+        ) as any
+      )
+
+      logger.info('[FlowCanvas] GroupBy model config updated', {
+        modelId: currentGroupByModelId.value
+      })
+    }
+  }
+
+  showGroupByConfigDialog.value = false
+}
+
+/**
+ * 取消分组统计配置
+ */
+function handleGroupByConfigCancel() {
+  logger.info('[FlowCanvas] GroupBy config dialog cancelled')
+  showGroupByConfigDialog.value = false
 }
 
 /**
@@ -2622,6 +2800,16 @@ function handleTestDropModel(event: Event) {
         })
       }, 100)
     })
+  } else if ((data as any).modelType === 'GROUP_STAT') {
+    // 分组统计模型：直接打开配置对话框
+    logger.info('[FlowCanvas] Opening GroupBy config dialog')
+    currentGroupByTaskId.value = targetTaskNode.id
+    currentGroupByModelId.value = `groupby_temp_${Date.now()}`
+
+    nextTick(() => {
+      showGroupByConfigDialog.value = true
+      logger.info('[FlowCanvas] showGroupByConfigDialog set to true')
+    })
   } else {
     // 其他模型：弹出企业选择对话框
     logger.info('[FlowCanvas] Opening enterprise selector dialog')
@@ -2890,7 +3078,8 @@ defineExpose({
   openEditOutputDialog,
   handleExport,
   handleImport,
-  handleConfigParams
+  handleConfigParams,
+  handleConfigGroupBy
 })
 
 /**

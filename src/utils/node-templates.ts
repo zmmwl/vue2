@@ -89,6 +89,15 @@ export const MODEL_TEMPLATES: NodeTemplate[] = [
     icon: '🔐',
     color: '#13C2C2',
     description: 'SPDZ协议模型'
+  },
+  {
+    type: 'model',
+    label: '分组统计',
+    category: 'model' as any,
+    icon: '📊',
+    color: '#13C2C2',
+    description: '分组统计聚合（GROUP BY）',
+    modelType: 'GROUP_STAT'
   }
 ]
 

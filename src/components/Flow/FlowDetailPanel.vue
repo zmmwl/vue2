@@ -241,6 +241,30 @@
               <div v-if="model.type === 'expression'" class="model-expression">
                 {{ expressionPreview(model) }}
               </div>
+              <div v-else-if="model.type === 'GROUP_STAT'" class="model-groupby">
+                <!-- 分组字段 -->
+                <div class="groupby-section">
+                  <div class="groupby-title">分组字段 ({{ model.groupByConfig?.groupByFields.length || 0 }})</div>
+                  <div class="fields-chip-list">
+                    <span v-for="field in model.groupByConfig?.groupByFields" :key="field.fieldId" class="field-chip groupby-chip">
+                      {{ field.fieldAlias || field.fieldName }} ({{ field.fieldType }})
+                    </span>
+                  </div>
+                </div>
+
+                <!-- 统计配置 -->
+                <div class="statistics-section">
+                  <div class="statistics-title">统计配置 ({{ model.groupByConfig?.statistics.length || 0 }})</div>
+                  <div v-for="stat in model.groupByConfig?.statistics" :key="stat.id" class="stat-card">
+                    <span class="function-badge">{{ stat.functionType }}</span>
+                    <span class="field-name">{{ stat.resultAlias }}</span>
+                  </div>
+                </div>
+
+                <button class="config-params-btn" @click="handleConfigGroupBy(model)">
+                  ⚙️ 编辑配置
+                </button>
+              </div>
               <div v-else class="model-params-content">
                 <!-- 进度条组件 -->
                 <ModelParamProgress
@@ -571,6 +595,7 @@ interface Emits {
   (e: 'edit', nodeId: string): void
   (e: 'viewModeChange', mode: 'detail' | 'preview'): void
   (e: 'configParams', data: { modelId: string; modelConfig: any; taskId: string }): void
+  (e: 'configGroupBy', data: { modelId: string; taskId: string }): void
   (e: 'editOutput', nodeId: string): void  // 编辑输出数据节点
 }
 
@@ -909,6 +934,23 @@ function handleConfigParams(model: any) {
   emit('configParams', {
     modelId: model.id,
     modelConfig: model,
+    taskId: props.selectedNode.id
+  })
+}
+
+/**
+ * 处理分组统计配置
+ */
+function handleConfigGroupBy(model: any) {
+  if (!props.selectedNode) return
+
+  logger.info('[FlowDetailPanel] GroupBy config clicked', {
+    modelId: model.id,
+    taskId: props.selectedNode.id
+  })
+
+  emit('configGroupBy', {
+    modelId: model.id,
     taskId: props.selectedNode.id
   })
 }
@@ -1552,6 +1594,93 @@ watch(() => props.selectedNode, (node) => {
   border-radius: 4px;
   line-height: 1.4;
   word-break: break-all;
+}
+
+// 分组统计模型样式
+.model-groupby {
+  .groupby-section {
+    margin-bottom: 12px;
+
+    .groupby-title {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+    }
+
+    .fields-chip-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+
+      .field-chip.groupby-chip {
+        font-size: 10px;
+        padding: 2px 6px;
+        background: rgba(19, 194, 194, 0.1);
+        color: #13c2c2;
+        border: 1px solid rgba(19, 194, 194, 0.3);
+        border-radius: 3px;
+      }
+    }
+  }
+
+  .statistics-section {
+    margin-bottom: 12px;
+
+    .statistics-title {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+    }
+
+    .stat-card {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 8px;
+      background: rgba(0, 0, 0, 0.02);
+      border-radius: 4px;
+      margin-bottom: 4px;
+
+      .function-badge {
+        font-size: 10px;
+        font-weight: 600;
+        padding: 2px 6px;
+        background: #1890ff;
+        color: white;
+        border-radius: 3px;
+      }
+
+      .field-count {
+        font-size: 10px;
+        color: var(--text-secondary);
+      }
+
+      .field-name {
+        font-size: 11px;
+        color: var(--text-secondary);
+        margin-left: 6px;
+      }
+    }
+  }
+
+  .config-params-btn {
+    padding: 4px 10px;
+    font-size: 11px;
+    font-weight: 500;
+    color: #1890ff;
+    background: rgba(24, 144, 255, 0.06);
+    border: 1px solid rgba(24, 144, 255, 0.2);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+
+    &:hover {
+      background: rgba(24, 144, 255, 0.1);
+      border-color: rgba(24, 144, 255, 0.4);
+    }
+  }
 }
 
 .model-params-content {

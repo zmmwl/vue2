@@ -26,6 +26,7 @@
         @edit="handleEditAsset"
         @view-mode-change="handleViewModeChange"
         @config-params="handleConfigParams"
+        @config-group-by="handleConfigGroupBy"
         @edit-output="handleEditOutput"
       />
     </div>
@@ -109,6 +110,18 @@ function handleConfigParams(data: { modelId: string; modelConfig: any; taskId: s
   const flowCanvas = flowCanvasRef.value as any
   if (flowCanvas && typeof flowCanvas.handleConfigParams === 'function') {
     flowCanvas.handleConfigParams(data)
+  }
+}
+
+/**
+ * 处理分组统计配置事件
+ */
+function handleConfigGroupBy(data: { modelId: string; taskId: string }) {
+  logger.info('[FlowEditor] Config GroupBy event received', data)
+  // 直接调用 FlowCanvas 中定义的处理函数
+  const flowCanvas = flowCanvasRef.value as any
+  if (flowCanvas && typeof flowCanvas.handleConfigGroupBy === 'function') {
+    flowCanvas.handleConfigGroupBy(data)
   }
 }
 

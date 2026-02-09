@@ -183,7 +183,8 @@ export enum ModelType {
   CODEBIN_V2 = 'CodeBin-V2',
   CODEBIN_V3_1 = 'CodeBin-V3-1',
   CODEBIN_V3_2 = 'CodeBin-V3-2',
-  SPDZ = 'SPDZ'
+  SPDZ = 'SPDZ',
+  GROUP_STAT = 'GROUP_STAT'  // 分组统计模型
 }
 
 /** 计算任务节点数据（扩展版） */
@@ -292,6 +293,7 @@ export interface ComputeModelConfig {
   expression?: string       // 表达式内容（仅expression类型）
   parameters?: ModelParameter[]
   modelNodeId?: string      // 关联的模型节点ID
+  groupByConfig?: GroupByConfig  // 分组统计配置（仅GROUP_STAT类型）
 }
 
 /** 模型参数 */
@@ -436,4 +438,39 @@ export interface ComputeInfo {
   cardModel: string
   cores?: number
   description?: string
+}
+
+// ========== 分组统计相关类型 ==========
+
+/** SQL 聚合函数类型 */
+export enum AggregationFunction {
+  SUM = 'SUM',
+  COUNT = 'COUNT',
+  AVG = 'AVG',
+  MAX = 'MAX',
+  MIN = 'MIN'
+}
+
+/** 分组字段配置 */
+export interface GroupByField {
+  fieldId: string              // 字段唯一ID（格式：participantId.dataset.fieldName）
+  fieldName: string            // 字段名称
+  fieldAlias: string           // 别名（默认与字段名相同）
+  fieldType: string            // 字段类型
+}
+
+/** 统计配置 */
+export interface StatisticConfig {
+  id: string                   // 统计配置唯一ID
+  functionType: AggregationFunction  // 聚合函数类型
+  fieldId: string              // 要统计的字段ID（单个字段）
+  fieldSource: 'input' | 'model'     // 字段来源
+  resultAlias: string          // 结果别名
+}
+
+/** 分组统计配置 */
+export interface GroupByConfig {
+  id: string                   // 配置唯一ID
+  groupByFields: GroupByField[]   // 分组字段列表
+  statistics: StatisticConfig[]   // 统计配置列表
 }

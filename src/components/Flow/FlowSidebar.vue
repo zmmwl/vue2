@@ -180,6 +180,9 @@ const onDragStartModel = (event: DragEvent, template: NodeTemplate) => {
     } else if (template.isCodeBin) {
       // CodeBin 组合模型，标记需要进一步选择
       modelType = 'codebin-select'
+    } else if (template.modelType === 'GROUP_STAT') {
+      // 分组统计模型
+      modelType = 'GROUP_STAT'
     }
 
     const data = {
