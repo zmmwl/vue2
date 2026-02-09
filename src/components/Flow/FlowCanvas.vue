@@ -97,6 +97,7 @@
       v-model="showExpressionEditorDialog"
       :initial-expression="pendingExpression || ''"
       :available-fields="expressionEditorAvailableFields"
+      :input-providers="expressionEditorInputProviders"
       @confirm="handleExpressionConfirmed"
       @cancel="handleExpressionEditorCancel"
     />
@@ -492,13 +493,14 @@ const expressionEditorAvailableFields = computed(() => {
   if (!taskNode) return []
 
   const taskData = taskNode.data as ComputeTaskNodeData
-  const fields: Array<{ name: string; participantId: string; dataset: string; dataType?: string }> = []
+  const fields: Array<{ name: string; columnName: string; participantId: string; dataset: string; dataType?: string }> = []
 
   // 从 inputProviders 提取字段
   taskData.inputProviders?.forEach((provider) => {
     provider.fields.forEach(field => {
       fields.push({
-        name: field.columnName,
+        name: field.columnAlias || field.columnName,  // 使用别名
+        columnName: field.columnName,  // 保留原始字段名
         participantId: provider.participantId,
         dataset: provider.dataset,
         dataType: field.columnType
@@ -507,6 +509,20 @@ const expressionEditorAvailableFields = computed(() => {
   })
 
   return fields
+})
+
+/**
+ * 获取表达式编辑器的 InputProvider
+ * 从目标任务节点的输入数据源中提取
+ */
+const expressionEditorInputProviders = computed(() => {
+  if (!pendingTargetTaskNodeId.value) return []
+
+  const taskNode = nodes.value.find(n => n.id === pendingTargetTaskNodeId.value)
+  if (!taskNode) return []
+
+  const taskData = taskNode.data as ComputeTaskNodeData
+  return taskData.inputProviders || []
 })
 
 /**
@@ -2661,9 +2677,18 @@ function handleCreateTestComputeResourceNode(event: Event) {
  * 用于 E2E 测试中直接创建节点连接并触发字段选择对话框
  */
 function handleCreateTestConnection(event: Event) {
-  logger.info('[FlowCanvas] create-test-connection event received')
   const customEvent = event as CustomEvent
-  const { sourceNodeId, targetNodeId } = customEvent.detail
+  // 先检查 detail 是否存在
+  if (!customEvent.detail) {
+    logger.warn('[FlowCanvas] create-test-connection event has no detail')
+    return
+  }
+
+  // 检查 detail 中的所有键
+  const detailKeys = Object.keys(customEvent.detail)
+  logger.info('[FlowCanvas] create-test-connection detail keys:', detailKeys)
+
+  const { sourceNodeId, targetNodeId, autoConfirm, selectAllFields } = customEvent.detail
 
   const sourceNode = nodes.value.find(n => n.id === sourceNodeId)
   const targetNode = nodes.value.find(n => n.id === targetNodeId)
@@ -2751,6 +2776,40 @@ function handleCreateTestConnection(event: Event) {
   // 打开字段选择对话框
   showFieldSelectorDialog.value = true
   logger.info('[FlowCanvas] Opening field selector dialog for test connection')
+
+  // 检查是否应该自动确认（支持 autoConfirm 参数或全局测试标志）
+  const shouldAutoConfirm = autoConfirm || (window as any).__PLAYWRIGHT_TEST_AUTO_CONFIRM_FIELDS__
+
+  if (shouldAutoConfirm) {
+    logger.info('[FlowCanvas] Auto-confirming field selection')
+    nextTick(() => {
+      // 自动选择所有字段并确认
+      const selection = {
+        sourceNodeId,
+        sourceType: pendingSourceType.value as 'dataSource' | 'outputData',
+        participantId: pendingParticipantId.value,
+        dataset: pendingDataset.value,
+        // 如果 selectAllFields 为 true，选择所有可用字段
+        fields: selectAllFields
+          ? pendingAvailableFields.value.map(field => ({
+              columnName: field.name,
+              columnAlias: field.name,  // 默认使用字段名作为别名
+              columnType: field.dataType,
+              isJoinField: field.isPrimaryKey || false
+            }))
+          : pendingAvailableFields.value.slice(0, 1).map(field => ({
+              columnName: field.name,
+              columnAlias: field.name,
+              columnType: field.dataType,
+              isJoinField: field.isPrimaryKey || false
+            }))
+      }
+      handleFieldSelected(selection)
+      logger.info('[FlowCanvas] Auto-confirmed field selection for test connection', {
+        fieldCount: selection.fields.length
+      })
+    })
+  }
 }
 
 /**
@@ -2827,6 +2886,39 @@ function handleTestDropModel(event: Event) {
     logger.info('[FlowCanvas] Opening enterprise selector dialog')
     showEnterpriseDialog.value = true
   }
+}
+
+/**
+ * 处理测试用的打开表达式编辑器事件
+ * 用于 E2E 测试中直接打开表达式编辑器
+ */
+function handleOpenExpressionEditor(event: Event) {
+  logger.info('[FlowCanvas] open-expression-editor event received')
+  const customEvent = event as CustomEvent
+  const { nodeId } = customEvent.detail
+
+  // 查找目标任务节点
+  const targetTaskNode = nodes.value.find(n => n.id === nodeId)
+
+  if (!targetTaskNode) {
+    logger.warn('[FlowCanvas] Target task node not found for expression editor', { nodeId })
+    return
+  }
+
+  logger.info('[FlowCanvas] Opening expression editor for task node', {
+    nodeId,
+    taskType: targetTaskNode.data?.taskType
+  })
+
+  // 设置状态并打开表达式编辑器
+  pendingTargetTaskNodeId.value = nodeId
+  pendingExpression.value = ''
+  pendingExpressionData.value = null
+
+  nextTick(() => {
+    showExpressionEditorDialog.value = true
+    logger.info('[FlowCanvas] Expression editor dialog opened')
+  })
 }
 
 /**
@@ -3283,6 +3375,7 @@ onMounted(() => {
   window.addEventListener('create-test-task-node', handleCreateTestTaskNode)
   window.addEventListener('create-test-compute-resource-node', handleCreateTestComputeResourceNode)
   window.addEventListener('create-test-connection', handleCreateTestConnection)
+  window.addEventListener('open-expression-editor', handleOpenExpressionEditor)
   window.addEventListener('test-drop-model', handleTestDropModel)
   window.addEventListener('test-drop-compute', handleTestDropCompute)
   window.addEventListener('test-delete-node', handleTestDeleteNode)
@@ -3298,6 +3391,7 @@ onUnmounted(() => {
   window.removeEventListener('create-test-task-node', handleCreateTestTaskNode)
   window.removeEventListener('create-test-compute-resource-node', handleCreateTestComputeResourceNode)
   window.removeEventListener('create-test-connection', handleCreateTestConnection)
+  window.removeEventListener('open-expression-editor', handleOpenExpressionEditor)
   window.removeEventListener('test-drop-model', handleTestDropModel)
   window.removeEventListener('test-drop-compute', handleTestDropCompute)
   window.removeEventListener('test-delete-node', handleTestDeleteNode)

@@ -14,11 +14,23 @@
             <!-- 说明 -->
             <div class="expression-info">
               <p class="info-text">💡 使用 Python 语法编写表达式，支持输入数据字段引用</p>
-              <p class="info-hint">字段引用格式: <code>participantId.dataset.columnName</code></p>
+              <p class="info-hint">字段引用格式: <code>participantId.dataset.columnAlias</code></p>
             </div>
 
-            <!-- CodeMirror Editor 容器 -->
-            <div ref="editorContainer" class="editor-container"></div>
+            <!-- 表达式编辑器容器（包含侧边栏和编辑器） -->
+            <div class="expression-editor-container">
+              <FieldListSidebar
+                v-if="inputProviders && inputProviders.length > 0"
+                :input-providers="inputProviders"
+                :current-expression="expression"
+                :visible="sidebarVisible"
+                @toggle="sidebarVisible = !sidebarVisible"
+                @field-dragstart="handleFieldDragStart"
+              />
+              <div class="editor-wrapper">
+                <div ref="editorContainer" class="editor-container"></div>
+              </div>
+            </div>
 
             <!-- 错误提示 -->
             <div v-if="errorMessage" class="error-message">
@@ -55,9 +67,12 @@ import { bracketMatching } from '@codemirror/language'
 import { searchKeymap, highlightSelectionMatches } from '@codemirror/search'
 import type { Extension } from '@codemirror/state'
 import { EditorSelection } from '@codemirror/state'
+import FieldListSidebar from '@/components/ExpressionEditor/FieldListSidebar.vue'
+import type { InputProvider } from '@/types/nodes'
 
 interface CompletionField {
   name: string
+  columnName?: string  // 原始字段名
   participantId: string
   dataset: string
   dataType?: string
@@ -67,6 +82,7 @@ interface Props {
   modelValue: boolean
   initialExpression?: string
   availableFields?: Array<{ name: string; participantId: string; dataset: string }>
+  inputProviders?: InputProvider[]
 }
 
 interface Emits {
@@ -89,6 +105,9 @@ const expression = ref(props.initialExpression || '')
 
 // 错误信息
 const errorMessage = ref('')
+
+// 侧边栏可见性
+const sidebarVisible = ref(true)
 
 // 常用 Python 函数和关键字
 const pythonKeywords = [
@@ -124,11 +143,15 @@ function formatVariableRef(participantId: string, dataset: string, columnName: s
 function createFieldCompletions(fields: CompletionField[]): Completion[] {
   return fields.map(field => {
     const ref = formatVariableRef(field.participantId, field.dataset, field.name)
+    const originalFieldInfo = field.columnName && field.columnName !== field.name
+      ? ` | 原始字段: ${field.columnName}`
+      : ''
     return {
       label: ref,
       type: 'variable',
       detail: `${field.participantId} / ${field.dataset}`,
-      info: field.dataType ? `字段类型: ${field.dataType}` : '数据字段'
+      info: field.dataType ? `字段类型: ${field.dataType}${originalFieldInfo}` : `数据字段${originalFieldInfo}`,
+      boost: field.columnName && field.columnName !== field.name ? 1 : 0  // 优先显示有别名的字段
     } as Completion
   })
 }
@@ -147,6 +170,48 @@ function createCompletionSource(fields: CompletionField[]) {
 
     // 获取当前行的文本，用于检查是否在点号后面
     const textUpToCursor = currentLine.text.substring(0, word.from - currentLine.from)
+
+    // 检测函数调用场景 - 函数参数智能补全
+    const functionMatch = textUpToCursor.match(/(\w+)\(\s*([^)]*)$/)
+    if (functionMatch && functionMatch[1]) {
+      const functionName = functionMatch[1].toLowerCase()
+      // 聚合函数优先显示数字类型字段
+      if (['sum', 'avg', 'min', 'max', 'mean', 'median'].includes(functionName)) {
+        const numericFields = fields.filter(f =>
+          f.dataType?.match(/int|float|double|decimal|bigint|number/i)
+        )
+        if (numericFields.length > 0) {
+          return {
+            from: word.from,
+            options: createFieldCompletions(numericFields)
+          }
+        }
+      }
+      // 字符串函数优先显示字符串类型字段
+      if (['len', 'upper', 'lower', 'trim', 'concat', 'substring'].includes(functionName)) {
+        const stringFields = fields.filter(f =>
+          f.dataType?.match(/str|varchar|char|text|string/i)
+        )
+        if (stringFields.length > 0) {
+          return {
+            from: word.from,
+            options: createFieldCompletions(stringFields)
+          }
+        }
+      }
+      // 其他函数显示所有字段
+      if (word.text.length > 0) {
+        const matchedFields = fields.filter(f =>
+          f.name.toLowerCase().startsWith(word.text.toLowerCase())
+        )
+        if (matchedFields.length > 0) {
+          return {
+            from: word.from,
+            options: createFieldCompletions(matchedFields)
+          }
+        }
+      }
+    }
 
     // 检查是否在输入点号后的补全
     const dotMatch = textUpToCursor.match(/(\w+)\.(\w*)\.(\w*)$/)
@@ -190,7 +255,7 @@ function createCompletionSource(fields: CompletionField[]) {
               label: f.name,
               type: 'property',
               detail: f.dataType || '字段',
-              info: `${participantId}.${dataset}.${f.name}`,
+              info: `${participantId}.${dataset}.${f.name}${f.columnName && f.columnName !== f.name ? ` (原始: ${f.columnName})` : ''}`,
               apply: (view: EditorView, _completion: Completion, from: number, to: number) => {
                 view.dispatch({
                   changes: { from, to, insert: f.name },
@@ -296,6 +361,14 @@ function createExtensions(): Extension[] {
 }
 
 /**
+ * 处理字段拖拽开始
+ */
+function handleFieldDragStart(_payload: { fullRef: string; field: any }) {
+  // 拖拽数据已经在 FieldGroupCard 中设置
+  // 这里只是通知，实际处理在 drop 事件中
+}
+
+/**
  * 初始化 CodeMirror Editor
  */
 async function initEditor() {
@@ -308,11 +381,44 @@ async function initEditor() {
     editorView.destroy()
   }
 
+  // 创建拖拽处理器 - 使用 domEventHandlers
+  const dropHandlerExtension = EditorView.domEventHandlers({
+    drop: (event: DragEvent) => {
+      if (!event.dataTransfer) return false
+      const dragData = event.dataTransfer.getData('application/json')
+      if (!dragData) return false
+
+      try {
+        const { fullRef } = JSON.parse(dragData)
+        if (!editorView) return false
+
+        const pos = editorView.posAtCoords({ x: event.clientX, y: event.clientY })
+        if (pos === null) return false
+
+        editorView.dispatch({
+          changes: { from: pos, to: pos, insert: fullRef },
+          selection: EditorSelection.cursor(pos + fullRef.length)
+        })
+
+        expression.value = editorView.state.doc.toString()
+        event.preventDefault()
+        return true
+      } catch {
+        return false
+      }
+    },
+    dragover: (event: DragEvent) => {
+      event.preventDefault()
+      return true
+    }
+  })
+
   // 创建 editor
   const state = EditorState.create({
     doc: expression.value,
     extensions: [
       ...createExtensions(),
+      dropHandlerExtension,
       EditorView.updateListener.of((update) => {
         if (update.docChanged) {
           expression.value = update.state.doc.toString()
@@ -546,10 +652,22 @@ onBeforeUnmount(() => {
   }
 }
 
-.editor-container {
+.expression-editor-container {
   flex: 1;
+  display: flex;
+  gap: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.editor-wrapper {
+  flex: 1;
+  min-width: 0;
+}
+
+.editor-container {
+  height: 100%;
   min-height: 250px;
-  height: 300px;
   border: 1px solid #3e3e42;
   border-radius: 8px;
   overflow: hidden;

@@ -12,11 +12,12 @@ export function generateAvailableFields(taskData: ComputeTaskNodeData): Availabl
 
   taskData.inputProviders?.forEach(provider => {
     provider.fields.forEach(field => {
+      const fieldName = field.columnAlias || field.columnName
       fields.push({
-        id: `${provider.participantId}.${provider.dataset}.${field.columnName}`,
+        id: `${provider.participantId}.${provider.dataset}.${fieldName}`,
         participantId: provider.participantId,
         dataset: provider.dataset,
-        fieldName: field.columnName,
+        fieldName: fieldName,
         fieldType: field.columnType,
         sourceNodeId: provider.sourceNodeId
       })
