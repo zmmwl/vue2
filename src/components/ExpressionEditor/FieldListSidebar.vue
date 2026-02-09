@@ -106,7 +106,8 @@ const filteredGroups = computed(() => {
 // 已使用的字段别名
 const usedFieldAliases = computed(() => {
   const aliases = new Set<string>()
-  const pattern = /\w+\.\w+\.(\w+)/g
+  // 使用 [\w\u4e00-\u9fa5]+ 支持中文字符
+  const pattern = /[\w\u4e00-\u9fa5]+\.[\w\u4e00-\u9fa5]+\.([\w\u4e00-\u9fa5]+)/g
   let match: RegExpExecArray | null
   while ((match = pattern.exec(props.currentExpression)) !== null) {
     if (match[1] !== undefined) {

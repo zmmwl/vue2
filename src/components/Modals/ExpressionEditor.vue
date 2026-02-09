@@ -214,19 +214,31 @@ function createCompletionSource(fields: CompletionField[]) {
     }
 
     // 检查是否在输入点号后的补全
-    const dotMatch = textUpToCursor.match(/(\w+)\.(\w*)\.(\w*)$/)
+    // 构建完整的输入文本（包含当前 word）
+    const fullText = textUpToCursor + word.text
+
+    // 使用 [\w\u4e00-\u9fa5]+ 支持中文字符
+    const dotMatch = fullText.match(/([\w\u4e00-\u9fa5]+)\.([\w\u4e00-\u9fa5]*)\.([\w\u4e00-\u9fa5]*)$/)
 
     if (dotMatch) {
       // participantId.dataset.columnName 模式
       const participantId = dotMatch[1]
       const dataset = dotMatch[2]
+      const columnNamePart = dotMatch[3]
 
       // 过滤匹配的字段
-      const matchedFields = fields.filter(f =>
+      let matchedFields = fields.filter(f =>
         f.participantId === participantId &&
-        f.dataset === dataset &&
-        f.name.toLowerCase().startsWith(word.text.toLowerCase())
+        f.dataset === dataset
       )
+
+      // 如果已经开始输入字段名，进一步过滤
+      if (columnNamePart && word.text !== '.') {
+        const searchName = word.text.replace(/\.$/, '') || columnNamePart
+        matchedFields = matchedFields.filter(f =>
+          f.name.toLowerCase().startsWith(searchName.toLowerCase())
+        )
+      }
 
       if (matchedFields.length > 0) {
         return {
@@ -234,35 +246,88 @@ function createCompletionSource(fields: CompletionField[]) {
           options: createFieldCompletions(matchedFields)
         }
       }
-    } else if (textUpToCursor.includes('.')) {
-      // 可能是在 dataset 后面补全 columnName
-      const parts = textUpToCursor.split('.')
-      if (parts.length === 2) {
-        const [participantId, dataset] = parts
+    } else if (fullText.includes('.')) {
+      // 检查几种情况：
+      // 1. participantId. - 显示该参与者的数据集列表
+      // 2. participantId.dataset. - 显示该数据集的字段列表
+      // 3. participantId.dataset.fieldName - 继续字段名补全
 
-        // 过滤匹配的字段
-        const matchedFields = fields.filter(f =>
-          f.participantId === participantId &&
-          f.dataset === dataset &&
-          f.name.toLowerCase().startsWith(word.text.toLowerCase())
-        )
+      // 使用正则匹配各种模式
+      const singleDotMatch = fullText.match(/^([\w\u4e00-\u9fa5]+)\.$/)
+      if (singleDotMatch) {
+        // 情况1: participantId. - 显示数据集
+        const participantId = singleDotMatch[1]
 
-        if (matchedFields.length > 0) {
-          // 只返回字段名部分
+        const datasets = [...new Set(fields.filter(f => f.participantId === participantId).map(f => f.dataset))]
+        if (datasets.length > 0) {
+          // 在点号后面插入数据集名，不替换已有内容
+          const insertPos = word.to  // 点号之后的位置
           return {
-            from: word.from,
-            options: matchedFields.map(f => ({
-              label: f.name,
-              type: 'property',
-              detail: f.dataType || '字段',
-              info: `${participantId}.${dataset}.${f.name}${f.columnName && f.columnName !== f.name ? ` (原始: ${f.columnName})` : ''}`,
+            from: insertPos,
+            to: insertPos,
+            options: datasets.map(ds => ({
+              label: ds,
+              type: 'namespace',
+              detail: '数据集',
+              info: `${participantId} 的 ${ds} 数据集`,
               apply: (view: EditorView, _completion: Completion, from: number, to: number) => {
                 view.dispatch({
-                  changes: { from, to, insert: f.name },
-                  selection: EditorSelection.cursor(from + f.name.length)
+                  changes: { from, to, insert: `${ds}.` },
+                  selection: EditorSelection.cursor(from + ds.length + 1)
                 })
               }
-            }))
+            } as Completion))
+          }
+        }
+      }
+
+      const parts = fullText.split('.')
+      if (parts.length === 2 && parts[1] !== '') {
+        // 情况2: participantId.dataset - 显示字段列表（正在输入字段名）
+        const [participantId, dataset] = parts
+
+        let matchedFields = fields.filter(f =>
+          f.participantId === participantId &&
+          f.dataset === dataset
+        )
+
+        // 如果已经开始输入字段名，进一步过滤
+        if (word.text && word.text !== '.') {
+          matchedFields = matchedFields.filter(f =>
+            f.name.toLowerCase().startsWith(word.text.toLowerCase())
+          )
+        }
+
+        if (matchedFields.length > 0) {
+          return {
+            from: word.from,
+            options: createFieldCompletions(matchedFields)
+          }
+        }
+      }
+
+      // 情况3: participantId.dataset.fieldName - 继续字段名补全
+      const tripleDotMatch = fullText.match(/^([\w\u4e00-\u9fa5]+)\.([\w\u4e00-\u9fa5]+)\.([\w\u4e00-\u9fa5]*)$/)
+      if (tripleDotMatch) {
+        const participantId = tripleDotMatch[1]
+        const dataset = tripleDotMatch[2]
+        const fieldNamePart = tripleDotMatch[3]
+
+        let matchedFields = fields.filter(f =>
+          f.participantId === participantId &&
+          f.dataset === dataset
+        )
+
+        if (fieldNamePart) {
+          matchedFields = matchedFields.filter(f =>
+            f.name.toLowerCase().startsWith(fieldNamePart.toLowerCase())
+          )
+        }
+
+        if (matchedFields.length > 0) {
+          return {
+            from: word.from,
+            options: createFieldCompletions(matchedFields)
           }
         }
       }
@@ -408,6 +473,10 @@ async function initEditor() {
       }
     },
     dragover: (event: DragEvent) => {
+      event.preventDefault()
+      return true
+    },
+    dragenter: (event: DragEvent) => {
       event.preventDefault()
       return true
     }
