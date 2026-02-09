@@ -217,6 +217,7 @@ export interface ModelNodeData extends NodeData {
   modelId?: string          // 模型ID（用于获取参数签名）
   expression?: string       // 表达式内容（仅expression类型）
   parameters?: ModelParameter[]  // 模型参数（非expression类型）
+  groupByConfig?: GroupByConfig  // 分组统计配置（仅GROUP_STAT类型）
 }
 
 /** 算力资源节点数据 */

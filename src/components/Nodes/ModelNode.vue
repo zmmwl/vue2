@@ -2,6 +2,7 @@
   <div
     :class="['model-node', { selected: isSelected }]"
     :style="nodeStyle"
+    :data-node-type="props.data?.type"
     @click="handleClick"
   >
     <!-- 输入 Handle（顶部） -->
@@ -25,6 +26,21 @@
       <div v-if="isExpression" class="expression-preview">
         {{ expressionPreview }}
       </div>
+      <template v-else-if="isGroupStatModel">
+        <!-- 未配置状态 -->
+        <div v-if="!isGroupStatConfigured" class="groupstat-unconfigured">
+          待配置
+        </div>
+        <!-- 已配置状态 - 紧凑展示 -->
+        <div v-else class="groupstat-summary">
+          <div class="summary-item">
+            <span class="summary-text">分组: {{ groupByFieldsCount }}个</span>
+          </div>
+          <div class="summary-item">
+            <span class="summary-text">统计: {{ statisticsTypesText }}</span>
+          </div>
+        </div>
+      </template>
       <div v-else class="params-count">
         {{ paramsCount }} 个参数
       </div>
@@ -69,12 +85,52 @@ onMounted(async () => {
 // 是否为表达式模型
 const isExpression = computed(() => props.data?.type === 'expression')
 
+// 是否为分组统计模型
+const isGroupStatModel = computed(() => props.data?.type === ModelType.GROUP_STAT)
+
+// 分组统计配置（从 props.data.groupByConfig 获取）
+const groupByConfig = computed(() => props.data?.groupByConfig)
+
+// 分组字段数量
+const groupByFieldsCount = computed(() => {
+  return groupByConfig.value?.groupByFields?.length || 0
+})
+
+// 统计配置数量
+const statisticsCount = computed(() => {
+  return groupByConfig.value?.statistics?.length || 0
+})
+
+// 统计函数类型列表（紧凑展示）
+const statisticsTypes = computed(() => {
+  if (!groupByConfig.value?.statistics?.length) return []
+  const types = groupByConfig.value.statistics.map(s => s.functionType)
+  // 去重并限制显示数量
+  return [...new Set(types)].slice(0, 3)
+})
+
+// 统计函数类型格式化字符串
+const statisticsTypesText = computed(() => {
+  if (statisticsTypes.value.length === 0) return ''
+  if (statisticsTypes.value.length < 3) {
+    return statisticsTypes.value.join(', ')
+  }
+  return statisticsTypes.value.join(', ') + '+'
+})
+
+// 是否已配置
+const isGroupStatConfigured = computed(() => {
+  return statisticsCount.value > 0
+})
+
 // 模型图标
 const modelIcon = computed(() => {
   if (isExpression.value) return '∑'
 
   const type = props.data?.type
   switch (type) {
+    case ModelType.GROUP_STAT:
+      return '📊'
     case ModelType.CODEBIN_V2:
       return '📦'
     case ModelType.CODEBIN_V3_1:
@@ -94,6 +150,7 @@ const nodeLabel = computed(() => {
 
   const type = props.data?.type
   const typeMap: Record<string, string> = {
+    [ModelType.GROUP_STAT]: '分组统计',
     [ModelType.CODEBIN_V2]: 'CodeBin-V2',
     [ModelType.CODEBIN_V3_1]: 'CodeBin-V3.1',
     [ModelType.CODEBIN_V3_2]: 'CodeBin-V3.2',
@@ -135,10 +192,21 @@ const paramsCount = computed(() => {
 })
 
 // 节点样式
-const nodeStyle = computed(() => ({
-  backgroundColor: props.data?.color || '#8B5CF6',
-  borderColor: props.selected ? '#1890ff' : 'transparent'
-}))
+const nodeStyle = computed(() => {
+  let bgColor = props.data?.color || '#8B5CF6'
+
+  // 分组统计节点使用琥珀色
+  if (props.data?.type === ModelType.GROUP_STAT) {
+    bgColor = '#F59E0B'
+  }
+
+  return {
+    backgroundColor: bgColor,
+    borderColor: props.selected ? '#1890ff' : 'transparent',
+    // 未配置的分组统计节点半透明
+    opacity: (props.data?.type === ModelType.GROUP_STAT && !isGroupStatConfigured.value) ? 0.6 : 1
+  }
+})
 
 // 是否选中
 const isSelected = computed(() => props.selected)
@@ -227,6 +295,37 @@ function handleClick() {
   font-weight: 500;
 }
 
+// 分组统计节点特殊样式
+.groupstat-unconfigured {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.9);
+  font-weight: 500;
+  text-align: center;
+  padding: 4px 8px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+}
+
+.groupstat-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 8px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+}
+
+.summary-item {
+  display: flex;
+  align-items: center;
+}
+
+.summary-text {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.9);
+  font-weight: 500;
+}
+
 // Handle 样式
 :deep(.handle-input),
 :deep(.handle-output) {
@@ -255,5 +354,17 @@ function handleClick() {
   right: -7px;
   top: 50%;
   transform: translateY(-50%);
+}
+
+// 分组统计节点的动态 handle 颜色
+.model-node[data-node-type="GROUP_STAT"] {
+  :deep(.handle-input),
+  :deep(.handle-output) {
+    border-color: #F59E0B;
+
+    &:hover {
+      background: #F59E0B;
+    }
+  }
 }
 </style>

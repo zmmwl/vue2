@@ -1981,7 +1981,8 @@ function handleGroupByConfigConfirm(config: any) {
         type: ModelType.GROUP_STAT,
         participantId: taskData.inputProviders?.[0]?.participantId || '', // 使用第一个输入提供者的企业
         name: '分组统计',
-        modelId: finalModelId
+        modelId: finalModelId,
+        groupByConfig: config  // 添加分组统计配置到节点数据
       } as any
     }
 
@@ -2023,6 +2024,10 @@ function handleGroupByConfigConfirm(config: any) {
   } else {
     // 编辑现有模型：更新配置
     if (taskData.models) {
+      // 找到对应的模型配置，获取模型节点ID
+      const targetModel = taskData.models.find(m => m.id === currentGroupByModelId.value)
+      const modelNodeId = targetModel?.modelNodeId
+
       const updatedModels = taskData.models.map(m => {
         if (m.id === currentGroupByModelId.value) {
           return { ...m, groupByConfig: config }
@@ -2031,15 +2036,22 @@ function handleGroupByConfigConfirm(config: any) {
       })
 
       setNodes(
-        nodes.value.map(n =>
-          n.id === currentGroupByTaskId.value
-            ? { ...n, data: { ...(n.data || {}), models: updatedModels } as any }
-            : n
-        ) as any
+        nodes.value.map(n => {
+          // 更新任务节点的 models 列表
+          if (n.id === currentGroupByTaskId.value) {
+            return { ...n, data: { ...(n.data || {}), models: updatedModels } as any }
+          }
+          // 同时更新模型节点的 groupByConfig
+          if (modelNodeId && n.id === modelNodeId) {
+            return { ...n, data: { ...(n.data || {}), groupByConfig: config } as any }
+          }
+          return n
+        }) as any
       )
 
       logger.info('[FlowCanvas] GroupBy model config updated', {
-        modelId: currentGroupByModelId.value
+        modelId: currentGroupByModelId.value,
+        modelNodeId
       })
     }
   }
