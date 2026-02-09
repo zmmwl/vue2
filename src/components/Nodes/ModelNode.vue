@@ -20,7 +20,8 @@
         <span class="node-icon">{{ modelIcon }}</span>
         <span class="node-label">{{ nodeLabel }}</span>
       </div>
-      <div class="node-info">
+      <!-- 只有 CodeBin 和 SPDZ 模型需要显示企业信息 -->
+      <div v-if="showEnterpriseInfo" class="node-info">
         <span class="info-text">{{ participantName }}</span>
       </div>
       <div v-if="isExpression" class="expression-preview">
@@ -87,6 +88,15 @@ const isExpression = computed(() => props.data?.type === 'expression')
 
 // 是否为分组统计模型
 const isGroupStatModel = computed(() => props.data?.type === ModelType.GROUP_STAT)
+
+// 是否为需要企业信息的模型类型（CodeBin 和 SPDZ 需要预先注册企业）
+const showEnterpriseInfo = computed(() => {
+  const type = props.data?.type
+  return type === ModelType.CODEBIN_V2 ||
+         type === ModelType.CODEBIN_V3_1 ||
+         type === ModelType.CODEBIN_V3_2 ||
+         type === ModelType.SPDZ
+})
 
 // 分组统计配置（从 props.data.groupByConfig 获取）
 const groupByConfig = computed(() => props.data?.groupByConfig)
