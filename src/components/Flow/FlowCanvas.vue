@@ -143,6 +143,15 @@
       @confirm="handleGroupByConfigConfirm"
       @cancel="handleGroupByConfigCancel"
     />
+
+    <!-- 类型选择对话框 -->
+    <TypeSelector
+      v-model="showTypeSelectorDialog"
+      :title="typeSelectorTitle"
+      :options="typeSelectorOptions"
+      @select="handleTypeSelectorSelected"
+      @cancel="handleTypeSelectorCancel"
+    />
   </div>
 </template>
 
@@ -176,6 +185,8 @@ import CodeBinTypeSelector from '@/components/Modals/CodeBinTypeSelector.vue'
 import ModelParameterConfig from '@/components/Modals/ModelParameterConfig.vue'
 import UnifiedResourceSelector from '@/components/Modals/UnifiedResourceSelector.vue'
 import GroupByConfig from '@/components/Modals/GroupByConfig.vue'
+import TypeSelector from '@/components/Modals/TypeSelector.vue'
+import { MODEL_TEMPLATES, RESOURCE_TEMPLATES } from '@/utils/node-templates'
 import { createUniqueEdge } from '@/utils/edge-utils'
 import { generateAvailableFields } from '@/utils/model-config-utils'
 import { logger } from '@/utils/logger'
@@ -297,6 +308,13 @@ const pendingSelectorResult = ref<{
 const showGroupByConfigDialog = ref(false)
 const currentGroupByModelId = ref<string>('')
 const currentGroupByTaskId = ref<string>('')
+
+// 类型选择对话框状态
+const showTypeSelectorDialog = ref(false)
+const typeSelectorTitle = ref('选择类型')
+const typeSelectorOptions = ref<Array<{ label: string; icon: string; color: string; description?: string }>>([])
+const pendingTypeSelectionTaskId = ref<string>('')
+const pendingTypeSelectionKind = ref<'model' | 'compute'>('model')
 
 /**
  * 可用的企业选项（按优先级排序）
@@ -1498,22 +1516,18 @@ function handleAddModel(event: Event) {
     return
   }
 
-  // 打开统一资源选择器，用于选择模型
-  pendingSelectorResult.value = {
-    data: {
-      type: 'modelNode',
-      label: '计算模型',
-      category: 'model' as any,
-      icon: '📦',
-      color: '#8B5CF6',
-      description: '选择一个计算模型'
-    },
-    targetTaskNodeId: nodeId
-  }
-  selectorResourceType.value = 'model'
-  selectorModelTypeFilter.value = undefined
-  showUnifiedSelector.value = true
-  logger.info('[FlowCanvas] Opening unified resource selector for model', { taskId: nodeId })
+  // 打开类型选择对话框，显示模型类型选项
+  pendingTypeSelectionTaskId.value = nodeId
+  pendingTypeSelectionKind.value = 'model'
+  typeSelectorTitle.value = '选择计算模型类型'
+  typeSelectorOptions.value = MODEL_TEMPLATES.map(t => ({
+    label: t.label,
+    icon: t.icon,
+    color: t.color,
+    description: t.description
+  }))
+  showTypeSelectorDialog.value = true
+  logger.info('[FlowCanvas] Opening type selector for model', { taskId: nodeId })
 }
 
 /**
@@ -1529,22 +1543,100 @@ function handleAddCompute(event: Event) {
     return
   }
 
-  // 打开统一资源选择器，用于选择算力
-  pendingSelectorResult.value = {
-    data: {
-      type: 'computeResource',
-      label: '算力资源',
-      category: 'computeResource' as any,
-      icon: '⚡',
-      color: '#FA8C16',
-      description: '选择一个算力资源'
-    },
-    targetTaskNodeId: nodeId
+  // 打开类型选择对话框，显示算力资源类型选项
+  pendingTypeSelectionTaskId.value = nodeId
+  pendingTypeSelectionKind.value = 'compute'
+  typeSelectorTitle.value = '选择算力资源类型'
+  typeSelectorOptions.value = RESOURCE_TEMPLATES.map(t => ({
+    label: t.label,
+    icon: t.icon,
+    color: t.color,
+    description: t.description
+  }))
+  showTypeSelectorDialog.value = true
+  logger.info('[FlowCanvas] Opening type selector for compute', { taskId: nodeId })
+}
+
+/**
+ * 处理类型选择确认
+ */
+function handleTypeSelectorSelected(option: { label: string; icon: string; color: string; description?: string }) {
+  const nodeId = pendingTypeSelectionTaskId.value
+  const kind = pendingTypeSelectionKind.value
+
+  if (!nodeId) {
+    logger.warn('[FlowCanvas] No task node ID for type selection')
+    showTypeSelectorDialog.value = false
+    return
   }
-  selectorResourceType.value = 'compute'
-  selectorModelTypeFilter.value = undefined
-  showUnifiedSelector.value = true
-  logger.info('[FlowCanvas] Opening unified resource selector for compute', { taskId: nodeId })
+
+  logger.info('[FlowCanvas] Type selected', { kind, option: option.label, nodeId })
+
+  if (kind === 'model') {
+    // 根据选择的模型类型处理
+    const template = MODEL_TEMPLATES.find(t => t.label === option.label)
+    if (!template) {
+      logger.warn('[FlowCanvas] Model template not found', { label: option.label })
+      showTypeSelectorDialog.value = false
+      return
+    }
+
+    // 保存目标任务节点 ID
+    pendingTargetTaskNodeId.value = nodeId
+
+    // 检查是否是表达式模型
+    if (template.label.includes('表达式')) {
+      // 表达式模型：直接打开表达式编辑器
+      pendingExpressionData.value = template
+      pendingExpression.value = ''
+      showExpressionEditorDialog.value = true
+    } else if (template.isCodeBin) {
+      // CodeBin 组合模型：弹出类型选择对话框
+      pendingCodeBinData.value = template
+      showCodeBinTypeSelectorDialog.value = true
+    } else if (template.modelType === 'GROUP_STAT') {
+      // 分组统计模型：直接打开配置对话框
+      currentGroupByTaskId.value = nodeId
+      currentGroupByModelId.value = `groupby_temp_${Date.now()}`
+      showGroupByConfigDialog.value = true
+    } else {
+      // 其他模型（SPDZ）：使用统一资源选择器
+      pendingSelectorResult.value = {
+        data: template,
+        targetTaskNodeId: nodeId
+      }
+      selectorResourceType.value = 'model'
+      selectorModelTypeFilter.value = template.modelType
+      showUnifiedSelector.value = true
+    }
+  } else if (kind === 'compute') {
+    // 算力资源：使用统一资源选择器
+    const template = RESOURCE_TEMPLATES.find(t => t.label === option.label)
+    if (!template) {
+      logger.warn('[FlowCanvas] Compute template not found', { label: option.label })
+      showTypeSelectorDialog.value = false
+      return
+    }
+
+    pendingSelectorResult.value = {
+      data: template,
+      targetTaskNodeId: nodeId
+    }
+    selectorResourceType.value = 'compute'
+    showUnifiedSelector.value = true
+  }
+
+  showTypeSelectorDialog.value = false
+}
+
+/**
+ * 处理类型选择取消
+ */
+function handleTypeSelectorCancel() {
+  logger.info('[FlowCanvas] Type selector cancelled')
+  showTypeSelectorDialog.value = false
+  pendingTypeSelectionTaskId.value = ''
+  pendingTypeSelectionKind.value = 'model'
 }
 
 /**
