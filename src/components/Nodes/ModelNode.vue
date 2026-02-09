@@ -5,9 +5,9 @@
     :data-node-type="props.data?.type"
     @click="handleClick"
   >
-    <!-- 输入 Handle（顶部） -->
+    <!-- 输入 Handle（顶部） - CodeBin、SPDZ、分组统计不需要 -->
     <Handle
-      v-if="!isExpression"
+      v-if="showInputHandle"
       id="input"
       type="target"
       :position="Position.Top"
@@ -97,6 +97,9 @@ const showEnterpriseInfo = computed(() => {
          type === ModelType.CODEBIN_V3_2 ||
          type === ModelType.SPDZ
 })
+
+// 是否显示顶部输入 handle（CodeBin、SPDZ、分组统计都不需要）
+const showInputHandle = computed(() => false)
 
 // 分组统计配置（从 props.data.groupByConfig 获取）
 const groupByConfig = computed(() => props.data?.groupByConfig)
