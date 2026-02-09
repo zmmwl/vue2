@@ -41,10 +41,33 @@
       </div>
     </div>
 
-    <!-- 添加输出按钮 -->
-    <button class="add-output-btn" @click="handleAddOutput" @mousedown.stop>
+    <!-- 左侧"添加模型"按钮 -->
+    <button
+      class="add-model-btn"
+      @click="handleAddModel"
+      @mouseenter="handleHighlightModels"
+      @mouseleave="handleClearHighlight"
+      @mousedown.stop
+      title="添加模型"
+    >
       <span>+</span>
-      添加输出
+    </button>
+
+    <!-- 添加输出按钮 -->
+    <button class="add-output-btn" @click="handleAddOutput" @mousedown.stop title="添加输出">
+      <span>+</span>
+    </button>
+
+    <!-- 右侧"添加算力"按钮 -->
+    <button
+      class="add-compute-btn"
+      @click="handleAddCompute"
+      @mouseenter="handleHighlightComputes"
+      @mouseleave="handleClearHighlight"
+      @mousedown.stop
+      title="添加算力"
+    >
+      <span>+</span>
     </button>
 
     <!-- 右侧算力输入连接点（算力节点） -->
@@ -130,6 +153,52 @@ function handleAddOutput() {
     detail: { nodeId: props.id },
     bubbles: true
   })
+  document.dispatchEvent(event)
+}
+
+/**
+ * 处理添加模型按钮点击
+ */
+function handleAddModel() {
+  const event = new CustomEvent('add-model', {
+    detail: { nodeId: props.id },
+    bubbles: true
+  })
+  document.dispatchEvent(event)
+}
+
+/**
+ * 处理添加算力按钮点击
+ */
+function handleAddCompute() {
+  const event = new CustomEvent('add-compute', {
+    detail: { nodeId: props.id },
+    bubbles: true
+  })
+  document.dispatchEvent(event)
+}
+
+/**
+ * 高亮左侧面板的模型节点
+ */
+function handleHighlightModels() {
+  const event = new CustomEvent('highlight-models', { bubbles: true })
+  document.dispatchEvent(event)
+}
+
+/**
+ * 高亮左侧面板的算力节点
+ */
+function handleHighlightComputes() {
+  const event = new CustomEvent('highlight-computes', { bubbles: true })
+  document.dispatchEvent(event)
+}
+
+/**
+ * 清除左侧面板的高亮
+ */
+function handleClearHighlight() {
+  const event = new CustomEvent('clear-highlight', { bubbles: true })
   document.dispatchEvent(event)
 }
 </script>
@@ -307,40 +376,192 @@ function handleAddOutput() {
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.12);
   }
 
-  // 添加输出按钮
+  // 添加输出按钮 - 线条引出 + 加号方块
   .add-output-btn {
     position: absolute;
-    bottom: -36px;
+    bottom: -32px;
     left: 50%;
     transform: translateX(-50%);
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    padding: 6px 12px;
+    width: 18px;
+    height: 18px;
+    padding: 0;
     background: linear-gradient(135deg, #52C41A, #73d13d);
-    color: white;
-    border: none;
-    border-radius: 6px;
-    font-size: 12px;
-    font-weight: 500;
+    border: 2px solid #fff;
+    border-radius: 4px;
     cursor: pointer;
-    box-shadow: 0 2px 6px rgba(82, 196, 26, 0.25);
+    box-shadow: 0 2px 6px rgba(82, 196, 26, 0.3);
     transition: all 0.2s ease;
     z-index: 10;
-    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    // 引出线
+    &::before {
+      content: '';
+      position: absolute;
+      top: -14px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 2px;
+      height: 14px;
+      background: linear-gradient(180deg, #52C41A, rgba(82, 196, 26, 0.3));
+      border-radius: 1px;
+    }
+
+    // 加号
+    &::after {
+      content: '+';
+      color: white;
+      font-size: 14px;
+      font-weight: bold;
+      line-height: 1;
+    }
+
+    // 隐藏原来的文字
+    span {
+      display: none;
+    }
 
     &:hover {
       background: linear-gradient(135deg, #73d13d, #95de64);
-      box-shadow: 0 4px 10px rgba(82, 196, 26, 0.35);
-      transform: translateX(-50%) translateY(-2px);
+      box-shadow: 0 3px 8px rgba(82, 196, 26, 0.4);
+      transform: translateX(-50%) scale(1.1);
+
+      &::before {
+        height: 16px;
+        background: linear-gradient(180deg, #73d13d, rgba(115, 209, 61, 0.4));
+      }
     }
 
     &:active {
-      transform: translateX(-50%) translateY(0) scale(0.98);
+      transform: translateX(-50%) scale(0.95);
+    }
+  }
+
+  // 左侧"添加模型"按钮 - 线条引出 + 加号方块
+  .add-model-btn {
+    position: absolute;
+    left: -32px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 18px;
+    height: 18px;
+    padding: 0;
+    background: linear-gradient(135deg, #722ED1, #9254de);
+    border: 2px solid #fff;
+    border-radius: 4px;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(114, 46, 209, 0.3);
+    transition: all 0.2s ease;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    // 引出线
+    &::before {
+      content: '';
+      position: absolute;
+      right: -14px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 14px;
+      height: 2px;
+      background: linear-gradient(90deg, #722ED1, rgba(114, 46, 209, 0.3));
+      border-radius: 1px;
     }
 
-    .el-icon {
+    // 加号
+    &::after {
+      content: '+';
+      color: white;
       font-size: 14px;
+      font-weight: bold;
+      line-height: 1;
+    }
+
+    // 隐藏原来的文字
+    span {
+      display: none;
+    }
+
+    &:hover {
+      background: linear-gradient(135deg, #9254de, #b37feb);
+      box-shadow: 0 3px 8px rgba(114, 46, 209, 0.4);
+      transform: translateY(-50%) scale(1.1);
+
+      &::before {
+        width: 16px;
+        background: linear-gradient(90deg, #9254de, rgba(146, 84, 222, 0.4));
+      }
+    }
+
+    &:active {
+      transform: translateY(-50%) scale(0.95);
+    }
+  }
+
+  // 右侧"添加算力"按钮 - 线条引出 + 加号方块
+  .add-compute-btn {
+    position: absolute;
+    right: -32px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 18px;
+    height: 18px;
+    padding: 0;
+    background: linear-gradient(135deg, #FA8C16, #ffa940);
+    border: 2px solid #fff;
+    border-radius: 4px;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(250, 140, 22, 0.3);
+    transition: all 0.2s ease;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    // 引出线
+    &::before {
+      content: '';
+      position: absolute;
+      left: -14px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 14px;
+      height: 2px;
+      background: linear-gradient(90deg, rgba(250, 140, 22, 0.3), #FA8C16);
+      border-radius: 1px;
+    }
+
+    // 加号
+    &::after {
+      content: '+';
+      color: white;
+      font-size: 14px;
+      font-weight: bold;
+      line-height: 1;
+    }
+
+    // 隐藏原来的文字
+    span {
+      display: none;
+    }
+
+    &:hover {
+      background: linear-gradient(135deg, #ffa940, #ffcb6f);
+      box-shadow: 0 3px 8px rgba(250, 140, 22, 0.4);
+      transform: translateY(-50%) scale(1.1);
+
+      &::before {
+        width: 16px;
+        background: linear-gradient(90deg, rgba(255, 169, 64, 0.4), #ffa940);
+      }
+    }
+
+    &:active {
+      transform: translateY(-50%) scale(0.95);
     }
   }
 }

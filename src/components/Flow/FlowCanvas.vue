@@ -1486,6 +1486,68 @@ function handleAddOutput(event: Event) {
 }
 
 /**
+ * 处理添加模型按钮点击
+ */
+function handleAddModel(event: Event) {
+  const customEvent = event as CustomEvent
+  const { nodeId } = customEvent.detail
+
+  const taskNode = nodes.value.find(n => n.id === nodeId)
+  if (!taskNode) {
+    logger.warn('[FlowCanvas] Task node not found for model addition', { nodeId })
+    return
+  }
+
+  // 打开统一资源选择器，用于选择模型
+  pendingSelectorResult.value = {
+    data: {
+      type: 'modelNode',
+      label: '计算模型',
+      category: 'model' as any,
+      icon: '📦',
+      color: '#8B5CF6',
+      description: '选择一个计算模型'
+    },
+    targetTaskNodeId: nodeId
+  }
+  selectorResourceType.value = 'model'
+  selectorModelTypeFilter.value = undefined
+  showUnifiedSelector.value = true
+  logger.info('[FlowCanvas] Opening unified resource selector for model', { taskId: nodeId })
+}
+
+/**
+ * 处理添加算力按钮点击
+ */
+function handleAddCompute(event: Event) {
+  const customEvent = event as CustomEvent
+  const { nodeId } = customEvent.detail
+
+  const taskNode = nodes.value.find(n => n.id === nodeId)
+  if (!taskNode) {
+    logger.warn('[FlowCanvas] Task node not found for compute addition', { nodeId })
+    return
+  }
+
+  // 打开统一资源选择器，用于选择算力
+  pendingSelectorResult.value = {
+    data: {
+      type: 'computeResource',
+      label: '算力资源',
+      category: 'computeResource' as any,
+      icon: '⚡',
+      color: '#FA8C16',
+      description: '选择一个算力资源'
+    },
+    targetTaskNodeId: nodeId
+  }
+  selectorResourceType.value = 'compute'
+  selectorModelTypeFilter.value = undefined
+  showUnifiedSelector.value = true
+  logger.info('[FlowCanvas] Opening unified resource selector for compute', { taskId: nodeId })
+}
+
+/**
  * 处理输出配置确认
  * 支持新建和编辑两种模式
  */
@@ -3367,6 +3429,8 @@ function handleTestDeleteEdge(event: Event) {
 // 生命周期：注册全局事件监听器
 onMounted(() => {
   document.addEventListener('add-output', handleAddOutput)
+  document.addEventListener('add-model', handleAddModel)
+  document.addEventListener('add-compute', handleAddCompute)
   // 监听 window 上的事件，与测试中的 window.dispatchEvent 匹配
   window.addEventListener('create-test-node', handleCreateTestNode)
   window.addEventListener('create-test-task-with-output', handleCreateTestTaskWithOutput)
@@ -3384,6 +3448,8 @@ onMounted(() => {
 
 onUnmounted(() => {
   document.removeEventListener('add-output', handleAddOutput)
+  document.removeEventListener('add-model', handleAddModel)
+  document.removeEventListener('add-compute', handleAddCompute)
   window.removeEventListener('create-test-node', handleCreateTestNode)
   window.removeEventListener('create-test-task-with-output', handleCreateTestTaskWithOutput)
   window.removeEventListener('create-test-task-with-model', handleCreateTestTaskWithModel)

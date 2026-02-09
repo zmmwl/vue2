@@ -62,6 +62,7 @@
           v-for="template in MODEL_TEMPLATES"
           :key="template.label"
           class="palette-node"
+          :class="{ 'is-highlight': highlightType === 'models' }"
           draggable="true"
           :data-testid="`palette-node-${template.label.replace(/\s+/g, '-').toLowerCase()}`"
           @dragstart="onDragStartModel($event, template)"
@@ -87,6 +88,7 @@
           v-for="template in RESOURCE_TEMPLATES"
           :key="template.label"
           class="palette-node"
+          :class="{ 'is-highlight': highlightType === 'computes' }"
           draggable="true"
           :data-testid="`palette-node-${template.label.replace(/\s+/g, '-').toLowerCase()}`"
           @dragstart="onDragStartResource($event, template)"
@@ -141,10 +143,27 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { DATA_SOURCE_TEMPLATES, COMPUTE_TASK_TEMPLATES, MODEL_TEMPLATES, RESOURCE_TEMPLATES } from '@/utils/node-templates'
 import type { NodeTemplate } from '@/types/nodes'
 import { ComputeTaskType } from '@/types/nodes'
+
+// 高亮状态
+const highlightType = ref<'models' | 'computes' | null>(null)
+
+// 组件挂载时添加事件监听
+onMounted(() => {
+  document.addEventListener('highlight-models', () => { highlightType.value = 'models' })
+  document.addEventListener('highlight-computes', () => { highlightType.value = 'computes' })
+  document.addEventListener('clear-highlight', () => { highlightType.value = null })
+})
+
+// 组件卸载时移除事件监听
+onUnmounted(() => {
+  document.removeEventListener('highlight-models', () => {})
+  document.removeEventListener('highlight-computes', () => {})
+  document.removeEventListener('clear-highlight', () => {})
+})
 
 // 过滤计算任务模板（联邦学习置灰但不隐藏）
 const filteredComputeTaskTemplates = computed(() => {
@@ -440,5 +459,23 @@ const onDragStartLocalTask = (event: DragEvent) => {
   background: linear-gradient(135deg, #999999, #777777);
   border-radius: 4px;
   pointer-events: none;
+}
+
+// 高亮闪烁样式
+.palette-node.is-highlight {
+  animation: pulse-highlight 1s ease-in-out infinite;
+}
+
+@keyframes pulse-highlight {
+  0%, 100% {
+    background: var(--list-item-hover-bg);
+    border-color: var(--list-item-selected-border);
+    box-shadow: 0 2px 8px rgba(14, 165, 233, 0.1);
+  }
+  50% {
+    background: #e6f7ff;
+    border-color: #1890ff;
+    box-shadow: 0 4px 16px rgba(24, 144, 255, 0.3);
+  }
 }
 </style>
