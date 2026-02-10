@@ -127,11 +127,14 @@ function toggleGroup(key: string) {
 }
 </script>
 
-<style scoped>
+<style scoped lang="scss">
+@use '@/assets/styles/variables.scss' as *;
+
 .field-sidebar {
   width: 280px;
-  background: #1e1e1e;
-  border-right: 1px solid #3e3e3e;
+  background: rgba(255, 255, 255, 0.5);
+  backdrop-filter: blur(8px);
+  border-right: 1px solid rgba(0, 0, 0, 0.06);
   display: flex;
   flex-direction: column;
   transition: width 0.2s ease;
@@ -146,15 +149,15 @@ function toggleGroup(key: string) {
   align-items: center;
   justify-content: space-between;
   padding: 12px 16px;
-  border-bottom: 1px solid #3e3e3e;
-  background: #252526;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  background: rgba(255, 255, 255, 0.4);
 }
 
 .sidebar-header h4 {
   margin: 0;
   font-size: 14px;
   font-weight: 600;
-  color: #e0e0e0;
+  color: var(--text-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -167,7 +170,7 @@ function toggleGroup(key: string) {
 .toggle-btn {
   background: none;
   border: none;
-  color: #a0a0a0;
+  color: var(--text-secondary);
   cursor: pointer;
   padding: 4px;
   border-radius: 4px;
@@ -176,8 +179,8 @@ function toggleGroup(key: string) {
 }
 
 .toggle-btn:hover {
-  background: #3e3e3e;
-  color: #e0e0e0;
+  background: rgba(0, 0, 0, 0.06);
+  color: var(--text-primary);
 }
 
 .sidebar-content {
@@ -190,21 +193,22 @@ function toggleGroup(key: string) {
 .search-input {
   margin: 12px;
   padding: 8px 12px;
-  background: #2d2d30;
-  border: 1px solid #3e3e3e;
-  border-radius: 4px;
-  color: #e0e0e0;
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 6px;
+  color: var(--text-primary);
   font-size: 13px;
   outline: none;
-  transition: border-color 0.2s;
+  transition: all 0.2s;
 }
 
 .search-input:focus {
-  border-color: #1890ff;
+  border-color: var(--datasource-blue);
+  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
 }
 
 .search-input::placeholder {
-  color: #6e6e6e;
+  color: var(--text-secondary);
 }
 
 .field-groups {
@@ -214,26 +218,26 @@ function toggleGroup(key: string) {
 }
 
 .field-groups::-webkit-scrollbar {
-  width: 6px;
+  width: 5px;
 }
 
 .field-groups::-webkit-scrollbar-track {
-  background: #1e1e1e;
+  background: transparent;
 }
 
 .field-groups::-webkit-scrollbar-thumb {
-  background: #3e3e3e;
+  background: rgba(0, 0, 0, 0.1);
   border-radius: 3px;
 }
 
 .field-groups::-webkit-scrollbar-thumb:hover {
-  background: #4e4e4e;
+  background: rgba(0, 0, 0, 0.15);
 }
 
 .no-fields {
   padding: 24px;
   text-align: center;
-  color: #6e6e6e;
+  color: var(--text-secondary);
   font-size: 13px;
 }
 </style>

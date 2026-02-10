@@ -50,11 +50,15 @@ function handleDragStart(field: FieldInfo, event: DragEvent) {
 }
 </script>
 
-<style scoped>
+<style scoped lang="scss">
+@use '@/assets/styles/variables.scss' as *;
+
 .field-group-card {
   margin-bottom: 8px;
-  background: #252526;
-  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 8px;
   overflow: hidden;
 }
 
@@ -65,17 +69,17 @@ function handleDragStart(field: FieldInfo, event: DragEvent) {
   padding: 10px 12px;
   cursor: pointer;
   user-select: none;
-  transition: background 0.2s;
+  transition: all 0.2s;
 }
 
 .group-header:hover {
-  background: #2d2d30;
+  background: rgba(14, 165, 233, 0.06);
 }
 
 .group-title {
   font-size: 13px;
   font-weight: 500;
-  color: #e0e0e0;
+  color: var(--text-primary);
   flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -84,15 +88,15 @@ function handleDragStart(field: FieldInfo, event: DragEvent) {
 
 .field-count {
   font-size: 11px;
-  color: #6e6e6e;
-  background: #1e1e1e;
-  padding: 2px 6px;
+  color: var(--datasource-blue);
+  background: rgba(14, 165, 233, 0.1);
+  padding: 2px 8px;
   border-radius: 10px;
   margin-left: 8px;
 }
 
 .fields-list {
-  border-top: 1px solid #3e3e3e;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
   max-height: 300px;
   overflow-y: auto;
 }
@@ -106,7 +110,7 @@ function handleDragStart(field: FieldInfo, event: DragEvent) {
 }
 
 .fields-list::-webkit-scrollbar-thumb {
-  background: #3e3e3e;
+  background: rgba(0, 0, 0, 0.1);
   border-radius: 2px;
 }
 
@@ -116,8 +120,8 @@ function handleDragStart(field: FieldInfo, event: DragEvent) {
   justify-content: space-between;
   padding: 8px 12px;
   cursor: grab;
-  transition: background 0.15s;
-  border-bottom: 1px solid #1e1e1e;
+  transition: all 0.15s;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
 }
 
 .field-item:last-child {
@@ -125,16 +129,15 @@ function handleDragStart(field: FieldInfo, event: DragEvent) {
 }
 
 .field-item:hover {
-  background: #2d2d30;
+  background: rgba(14, 165, 233, 0.06);
 }
 
 .field-item.used {
-  background: #1a2f1a;
-  color: #52c41a;
+  background: rgba(82, 196, 26, 0.08);
 }
 
 .field-item.used:hover {
-  background: #1e381e;
+  background: rgba(82, 196, 26, 0.12);
 }
 
 .field-item:active {
@@ -143,7 +146,7 @@ function handleDragStart(field: FieldInfo, event: DragEvent) {
 
 .field-alias {
   font-size: 13px;
-  color: #e0e0e0;
+  color: var(--text-primary);
   font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -153,20 +156,21 @@ function handleDragStart(field: FieldInfo, event: DragEvent) {
 
 .used .field-alias {
   color: #52c41a;
+  font-weight: 500;
 }
 
 .field-type {
   font-size: 11px;
-  color: #6e6e6e;
+  color: var(--text-secondary);
   padding: 2px 6px;
-  background: #1e1e1e;
-  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.04);
+  border-radius: 4px;
   margin-left: 8px;
   white-space: nowrap;
 }
 
 .used .field-type {
   color: #3a863a;
-  background: #0f1f0f;
+  background: rgba(82, 196, 26, 0.12);
 }
 </style>
