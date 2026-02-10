@@ -60,7 +60,6 @@ import { ref, watch, nextTick, onBeforeUnmount } from 'vue'
 import { EditorState, Compartment } from '@codemirror/state'
 import { EditorView, keymap, placeholder as placeholderExt } from '@codemirror/view'
 import { python } from '@codemirror/lang-python'
-import { oneDark } from '@codemirror/theme-one-dark'
 import { defaultKeymap, indentWithTab } from '@codemirror/commands'
 import { autocompletion, CompletionContext, type Completion } from '@codemirror/autocomplete'
 import { bracketMatching } from '@codemirror/language'
@@ -98,7 +97,6 @@ const emit = defineEmits<Emits>()
 const editorContainer = ref<HTMLElement>()
 let editorView: EditorView | null = null
 const languageCompartment = new Compartment()
-const themeCompartment = new Compartment()
 
 // 表达式
 const expression = ref(props.initialExpression || '')
@@ -392,20 +390,110 @@ function createExtensions(): Extension[] {
   // 获取可用字段
   const fields = props.availableFields || []
 
-  return [
-    EditorView.theme({
-      '&': {
-        fontSize: '14px',
-        fontFamily: "'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace"
-      },
-      '.cm-scroller': {
+  // 浅色主题
+  const lightTheme = EditorView.theme({
+    '&': {
+      fontSize: '14px',
+      fontFamily: "'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace",
+      background: 'rgba(255, 255, 255, 0.6)',
+      color: '#262626'
+    },
+    '.cm-scroller': {
+      overflow: 'auto',
+      background: 'transparent',
+    },
+    '.cm-content': {
+      padding: '16px',
+      minHeight: '300px',
+      background: 'transparent',
+    },
+    '.cm-line': {
+      padding: '0 2px',
+    },
+    // 关键字
+    '& .tok-keyword': {
+      color: '#1890ff',
+      fontWeight: '500'
+    },
+    // 字符串
+    '& .tok-string': {
+      color: '#52c41a'
+    },
+    // 数字
+    '& .tok-number': {
+      color: '#fa8c16'
+    },
+    // 注释
+    '& .tok-comment': {
+      color: '#8c8c8c',
+      fontStyle: 'italic'
+    },
+    // 函数名
+    '& .tok-function': {
+      color: '#722ed1'
+    },
+    // 变量名
+    '& .tok-variableName': {
+      color: '#262626'
+    },
+    // 操作符
+    '& .tok-operator': {
+      color: '#1890ff'
+    },
+    // 选中行
+    '& .cm-activeLine': {
+      background: 'rgba(14, 165, 233, 0.08)'
+    },
+    // 选中内容背景
+    '& .cm-selectionBackground': {
+      background: 'rgba(24, 144, 255, 0.2)'
+    },
+    // 光标
+    '& .cm-cursor': {
+      borderLeftColor: '#1890ff'
+    },
+    // 括号匹配
+    '& .cm-matchingBracket': {
+      background: 'rgba(24, 144, 255, 0.2)',
+      color: '#1890ff'
+    },
+    '& .cm-nonmatchingBracket': {
+      background: 'rgba(255, 77, 79, 0.2)',
+      color: '#ff4d4f'
+    },
+    // 搜索匹配
+    '& .cm-searchMatch': {
+      background: 'rgba(250, 140, 22, 0.3)'
+    },
+    '& .cm-searchMatch-selected': {
+      background: 'rgba(24, 144, 255, 0.3)'
+    },
+    // 补全菜单
+    '.cm-tooltip': {
+      background: 'rgba(255, 255, 255, 0.95)',
+      backdropFilter: 'blur(12px)',
+      border: '1px solid rgba(0, 0, 0, 0.08)',
+      borderRadius: '8px',
+      boxShadow: '0 4px 16px rgba(0, 0, 0, 0.12)'
+    },
+    '.cm-tooltip-autocomplete': {
+      '& ul': {
+        maxHeight: '200px',
         overflow: 'auto'
       },
-      '.cm-content': {
-        padding: '16px 0',
-        minHeight: '300px'
+      '& ul li': {
+        padding: '6px 12px',
+        fontSize: '13px'
+      },
+      '& ul li[aria-selected]': {
+        background: 'rgba(14, 165, 233, 0.12)',
+        color: '#1890ff'
       }
-    }),
+    }
+  }, { dark: false })
+
+  return [
+    lightTheme,
     EditorView.lineWrapping,
     keymap.of([
       ...defaultKeymap,
@@ -420,8 +508,7 @@ function createExtensions(): Extension[] {
     bracketMatching(),
     highlightSelectionMatches(),
     placeholderExt('# 在此输入 Python 表达式...\n# 示例: companyA.salary * 0.8 + companyB.bonus'),
-    languageCompartment.of(python()),
-    themeCompartment.of(oneDark)
+    languageCompartment.of(python())
   ]
 }
 
@@ -588,6 +675,8 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped lang="scss">
+@use '@/assets/styles/variables.scss' as *;
+
 // 使用 :deep() 确保过渡样式正确应用到 Transition 组件
 :deep(.modal-enter-active),
 :deep(.modal-leave-active) {
@@ -622,21 +711,24 @@ onBeforeUnmount(() => {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.3);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
-  backdrop-filter: blur(4px);
+  backdrop-filter: blur(8px);
 }
 
 .modal-content {
   width: 90%;
   max-width: 600px;
   max-height: 80vh;
-  background: #1e1e1e;
-  border-radius: 12px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--dialog-border-radius);
+  box-shadow: var(--shadow-card-lg);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -651,16 +743,16 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 20px 24px;
-  background: #252526;
-  border-bottom: 1px solid #3e3e42;
+  padding: var(--dialog-header-padding);
+  background: rgba(255, 255, 255, 0.6);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
 }
 
 .modal-title {
   margin: 0;
   font-size: 18px;
   font-weight: 600;
-  color: #ffffff;
+  color: var(--text-primary);
 }
 
 .close-button {
@@ -674,50 +766,50 @@ onBeforeUnmount(() => {
   border-radius: 6px;
   cursor: pointer;
   font-size: 18px;
-  color: #cccccc;
+  color: var(--text-secondary);
   transition: all 0.2s ease;
 
   &:hover {
-    background: #3e3e42;
-    color: #ffffff;
+    background: rgba(0, 0, 0, 0.06);
+    color: var(--text-primary);
   }
 }
 
 .modal-body {
   flex: 1;
   overflow-y: auto;
-  padding: 20px 24px;
+  padding: var(--dialog-body-padding);
   display: flex;
   flex-direction: column;
   gap: 16px;
-  min-height: 0; // 允许 flex 子元素正确收缩
+  min-height: 0;
 }
 
 .expression-info {
   padding: 12px 16px;
-  background: rgba(24, 144, 255, 0.1);
-  border: 1px solid rgba(24, 144, 255, 0.3);
+  background: rgba(14, 165, 233, 0.08);
+  border: 1px solid rgba(14, 165, 233, 0.2);
   border-radius: 8px;
 }
 
 .info-text {
   margin: 0 0 8px 0;
   font-size: 13px;
-  color: #cccccc;
+  color: var(--text-primary);
   line-height: 1.5;
 }
 
 .info-hint {
   margin: 0;
   font-size: 12px;
-  color: #999999;
+  color: var(--text-secondary);
 
   code {
     padding: 2px 6px;
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(14, 165, 233, 0.1);
     border-radius: 4px;
     font-family: 'Monaco', 'Menlo', monospace;
-    color: #1890ff;
+    color: var(--datasource-blue);
   }
 }
 
@@ -737,10 +829,13 @@ onBeforeUnmount(() => {
 .editor-container {
   height: 100%;
   min-height: 250px;
-  border: 1px solid #3e3e42;
-  border-radius: 8px;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
   overflow: hidden;
   position: relative;
+  background: rgba(255, 255, 255, 0.5);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) inset;
 
   // CodeMirror 样式覆盖
   :deep(.cm-editor) {
@@ -777,16 +872,16 @@ onBeforeUnmount(() => {
   border: 1px solid rgba(255, 77, 79, 0.3);
   border-radius: 8px;
   font-size: 13px;
-  color: #ff4d4f;
+  color: var(--color-error);
 }
 
 .modal-footer {
   display: flex;
   justify-content: flex-end;
   gap: 12px;
-  padding: 16px 24px;
-  background: #252526;
-  border-top: 1px solid #3e3e42;
+  padding: var(--dialog-footer-padding);
+  background: rgba(255, 255, 255, 0.6);
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
 }
 
 .btn {
@@ -800,17 +895,17 @@ onBeforeUnmount(() => {
 
   &.btn-cancel {
     background: transparent;
-    border: 1px solid #3e3e42;
-    color: #cccccc;
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
 
     &:hover {
-      border-color: #1890ff;
-      color: #1890ff;
+      border-color: var(--color-primary);
+      color: var(--color-primary);
     }
   }
 
   &.btn-confirm {
-    background: #1890ff;
+    background: var(--color-primary);
     color: #ffffff;
 
     &:hover:not(:disabled) {
@@ -818,8 +913,8 @@ onBeforeUnmount(() => {
     }
 
     &:disabled {
-      background: #3e3e42;
-      color: #666666;
+      background: var(--border-color);
+      color: var(--text-disabled);
       cursor: not-allowed;
     }
   }
