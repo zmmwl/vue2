@@ -230,11 +230,11 @@ function handleClearHighlight() {
     }
   }
 
-  // 输入 handle - 长方形（左侧）
+  // 输入 handle - 长方形（左侧）- 紫色表示模型输入
   .input-handle {
     width: 8px;
     height: 24px;
-    background-color: #52c41a;
+    background-color: #722ED1;
     border: 2px solid #ffffff;
     border-radius: 2px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
@@ -248,7 +248,7 @@ function handleClearHighlight() {
 
     &:hover {
       opacity: 1;
-      background-color: #1890ff;
+      background-color: #9254de;
       transform: translateY(-50%) scale(1.1);
     }
   }

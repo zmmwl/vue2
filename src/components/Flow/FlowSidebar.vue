@@ -1,7 +1,7 @@
 <template>
-  <div class="flow-sidebar">
+  <div class="flow-sidebar" ref="sidebarRef">
     <!-- 数据源部分 -->
-    <div class="sidebar-section">
+    <div class="sidebar-section" ref="dataSourceSectionRef">
       <div class="section-title">数据源</div>
       <div class="node-palette">
         <div
@@ -26,7 +26,7 @@
     </div>
 
     <!-- 计算任务部分 -->
-    <div class="sidebar-section">
+    <div class="sidebar-section" ref="computeTaskSectionRef">
       <div class="section-title">计算任务</div>
       <div class="node-palette">
         <div
@@ -55,7 +55,7 @@
     </div>
 
     <!-- 计算模型部分 -->
-    <div class="sidebar-section">
+    <div class="sidebar-section" ref="modelSectionRef">
       <div class="section-title">计算模型</div>
       <div class="node-palette">
         <div
@@ -81,7 +81,7 @@
     </div>
 
     <!-- 算力资源部分 -->
-    <div class="sidebar-section">
+    <div class="sidebar-section" ref="resourceSectionRef">
       <div class="section-title">算力资源</div>
       <div class="node-palette">
         <div
@@ -151,10 +151,42 @@ import { ComputeTaskType } from '@/types/nodes'
 // 高亮状态
 const highlightType = ref<'models' | 'computes' | null>(null)
 
+// Section 引用
+const sidebarRef = ref<HTMLElement | null>(null)
+const modelSectionRef = ref<HTMLElement | null>(null)
+const resourceSectionRef = ref<HTMLElement | null>(null)
+
+/**
+ * 将元素滚动到视图中间
+ */
+function scrollIntoViewCenter(element: HTMLElement | null) {
+  if (!element || !sidebarRef.value) return
+
+  const sidebar = sidebarRef.value
+  const sidebarHeight = sidebar.clientHeight
+  const elementTop = element.offsetTop
+  const elementHeight = element.clientHeight
+
+  // 计算目标滚动位置，使元素在视图中居中
+  const targetScrollTop = elementTop - (sidebarHeight / 2) + (elementHeight / 2)
+
+  // 平滑滚动
+  sidebar.scrollTo({
+    top: targetScrollTop,
+    behavior: 'smooth'
+  })
+}
+
 // 组件挂载时添加事件监听
 onMounted(() => {
-  document.addEventListener('highlight-models', () => { highlightType.value = 'models' })
-  document.addEventListener('highlight-computes', () => { highlightType.value = 'computes' })
+  document.addEventListener('highlight-models', () => {
+    highlightType.value = 'models'
+    scrollIntoViewCenter(modelSectionRef.value)
+  })
+  document.addEventListener('highlight-computes', () => {
+    highlightType.value = 'computes'
+    scrollIntoViewCenter(resourceSectionRef.value)
+  })
   document.addEventListener('clear-highlight', () => { highlightType.value = null })
 })
 
