@@ -15,10 +15,23 @@
               <p>本地结果处理任务需要一个参与方企业来执行</p>
             </div>
 
+            <!-- 搜索框 -->
+            <div class="search-box">
+              <span class="search-icon">🔍</span>
+              <input
+                v-model="searchKeyword"
+                type="text"
+                class="search-input"
+                placeholder="搜索企业名称..."
+                @input="handleSearch"
+              />
+              <button v-if="searchKeyword" class="clear-btn" @click="clearSearch">✕</button>
+            </div>
+
             <!-- 企业列表 -->
-            <div v-if="availableEnterprises.length > 0" class="enterprise-list">
+            <div v-if="filteredEnterprises.length > 0" class="enterprise-list">
               <div
-                v-for="enterprise in availableEnterprises"
+                v-for="enterprise in filteredEnterprises"
                 :key="enterprise.id"
                 class="enterprise-item"
                 :class="{ selected: selectedEnterpriseId === enterprise.id }"
@@ -31,6 +44,13 @@
                 </div>
                 <div class="enterprise-id">ID: {{ enterprise.id }}</div>
               </div>
+            </div>
+
+            <!-- 搜索无结果 -->
+            <div v-else-if="searchKeyword && availableEnterprises.length > 0" class="empty-state">
+              <div class="empty-icon">🔍</div>
+              <p class="empty-text">未找到匹配的企业</p>
+              <p class="empty-hint">请尝试其他关键词</p>
             </div>
 
             <!-- 空状态 -->
@@ -59,7 +79,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { getEnterpriseList } from '@/services/enterpriseService'
 import { sortEnterprisesByPriority } from '@/utils/enterprise-sorter'
 import { ResourceTypePriority } from '@/types/nodes'
@@ -87,8 +107,23 @@ const emit = defineEmits<Emits>()
 // 选中的企业
 const selectedEnterpriseId = ref<string>()
 
+// 搜索关键词
+const searchKeyword = ref('')
+
 // 可用企业列表
 const availableEnterprises = ref<EnterpriseOption[]>([])
+
+// 过滤后的企业列表
+const filteredEnterprises = computed(() => {
+  if (!searchKeyword.value.trim()) {
+    return availableEnterprises.value
+  }
+  const keyword = searchKeyword.value.toLowerCase().trim()
+  return availableEnterprises.value.filter(enterprise =>
+    enterprise.name.toLowerCase().includes(keyword) ||
+    enterprise.id.toLowerCase().includes(keyword)
+  )
+})
 
 /**
  * 加载企业列表
@@ -117,8 +152,24 @@ onMounted(() => {
 watch(() => props.modelValue, (newValue) => {
   if (newValue) {
     loadEnterprises()
+    // 重置搜索
+    searchKeyword.value = ''
   }
 })
+
+/**
+ * 处理搜索
+ */
+function handleSearch() {
+  // 搜索逻辑已在 computed 中实现
+}
+
+/**
+ * 清除搜索
+ */
+function clearSearch() {
+  searchKeyword.value = ''
+}
 
 /**
  * 选择企业
@@ -221,13 +272,69 @@ function handleCancel() {
   background: #f0f5ff;
   border: 1px solid #d6e4ff;
   border-radius: 8px;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 
   p {
     margin: 0;
     font-size: 13px;
     color: #666666;
     line-height: 1.5;
+  }
+}
+
+.search-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: #f5f7fa;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  transition: all 0.2s ease;
+
+  &:focus-within {
+    border-color: #722ed1;
+    background: #ffffff;
+    box-shadow: 0 0 0 2px rgba(114, 46, 209, 0.1);
+  }
+
+  .search-icon {
+    font-size: 14px;
+    opacity: 0.6;
+  }
+
+  .search-input {
+    flex: 1;
+    border: none;
+    background: transparent;
+    font-size: 14px;
+    color: #333333;
+    outline: none;
+
+    &::placeholder {
+      color: #999999;
+    }
+  }
+
+  .clear-btn {
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: #d9d9d9;
+    border-radius: 50%;
+    font-size: 10px;
+    color: #666666;
+    cursor: pointer;
+    transition: all 0.2s ease;
+
+    &:hover {
+      background: #999999;
+      color: #ffffff;
+    }
   }
 }
 
