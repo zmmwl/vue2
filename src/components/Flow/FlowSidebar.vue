@@ -125,17 +125,22 @@
           </div>
         </div>
         <div
-          class="palette-node is-disabled"
-          data-testid="palette-node-local-query"
+          v-for="template in LOCAL_TASK_TEMPLATES"
+          :key="template.label"
+          class="palette-node"
+          draggable="true"
+          :data-testid="`palette-node-${template.label.replace(/\s+/g, '-').toLowerCase()}`"
+          @dragstart="onDragStart($event, template)"
         >
-          <div class="palette-node-icon" style="color: #999999">
-            📊
+          <div class="palette-node-icon" :style="{ color: template.color }">
+            {{ template.icon }}
           </div>
           <div class="palette-node-content">
-            <div class="palette-node-label">本地 Query</div>
-            <div class="palette-node-desc">本地数据查询处理</div>
+            <div class="palette-node-label">{{ template.label }}</div>
+            <div v-if="template.description" class="palette-node-desc">
+              {{ template.description }}
+            </div>
           </div>
-          <div class="badge-coming-soon">待上线</div>
         </div>
       </div>
     </div>
@@ -144,7 +149,7 @@
 
 <script setup lang="ts">
 import { computed, ref, onMounted, onUnmounted } from 'vue'
-import { DATA_SOURCE_TEMPLATES, COMPUTE_TASK_TEMPLATES, MODEL_TEMPLATES, RESOURCE_TEMPLATES } from '@/utils/node-templates'
+import { DATA_SOURCE_TEMPLATES, COMPUTE_TASK_TEMPLATES, MODEL_TEMPLATES, RESOURCE_TEMPLATES, LOCAL_TASK_TEMPLATES } from '@/utils/node-templates'
 import type { NodeTemplate } from '@/types/nodes'
 import { ComputeTaskType } from '@/types/nodes'
 

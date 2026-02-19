@@ -12,6 +12,7 @@ export interface DroppedNodeData {
   label: string
   category: NodeCategory | string  // 允许字符串以支持自定义category
   taskType?: string
+  computeType?: string  // 本地任务类型（用于 LOCAL_TASK 类别）
   sourceType?: string
   icon: string
   color: string

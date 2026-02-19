@@ -455,6 +455,109 @@
         </CollapsibleSection>
       </div>
 
+      <!-- 本地任务节点 -->
+      <div v-else-if="isLocalTaskNode" class="detail-info">
+        <!-- 任务基本信息 -->
+        <div class="info-section">
+          <h4 class="section-title">任务信息</h4>
+          <div class="info-grid">
+            <div class="info-item">
+              <span class="info-label">任务名称</span>
+              <span class="info-value">{{ selectedNode?.data?.label || '-' }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">执行企业</span>
+              <span class="info-value">{{ localTaskData?.entityName || localTaskData?.participantId || '-' }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">输出数据集</span>
+              <span class="info-value">{{ localTaskData?.outputDataset || '-' }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 输入数据 -->
+        <CollapsibleSection title="输入数据" :count="localInputProvidersCount">
+          <div v-if="!localInputProviders || localInputProviders.length === 0" class="empty-inputs">
+            <div class="empty-icon">📊</div>
+            <p>暂无输入数据</p>
+            <p class="empty-hint">从数据源节点拖拽连线到此任务</p>
+          </div>
+          <div v-else class="input-providers-list">
+            <div
+              v-for="(provider, index) in localInputProviders"
+              :key="index"
+              class="provider-card"
+            >
+              <div class="provider-header">
+                <span class="provider-index">{{ index + 1 }}</span>
+                <span class="provider-name">{{ getEnterpriseDisplayName(provider.participantId) }}</span>
+                <span class="provider-dataset">{{ provider.dataset }}</span>
+              </div>
+              <div class="provider-fields">
+                <div class="fields-header">
+                  <span>字段 ({{ provider.fields.length }})</span>
+                </div>
+                <div class="fields-list">
+                  <div
+                    v-for="field in provider.fields"
+                    :key="field.columnName"
+                    class="field-chip"
+                  >
+                    <span class="field-alias">{{ field.columnAlias || field.columnName }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </CollapsibleSection>
+
+        <!-- 表达式列表 -->
+        <CollapsibleSection title="表达式配置" :count="localExpressions.length">
+          <div v-if="!localExpressions || localExpressions.length === 0" class="empty-inputs">
+            <div class="empty-icon">📝</div>
+            <p>暂无表达式配置</p>
+          </div>
+          <div v-else class="expressions-list">
+            <div
+              v-for="(expr, index) in localExpressions"
+              :key="expr.id"
+              class="expression-card"
+            >
+              <div class="expression-header">
+                <span class="expression-index">{{ index + 1 }}</span>
+                <span class="expression-alias">AS {{ expr.resultAlias }}</span>
+              </div>
+              <div class="expression-content">{{ expr.expression }}</div>
+            </div>
+          </div>
+        </CollapsibleSection>
+
+        <!-- 分组统计配置 -->
+        <CollapsibleSection v-if="localGroupByConfig" title="分组统计" :count="localGroupByConfig?.statistics?.length || 0">
+          <div class="groupby-info">
+            <!-- 分组字段 -->
+            <div class="groupby-section">
+              <div class="groupby-title">分组字段 ({{ localGroupByConfig?.groupByFields?.length || 0 }})</div>
+              <div class="fields-chip-list">
+                <span v-for="field in localGroupByConfig?.groupByFields" :key="field.fieldId" class="field-chip groupby-chip">
+                  {{ field.fieldAlias || field.fieldName }} ({{ field.fieldType }})
+                </span>
+              </div>
+            </div>
+
+            <!-- 统计配置 -->
+            <div class="statistics-section">
+              <div class="statistics-title">统计配置 ({{ localGroupByConfig?.statistics?.length || 0 }})</div>
+              <div v-for="stat in localGroupByConfig?.statistics" :key="stat.id" class="stat-card">
+                <span class="function-badge">{{ stat.functionType }}</span>
+                <span class="field-name">{{ stat.resultAlias }}</span>
+              </div>
+            </div>
+          </div>
+        </CollapsibleSection>
+      </div>
+
       <!-- 其他节点类型 -->
       <div v-else class="empty-state">
         <div class="empty-icon">ℹ️</div>
@@ -467,7 +570,7 @@
 <script setup lang="ts">
 import { computed, watch, ref, onMounted } from 'vue'
 import type { Node } from '@vue-flow/core'
-import type { NodeData, ComputeTaskNodeData, ModelParameterSignature, AvailableFieldOption } from '@/types/nodes'
+import type { NodeData, ComputeTaskNodeData, ModelParameterSignature, AvailableFieldOption, LocalQueryNodeData, InputProvider, ExpressionConfig, GroupByConfig } from '@/types/nodes'
 import type { ExportJson } from '@/types/export'
 import { NodeCategory, TechPath } from '@/types/nodes'
 import { logger } from '@/utils/logger'
@@ -620,6 +723,11 @@ const isOutputDataNode = computed(() => {
   return props.selectedNode?.data?.category === NodeCategory.OUTPUT_DATA
 })
 
+// 判断是否为本地任务节点
+const isLocalTaskNode = computed(() => {
+  return props.selectedNode?.data?.category === NodeCategory.LOCAL_TASK
+})
+
 // 判断数据源节点是否已配置
 const isConfigured = computed(() => {
   return !!(props.selectedNode?.data?.assetInfo && props.selectedNode?.data?.selectedFields)
@@ -652,6 +760,30 @@ const taskData = computed(() => {
   return props.selectedNode?.data as ComputeTaskNodeData
 })
 
+// 本地任务节点相关
+const localTaskData = computed((): LocalQueryNodeData | null => {
+  if (!isLocalTaskNode.value) return null
+  return props.selectedNode?.data as LocalQueryNodeData
+})
+
+// 本地任务输入提供者列表
+const localInputProviders = computed((): InputProvider[] => {
+  return localTaskData.value?.inputProviders || []
+})
+
+// 本地任务输入提供者数量
+const localInputProvidersCount = computed(() => localInputProviders.value.length)
+
+// 本地任务表达式列表
+const localExpressions = computed((): ExpressionConfig[] => {
+  return localTaskData.value?.expressions || []
+})
+
+// 本地任务分组统计配置
+const localGroupByConfig = computed((): GroupByConfig | undefined => {
+  return localTaskData.value?.groupByConfig
+})
+
 // 任务类型标签
 const taskTypeLabel = computed(() => {
   if (!taskData.value) return ''
@@ -660,7 +792,8 @@ const taskTypeLabel = computed(() => {
     'PIR': '隐私信息检索',
     'MPC': '多方安全计算',
     'FL': '联邦学习',
-    'CONCAT': '结果拼接'
+    'CONCAT': '结果拼接',
+    'LOCAL_QUERY': '本地Query'
   }
   return typeMap[taskData.value.taskType || ''] || ''
 })
@@ -1979,6 +2112,127 @@ watch(() => props.selectedNode, (node) => {
       background: rgba(0, 0, 0, 0.04);
       border-radius: 4px;
       font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+    }
+  }
+}
+
+// ========== 本地任务节点详情样式 ==========
+
+// 表达式列表
+.expressions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.expression-card {
+  background: var(--glass-bg);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 8px;
+  padding: 12px;
+  transition: all var(--transition-base) var(--easing-smooth);
+
+  &:hover {
+    border-color: rgba(19, 194, 194, 0.2);
+    box-shadow: 0 2px 8px rgba(19, 194, 194, 0.08);
+  }
+}
+
+.expression-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+
+  .expression-index {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #13C2C2, #36cfc9);
+    color: white;
+    border-radius: 50%;
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .expression-alias {
+    font-size: 12px;
+    font-weight: 600;
+    color: #13C2C2;
+  }
+}
+
+.expression-content {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-family: 'Monaco', 'Menlo', monospace;
+  background: rgba(0, 0, 0, 0.02);
+  padding: 8px;
+  border-radius: 4px;
+  line-height: 1.4;
+  word-break: break-all;
+}
+
+// 分组统计信息
+.groupby-info {
+  .groupby-section {
+    margin-bottom: 12px;
+
+    .groupby-title {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+    }
+
+    .fields-chip-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+
+      .field-chip.groupby-chip {
+        font-size: 10px;
+        padding: 2px 6px;
+        background: rgba(19, 194, 194, 0.1);
+        color: #13c2c2;
+        border: 1px solid rgba(19, 194, 194, 0.3);
+        border-radius: 3px;
+      }
+    }
+  }
+
+  .statistics-section {
+    .statistics-title {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+    }
+
+    .stat-card {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 8px;
+      background: rgba(0, 0, 0, 0.02);
+      border-radius: 4px;
+      margin-bottom: 4px;
+
+      .function-badge {
+        font-size: 10px;
+        font-weight: 600;
+        padding: 2px 6px;
+        background: #13c2c2;
+        color: white;
+        border-radius: 3px;
+      }
+
+      .field-name {
+        font-size: 11px;
+        color: var(--text-secondary);
+      }
     }
   }
 }

@@ -1,5 +1,5 @@
 import type { NodeTemplate } from '@/types/nodes'
-import { NodeCategory, ComputeTaskType, DataSourceType } from '@/types/nodes'
+import { NodeCategory, ComputeTaskType, DataSourceType, LocalTaskType } from '@/types/nodes'
 
 // 数据源节点模板
 export const DATA_SOURCE_TEMPLATES: NodeTemplate[] = [
@@ -60,6 +60,19 @@ export const COMPUTE_TASK_TEMPLATES: NodeTemplate[] = [
     icon: '🤖',
     color: '#EB2F96',
     description: 'Federated Learning'
+  }
+]
+
+// 本地任务节点模板（新增）
+export const LOCAL_TASK_TEMPLATES: NodeTemplate[] = [
+  {
+    type: 'local_query',
+    label: '本地Query',
+    category: NodeCategory.LOCAL_TASK,
+    computeType: LocalTaskType.LOCAL_QUERY,
+    icon: '🔎',
+    color: '#13C2C2',
+    description: '本地 SQL 查询计算'
   }
 ]
 

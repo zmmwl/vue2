@@ -89,6 +89,12 @@ export enum ComputeTaskType {
   FL = 'FL'       // Federated Learning - 联邦学习
 }
 
+// 本地任务类型枚举（新增）
+export enum LocalTaskType {
+  CONCAT = 'CONCAT',           // 数据拼接
+  LOCAL_QUERY = 'LOCAL_QUERY'  // 本地 Query
+}
+
 // 数据源类型枚举
 export enum DataSourceType {
   DATABASE = 'database',  // 数据库
@@ -161,6 +167,7 @@ export interface NodeTemplate {
   label: string
   category: NodeCategory | string  // 允许字符串以支持自定义category
   taskType?: ComputeTaskType
+  computeType?: LocalTaskType      // 本地任务类型（用于 LOCAL_TASK 类别）
   sourceType?: DataSourceType
   icon: string
   color: string
@@ -244,7 +251,7 @@ export interface OutputDataNodeData extends NodeData {
 /** 本地任务节点数据 */
 export interface LocalTaskNodeData extends NodeData {
   category: NodeCategory.LOCAL_TASK
-  computeType: 'CONCAT'
+  computeType: LocalTaskType.CONCAT
   participantId: string     // 必选：执行本地任务的参与方企业
   entityName?: string       // 企业名称（可选）
   inputProviders?: InputProvider[]
@@ -474,4 +481,39 @@ export interface GroupByConfig {
   id: string                   // 配置唯一ID
   groupByFields: GroupByField[]   // 分组字段列表
   statistics: StatisticConfig[]   // 统计配置列表
+}
+
+// ========== 本地Query任务相关类型 ==========
+
+/** 表达式配置（新增） */
+export interface ExpressionConfig {
+  id: string               // 唯一ID
+  expression: string       // 表达式内容
+  resultAlias: string      // 结果别名
+  description?: string     // 描述（可选）
+}
+
+/** 本地Query节点数据 */
+export interface LocalQueryNodeData extends NodeData {
+  category: NodeCategory.LOCAL_TASK  // 从 COMPUTE_TASK 改为 LOCAL_TASK
+  computeType: LocalTaskType.LOCAL_QUERY
+
+  // 执行企业（用户手动选择）
+  participantId: string
+  entityName?: string
+
+  // 输入数据配置（复用现有 InputProvider 结构）
+  inputProviders?: InputProvider[]
+
+  // Join 条件（复用现有 JoinCondition 结构）
+  joinConditions?: JoinCondition[]
+
+  // 多个表达式配置（从单个字符串改为数组）
+  expressions: ExpressionConfig[]
+
+  // 分组统计配置（内联配置，可选）
+  groupByConfig?: GroupByConfig
+
+  // 输出数据集名称（仅输出到执行企业本地）
+  outputDataset?: string
 }

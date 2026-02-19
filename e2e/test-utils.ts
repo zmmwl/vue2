@@ -171,6 +171,14 @@ export async function dragNodeToCanvas(
         type = 'data_source';
         category = 'data_source';
         sourceType = 'graphql';
+      } else if (icon.includes('🔎') || label.includes('本地Query') || label.includes('本地 Query')) {
+        // 本地Query节点
+        type = 'local_query';
+        category = 'localTask';
+      } else if (icon.includes('🔄') || label.includes('本地结果处理') || label.includes('拼接')) {
+        // 本地结果处理节点
+        type = 'local_task';
+        category = 'localTask';
       } else if (icon.includes('🔐') || label.includes('PSI')) {
         type = 'compute_task';
         category = 'compute_task';

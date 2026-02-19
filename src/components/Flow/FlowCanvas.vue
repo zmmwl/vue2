@@ -152,6 +152,15 @@
       @select="handleTypeSelectorSelected"
       @cancel="handleTypeSelectorCancel"
     />
+
+    <!-- 本地Query编辑弹窗 -->
+    <LocalQueryEditor
+      v-model="showLocalQueryEditorDialog"
+      :node-data="pendingLocalQueryNodeData"
+      :enterprises="availableEnterprises.map(e => ({ id: e.id, name: e.name }))"
+      @confirm="handleLocalQueryEditorConfirm"
+      @cancel="handleLocalQueryEditorCancel"
+    />
   </div>
 </template>
 
@@ -164,13 +173,15 @@ import { MiniMap } from '@vue-flow/minimap'
 import type { Node, Connection, EdgeChange, NodeChange, GraphNode } from '@vue-flow/core'
 import type { DroppedNodeData } from '@/types/graph'
 import { NodeCategory, ComputeTaskType, TechPath, ResourceTypePriority, ModelType } from '@/types/nodes'
-import type { NodeData, AssetInfo, FieldInfo, FieldMapping, ComputeTaskNodeData, OutputDataNodeData, OutputField, ComputeModelConfig, ModelParameter, AvailableFieldOption } from '@/types/nodes'
+import type { NodeData, AssetInfo, FieldInfo, FieldMapping, ComputeTaskNodeData, OutputDataNodeData, OutputField, ComputeModelConfig, ModelParameter, AvailableFieldOption, LocalQueryNodeData } from '@/types/nodes'
+import { LocalTaskType } from '@/types/nodes'
 import DataSourceNode from '@/components/Nodes/DataSourceNode.vue'
 import ComputeTaskNode from '@/components/Nodes/ComputeTaskNode.vue'
 import OutputDataNode from '@/components/Nodes/OutputDataNode.vue'
 import ModelNode from '@/components/Nodes/ModelNode.vue'
 import ComputeResourceNode from '@/components/Nodes/ComputeResourceNode.vue'
 import LocalTaskNode from '@/components/Nodes/LocalTaskNode.vue'
+import LocalQueryNode from '@/components/Nodes/LocalQueryNode.vue'
 import FlowEdge from '@/components/Edges/FlowEdge.vue'
 import AssetSelectorDialog from '@/components/Dialogs/AssetSelectorDialog.vue'
 import TechPathSelector from '@/components/Modals/TechPathSelector.vue'
@@ -186,6 +197,7 @@ import ModelParameterConfig from '@/components/Modals/ModelParameterConfig.vue'
 import UnifiedResourceSelector from '@/components/Modals/UnifiedResourceSelector.vue'
 import GroupByConfig from '@/components/Modals/GroupByConfig.vue'
 import TypeSelector from '@/components/Modals/TypeSelector.vue'
+import LocalQueryEditor from '@/components/Modals/LocalQueryEditor.vue'
 import { MODEL_TEMPLATES, RESOURCE_TEMPLATES } from '@/utils/node-templates'
 import { createUniqueEdge } from '@/utils/edge-utils'
 import { generateAvailableFields } from '@/utils/model-config-utils'
@@ -220,7 +232,8 @@ const nodeTypes = {
   outputData: markRaw(OutputDataNode),
   modelNode: markRaw(ModelNode),
   computeResource: markRaw(ComputeResourceNode),
-  localTask: markRaw(LocalTaskNode)
+  localTask: markRaw(LocalTaskNode),
+  local_query: markRaw(LocalQueryNode)
 }
 
 // 注册自定义连接线类型
@@ -315,6 +328,11 @@ const typeSelectorTitle = ref('选择类型')
 const typeSelectorOptions = ref<Array<{ label: string; icon: string; color: string; description?: string }>>([])
 const pendingTypeSelectionTaskId = ref<string>('')
 const pendingTypeSelectionKind = ref<'model' | 'compute'>('model')
+
+// 本地Query编辑弹窗状态
+const showLocalQueryEditorDialog = ref(false)
+const pendingLocalQueryNodeId = ref<string>('')
+const pendingLocalQueryNodeData = ref<LocalQueryNodeData | undefined>(undefined)
 
 /**
  * 可用的企业选项（按优先级排序）
@@ -568,8 +586,8 @@ const isValidConnection = (
     return false
   }
 
-  // 规则 2: 连接到计算任务节点时，根据源节点类型自动修正 targetHandle
-  if (targetData.category === NodeCategory.COMPUTE_TASK) {
+  // 规则 2: 连接到计算任务节点或本地任务节点时，根据源节点类型自动修正 targetHandle
+  if (targetData.category === NodeCategory.COMPUTE_TASK || targetData.category === NodeCategory.LOCAL_TASK) {
     // 根据源节点类型确定正确的 targetHandle
     let correctHandle: string
     if (sourceData.category === NodeCategory.DATA_SOURCE || sourceData.category === NodeCategory.OUTPUT_DATA) {
@@ -641,8 +659,8 @@ const onConnect = (connection: Connection) => {
     targetHandle: correctedTargetHandle
   }
 
-  // 检查是否连接到计算任务节点
-  if (targetData.category === NodeCategory.COMPUTE_TASK) {
+  // 检查是否连接到计算任务节点或本地任务节点
+  if (targetData.category === NodeCategory.COMPUTE_TASK || targetData.category === NodeCategory.LOCAL_TASK) {
     // 保存待处理的连接（使用修正后的连接）
     pendingConnection.value = correctedConnection
     pendingConnectionSource.value = correctedConnection.source
@@ -1052,7 +1070,7 @@ const onDrop = (event: DragEvent) => {
         logger.info('[FlowCanvas] Opening unified resource selector for data source')
       }
     } else if (data.category === NodeCategory.COMPUTE_TASK) {
-      // 检查是否在测试模式（只检查明确设置的标志）
+      // 计算任务节点：需要技术路径选择
       const isTestMode = !!(window as any).__PLAYWRIGHT_TEST__
 
       if (isTestMode) {
@@ -1139,11 +1157,18 @@ const onDrop = (event: DragEvent) => {
       } else {
         logger.warn('[FlowCanvas] No target node found for compute resource drop')
       }
-    } else if (data.category === 'localTask') {
-      // 本地任务节点：弹出企业选择对话框
-      pendingLocalTaskData.value = data
-      showLocalTaskEnterpriseDialog.value = true
-      logger.info('[FlowCanvas] Opening local task enterprise selector dialog')
+    } else if (data.category === 'localTask' || data.category === NodeCategory.LOCAL_TASK) {
+      // 本地任务节点
+      if (data.computeType === LocalTaskType.LOCAL_QUERY || data.type === 'local_query') {
+        // 本地Query节点：直接创建
+        logger.info('[FlowCanvas] Creating local query node')
+        createLocalQueryNode(data, event)
+      } else {
+        // 其他本地任务节点：弹出企业选择对话框
+        pendingLocalTaskData.value = data
+        showLocalTaskEnterpriseDialog.value = true
+        logger.info('[FlowCanvas] Opening local task enterprise selector dialog')
+      }
     } else {
       // 其他节点类型直接创建
       createNode(data, event)
@@ -1207,6 +1232,52 @@ function createNode(
     type: newNode.type,
     nodeCategory: newNode.data.category,
     techPath: techPath
+  })
+}
+
+/**
+ * 创建本地Query节点
+ */
+function createLocalQueryNode(
+  data: DroppedNodeData,
+  event: DragEvent | { x: number; y: number }
+) {
+  const position = 'offsetX' in event
+    ? (() => {
+        const projected = project({ x: event.offsetX, y: event.offsetY })
+        return {
+          x: projected.x - 100,
+          y: projected.y - 30
+        }
+      })()
+    : pendingNodePosition.value || { x: 100, y: 100 }
+
+  const newNode: Node = {
+    id: `node_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    type: 'local_query',
+    position,
+    data: {
+      label: data.label,
+      category: NodeCategory.LOCAL_TASK,
+      computeType: LocalTaskType.LOCAL_QUERY,
+      icon: data.icon,
+      color: data.color,
+      description: data.description,
+      // 本地Query特有字段
+      participantId: '',
+      entityName: '',
+      inputProviders: [],
+      joinConditions: [],
+      expressions: [],
+      groupByConfig: undefined,
+      outputDataset: ''
+    } as LocalQueryNodeData
+  }
+
+  addNode(newNode)
+  logger.info('[FlowCanvas] Local query node created', {
+    nodeId: newNode.id,
+    type: newNode.type
   })
 }
 
@@ -1555,6 +1626,61 @@ function handleAddCompute(event: Event) {
   }))
   showTypeSelectorDialog.value = true
   logger.info('[FlowCanvas] Opening type selector for compute', { taskId: nodeId })
+}
+
+/**
+ * 处理编辑本地Query节点事件
+ */
+function handleEditLocalQuery(event: Event) {
+  const customEvent = event as CustomEvent
+  const { nodeId } = customEvent.detail
+
+  const node = nodes.value.find(n => n.id === nodeId)
+  if (!node) {
+    logger.warn('[FlowCanvas] Local query node not found', { nodeId })
+    return
+  }
+
+  pendingLocalQueryNodeId.value = nodeId
+  pendingLocalQueryNodeData.value = node.data as LocalQueryNodeData
+  showLocalQueryEditorDialog.value = true
+  logger.info('[FlowCanvas] Opening local query editor', { nodeId })
+}
+
+/**
+ * 处理本地Query编辑确认
+ */
+function handleLocalQueryEditorConfirm(data: Partial<LocalQueryNodeData>) {
+  const node = nodes.value.find(n => n.id === pendingLocalQueryNodeId.value)
+  if (!node) {
+    logger.warn('[FlowCanvas] Local query node not found for update', { nodeId: pendingLocalQueryNodeId.value })
+    return
+  }
+
+  // 更新节点数据
+  const nodeData = node.data as LocalQueryNodeData
+  Object.assign(nodeData, data)
+
+  logger.info('[FlowCanvas] Local query node updated', {
+    nodeId: pendingLocalQueryNodeId.value,
+    participantId: data.participantId,
+    outputDataset: data.outputDataset
+  })
+
+  // 关闭弹窗
+  showLocalQueryEditorDialog.value = false
+  pendingLocalQueryNodeId.value = ''
+  pendingLocalQueryNodeData.value = undefined
+}
+
+/**
+ * 处理本地Query编辑取消
+ */
+function handleLocalQueryEditorCancel() {
+  logger.info('[FlowCanvas] Local query editor cancelled')
+  showLocalQueryEditorDialog.value = false
+  pendingLocalQueryNodeId.value = ''
+  pendingLocalQueryNodeData.value = undefined
 }
 
 /**
@@ -3523,6 +3649,7 @@ onMounted(() => {
   document.addEventListener('add-output', handleAddOutput)
   document.addEventListener('add-model', handleAddModel)
   document.addEventListener('add-compute', handleAddCompute)
+  document.addEventListener('edit-local-query', handleEditLocalQuery)
   // 监听 window 上的事件，与测试中的 window.dispatchEvent 匹配
   window.addEventListener('create-test-node', handleCreateTestNode)
   window.addEventListener('create-test-task-with-output', handleCreateTestTaskWithOutput)
@@ -3542,6 +3669,7 @@ onUnmounted(() => {
   document.removeEventListener('add-output', handleAddOutput)
   document.removeEventListener('add-model', handleAddModel)
   document.removeEventListener('add-compute', handleAddCompute)
+  document.removeEventListener('edit-local-query', handleEditLocalQuery)
   window.removeEventListener('create-test-node', handleCreateTestNode)
   window.removeEventListener('create-test-task-with-output', handleCreateTestTaskWithOutput)
   window.removeEventListener('create-test-task-with-model', handleCreateTestTaskWithModel)
