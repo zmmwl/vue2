@@ -61,6 +61,11 @@
       :input-fields="availableInputFields"
       :model-output-fields="availableModelFields"
       :initial-config="pendingOutputConfig"
+      :fixed-enterprise-id="pendingOutputFixedEnterprise?.id"
+      :fixed-enterprise-name="pendingOutputFixedEnterprise?.name"
+      :expressions="pendingOutputLocalQueryData?.expressions"
+      :group-by-config="pendingOutputLocalQueryData?.groupByConfig"
+      :source-node-type="pendingOutputSourceType"
       @confirm="handleOutputConfigConfirmed"
       @cancel="handleOutputConfigCancelled"
     />
@@ -173,7 +178,7 @@ import { MiniMap } from '@vue-flow/minimap'
 import type { Node, Connection, EdgeChange, NodeChange, GraphNode } from '@vue-flow/core'
 import type { DroppedNodeData } from '@/types/graph'
 import { NodeCategory, ComputeTaskType, TechPath, ResourceTypePriority, ModelType } from '@/types/nodes'
-import type { NodeData, AssetInfo, FieldInfo, FieldMapping, ComputeTaskNodeData, OutputDataNodeData, OutputField, ComputeModelConfig, ModelParameter, AvailableFieldOption, LocalQueryNodeData } from '@/types/nodes'
+import type { NodeData, AssetInfo, FieldInfo, FieldMapping, ComputeTaskNodeData, OutputDataNodeData, OutputField, ComputeModelConfig, ModelParameter, AvailableFieldOption, LocalQueryNodeData, ExpressionConfig, GroupByConfig as GroupByConfigType } from '@/types/nodes'
 import { LocalTaskType } from '@/types/nodes'
 import DataSourceNode from '@/components/Nodes/DataSourceNode.vue'
 import ComputeTaskNode from '@/components/Nodes/ComputeTaskNode.vue'
@@ -273,6 +278,14 @@ const pendingOutputConfig = ref<{
   fieldSources?: Array<{ sourceType: 'model' | 'input'; sourceNodeId?: string; modelId?: string; modelNodeId?: string }>
 } | undefined>(undefined)
 const editingOutputNodeId = ref<string | undefined>(undefined)  // 正在编辑的输出节点 ID
+
+// 本地Query输出配置相关状态
+const pendingOutputFixedEnterprise = ref<{ id: string; name: string } | undefined>(undefined)
+const pendingOutputLocalQueryData = ref<{
+  expressions?: ExpressionConfig[]
+  groupByConfig?: GroupByConfigType
+} | undefined>(undefined)
+const pendingOutputSourceType = ref<string>('')
 
 // 企业选择对话框状态（用于模型和算力）
 const showEnterpriseDialog = ref(false)
@@ -1158,17 +1171,14 @@ const onDrop = (event: DragEvent) => {
         logger.warn('[FlowCanvas] No target node found for compute resource drop')
       }
     } else if (data.category === 'localTask' || data.category === NodeCategory.LOCAL_TASK) {
-      // 本地任务节点
-      if (data.computeType === LocalTaskType.LOCAL_QUERY || data.type === 'local_query') {
-        // 本地Query节点：直接创建
-        logger.info('[FlowCanvas] Creating local query node')
-        createLocalQueryNode(data, event)
-      } else {
-        // 其他本地任务节点：弹出企业选择对话框
-        pendingLocalTaskData.value = data
-        showLocalTaskEnterpriseDialog.value = true
-        logger.info('[FlowCanvas] Opening local task enterprise selector dialog')
+      // 本地任务节点：弹出企业选择对话框
+      pendingLocalTaskData.value = data
+      // 保存节点位置，用于创建节点时使用
+      if ('offsetX' in event) {
+        pendingNodePosition.value = { x: event.offsetX, y: event.offsetY }
       }
+      showLocalTaskEnterpriseDialog.value = true
+      logger.info('[FlowCanvas] Opening local task enterprise selector dialog')
     } else {
       // 其他节点类型直接创建
       createNode(data, event)
@@ -1240,17 +1250,21 @@ function createNode(
  */
 function createLocalQueryNode(
   data: DroppedNodeData,
-  event: DragEvent | { x: number; y: number }
+  participantId: string
 ) {
-  const position = 'offsetX' in event
+  // 使用保存的位置或默认位置
+  const position = pendingNodePosition.value
     ? (() => {
-        const projected = project({ x: event.offsetX, y: event.offsetY })
+        const projected = project({ x: pendingNodePosition.value!.x, y: pendingNodePosition.value!.y })
         return {
           x: projected.x - 100,
           y: projected.y - 30
         }
       })()
-    : pendingNodePosition.value || { x: 100, y: 100 }
+    : { x: 100, y: 100 }
+
+  // 获取企业名称
+  const entityName = availableEnterprises.value.find(e => e.id === participantId)?.name || ''
 
   const newNode: Node = {
     id: `node_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -1263,9 +1277,9 @@ function createLocalQueryNode(
       icon: data.icon,
       color: data.color,
       description: data.description,
-      // 本地Query特有字段
-      participantId: '',
-      entityName: '',
+      // 本地Query特有字段 - 使用选定的企业
+      participantId,
+      entityName,
       inputProviders: [],
       joinConditions: [],
       expressions: [],
@@ -1277,7 +1291,9 @@ function createLocalQueryNode(
   addNode(newNode)
   logger.info('[FlowCanvas] Local query node created', {
     nodeId: newNode.id,
-    type: newNode.type
+    type: newNode.type,
+    participantId,
+    entityName
   })
 }
 
@@ -1556,7 +1572,7 @@ function handleAddOutput(event: Event) {
     return
   }
 
-  const taskData = taskNode.data as ComputeTaskNodeData
+  const taskData = taskNode.data as ComputeTaskNodeData | LocalQueryNodeData
 
   // 检查是否已配置输入数据
   if (!taskData.inputProviders || taskData.inputProviders.length === 0) {
@@ -1569,9 +1585,28 @@ function handleAddOutput(event: Event) {
   pendingOutputTaskId.value = nodeId
   pendingOutputConfig.value = undefined
 
+  // 检查是否是 local_query 节点，设置固定企业信息
+  const isLocalQuery = taskNode.type === 'local_query'
+  if (isLocalQuery) {
+    const localQueryData = taskData as LocalQueryNodeData
+    pendingOutputFixedEnterprise.value = {
+      id: localQueryData.participantId,
+      name: localQueryData.entityName || localQueryData.participantId
+    }
+    pendingOutputLocalQueryData.value = {
+      expressions: localQueryData.expressions,
+      groupByConfig: localQueryData.groupByConfig
+    }
+    pendingOutputSourceType.value = 'local_query'
+  } else {
+    pendingOutputFixedEnterprise.value = undefined
+    pendingOutputLocalQueryData.value = undefined
+    pendingOutputSourceType.value = 'compute_task'
+  }
+
   // 打开输出配置对话框
   showOutputConfigDialog.value = true
-  logger.info('[FlowCanvas] Opening output config dialog', { taskId: nodeId })
+  logger.info('[FlowCanvas] Opening output config dialog', { taskId: nodeId, isLocalQuery })
 }
 
 /**
@@ -1909,6 +1944,10 @@ function clearOutputConfigState() {
   pendingOutputConfig.value = undefined
   editingOutputNodeId.value = undefined
   showOutputConfigDialog.value = false
+  // 清理本地Query相关状态
+  pendingOutputFixedEnterprise.value = undefined
+  pendingOutputLocalQueryData.value = undefined
+  pendingOutputSourceType.value = ''
 }
 
 /**
@@ -2117,12 +2156,20 @@ function handleLocalTaskEnterpriseSelected(participantId: string) {
     return
   }
 
-  // 创建本地任务节点
-  createLocalTaskNode(pendingLocalTaskData.value, participantId)
+  // 根据任务类型创建不同的节点
+  if (pendingLocalTaskData.value.computeType === LocalTaskType.LOCAL_QUERY ||
+      pendingLocalTaskData.value.type === 'local_query') {
+    // 创建本地Query节点
+    createLocalQueryNode(pendingLocalTaskData.value, participantId)
+  } else {
+    // 创建其他本地任务节点
+    createLocalTaskNode(pendingLocalTaskData.value, participantId)
+  }
 
   // 清理状态
   showLocalTaskEnterpriseDialog.value = false
   pendingLocalTaskData.value = null
+  pendingNodePosition.value = null
 }
 
 /**

@@ -7,13 +7,13 @@
         <span class="subsection-hint">如果不选择分组字段，则对所有数据进行统计</span>
       </div>
 
-      <div v-if="availableFields.length === 0" class="empty-state">
+      <div v-if="inputFields.length === 0" class="empty-state">
         <p>请先在字段选择中添加输入数据</p>
       </div>
 
       <div v-else class="fields-selector">
         <div
-          v-for="field in availableFields"
+          v-for="field in inputFields"
           :key="field.id"
           class="field-item"
           :class="{ selected: isGroupByField(field.id) }"
@@ -64,9 +64,18 @@
             <label>统计字段:</label>
             <select v-model="stat.fieldId" @change="updateStatAlias(stat)">
               <option value="">-- 请选择字段 --</option>
-              <option v-for="field in availableFields" :key="field.id" :value="field.id">
-                {{ field.name }} ({{ field.type }}) - {{ field.source }}
-              </option>
+              <!-- 输入字段分组 -->
+              <optgroup label="输入字段">
+                <option v-for="field in inputFields" :key="field.id" :value="field.id">
+                  {{ field.name }} ({{ field.type }}) - {{ field.source }}
+                </option>
+              </optgroup>
+              <!-- 表达式字段分组（如果有） -->
+              <optgroup v-if="expressionFields.length > 0" label="表达式结果">
+                <option v-for="field in expressionFields" :key="field.id" :value="field.id">
+                  {{ field.name }} - {{ field.source }}
+                </option>
+              </optgroup>
             </select>
           </div>
 
@@ -84,12 +93,13 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import type { InputProvider, GroupByConfig, GroupByField, StatisticConfig, AggregationFunction } from '@/types/nodes'
+import type { InputProvider, GroupByConfig, GroupByField, StatisticConfig, AggregationFunction, ExpressionConfig } from '@/types/nodes'
 import { AggregationFunction as AggFunc } from '@/types/nodes'
 
 interface Props {
   config?: GroupByConfig
   inputProviders: InputProvider[]
+  expressions?: ExpressionConfig[]  // 新增：表达式列表
 }
 
 interface Emits {
@@ -106,17 +116,22 @@ const aggregationFunctions = Object.values(AggFunc)
 const groupByFields = ref<GroupByField[]>([])
 const statistics = ref<StatisticConfig[]>([])
 
-// 获取可用字段
-const availableFields = computed(() => {
-  const fields: Array<{
-    id: string
-    name: string
-    type: string
-    source: string
-    participantId: string
-    dataset: string
-  }> = []
+// 字段类型定义
+interface AvailableField {
+  id: string
+  name: string
+  type: string
+  source: string
+  participantId: string
+  dataset: string
+  sourceType: 'input' | 'expression'  // 标记来源类型
+}
 
+// 获取可用字段（包含输入字段和表达式别名）
+const availableFields = computed(() => {
+  const fields: AvailableField[] = []
+
+  // 1. 添加输入字段
   props.inputProviders.forEach(provider => {
     provider.fields.forEach(field => {
       fields.push({
@@ -125,12 +140,43 @@ const availableFields = computed(() => {
         type: field.columnType,
         source: `${provider.participantId}.${provider.dataset}`,
         participantId: provider.participantId,
-        dataset: provider.dataset
+        dataset: provider.dataset,
+        sourceType: 'input'
       })
     })
   })
 
+  // 2. 添加表达式别名（新增）
+  if (props.expressions && props.expressions.length > 0) {
+    props.expressions.forEach(expr => {
+      if (expr.resultAlias) {
+        const exprPreview = expr.expression && expr.expression.length > 20
+          ? `${expr.expression.substring(0, 20)}...`
+          : expr.expression || ''
+        fields.push({
+          id: `expression.${expr.id}.${expr.resultAlias}`,
+          name: expr.resultAlias,
+          type: 'DOUBLE',  // 表达式结果默认为 DOUBLE
+          source: `表达式: ${exprPreview}`,
+          participantId: '',
+          dataset: '',
+          sourceType: 'expression'
+        })
+      }
+    })
+  }
+
   return fields
+})
+
+// 输入字段列表（用于分组字段选择）
+const inputFields = computed(() => {
+  return availableFields.value.filter(f => f.sourceType === 'input')
+})
+
+// 表达式字段列表
+const expressionFields = computed(() => {
+  return availableFields.value.filter(f => f.sourceType === 'expression')
 })
 
 // 初始化

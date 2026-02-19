@@ -9,29 +9,12 @@
             <button class="close-btn" @click="handleCancel">×</button>
           </div>
 
-          <!-- 顶部配置区域 -->
-          <div class="top-config">
-            <div class="config-row">
-              <div class="config-item">
-                <label class="config-label">执行企业:</label>
-                <select v-model="selectedParticipantId" class="config-select" :disabled="enterpriseOptions.length === 0">
-                  <option value="">-- 请选择企业 --</option>
-                  <option v-for="enterprise in enterpriseOptions" :key="enterprise.id" :value="enterprise.id">
-                    {{ enterprise.name }}
-                  </option>
-                </select>
-                <span v-if="enterpriseOptions.length === 0" class="config-hint">
-                  (请先连接数据源)
-                </span>
-              </div>
-              <div class="config-item">
-                <label class="config-label">输出数据集:</label>
-                <input
-                  v-model="outputDataset"
-                  type="text"
-                  class="config-input"
-                  placeholder="请输入输出数据集名称"
-                />
+          <!-- 顶部信息区域（只读显示企业信息） -->
+          <div class="top-info">
+            <div class="info-row">
+              <div class="info-item">
+                <span class="info-label">任务所属企业:</span>
+                <span class="info-value">{{ nodeData?.entityName || nodeData?.participantId || '未设置' }}</span>
               </div>
             </div>
           </div>
@@ -73,6 +56,7 @@
               <GroupBySection
                 v-model:config="groupByConfig"
                 :input-providers="inputProviders"
+                :expressions="expressions"
               />
             </CollapsibleSection>
           </div>
@@ -138,44 +122,20 @@ onUnmounted(() => {
 })
 
 // 配置数据
-const selectedParticipantId = ref<string>('')
-const outputDataset = ref<string>('')
 const inputProviders = ref<InputProvider[]>([])
 const joinConditions = ref<JoinCondition[]>([])
 const expressions = ref<ExpressionConfig[]>([])
 const groupByConfig = ref<GroupByConfig | undefined>(undefined)
 const sqlPreviewCollapsed = ref<boolean>(true)
 
-// 可用的企业选项（从已连接数据源中提取）
-const enterpriseOptions = computed(() => {
-  // 合并传入的企业列表和从数据源提取的企业
-  const enterprisesFromProviders = new Set<string>()
-  inputProviders.value.forEach(provider => {
-    enterprisesFromProviders.add(provider.participantId)
-  })
-
-  // 如果传入的企业列表有数据，优先使用
-  if (props.enterprises.length > 0) {
-    return props.enterprises
-  }
-
-  // 否则从数据源提取
-  return Array.from(enterprisesFromProviders).map(id => ({
-    id,
-    name: id // 如果没有名称，使用 ID
-  }))
-})
-
 // 已选字段数量
 const selectedFieldCount = computed(() => {
   return inputProviders.value.reduce((count, provider) => count + provider.fields.length, 0)
 })
 
-// 验证
+// 验证（不再需要企业验证，因为已在拖拽时选定）
 const isValid = computed(() => {
-  return selectedParticipantId.value &&
-    outputDataset.value.trim() &&
-    selectedFieldCount.value > 0
+  return selectedFieldCount.value > 0
 })
 
 // SQL 预览
@@ -268,8 +228,6 @@ const sqlPreview = computed(() => {
 // 初始化
 watch(() => props.modelValue, (newVal) => {
   if (newVal && props.nodeData) {
-    selectedParticipantId.value = props.nodeData.participantId || ''
-    outputDataset.value = props.nodeData.outputDataset || ''
     inputProviders.value = props.nodeData.inputProviders ? [...props.nodeData.inputProviders] : []
     joinConditions.value = props.nodeData.joinConditions ? [...props.nodeData.joinConditions] : []
     // 兼容旧的单表达式数据
@@ -298,16 +256,11 @@ function handleJoinConditionsUpdate(conditions: JoinCondition[]) {
   joinConditions.value = conditions
 }
 
-// 确认
+// 确认（不再发送企业信息，因为已在拖拽时选定）
 function handleConfirm() {
   if (!isValid.value) return
 
-  const entityName = enterpriseOptions.value.find(e => e.id === selectedParticipantId.value)?.name || ''
-
   emit('confirm', {
-    participantId: selectedParticipantId.value,
-    entityName,
-    outputDataset: outputDataset.value.trim(),
     inputProviders: inputProviders.value,
     joinConditions: joinConditions.value,
     expressions: expressions.value,
@@ -391,56 +344,37 @@ function handleCancel() {
   }
 }
 
-.top-config {
+.top-info {
   padding: 14px 20px;
   background: rgba(255, 255, 255, 0.6);
   border-bottom: 1px solid rgba(0, 0, 0, 0.06);
 }
 
-.config-row {
+.info-row {
   display: flex;
   gap: 20px;
 }
 
-.config-item {
+.info-item {
   display: flex;
   align-items: center;
   gap: 8px;
-  flex: 1;
 }
 
-.config-label {
+.info-label {
   font-size: 12px;
   font-weight: 500;
   color: var(--text-secondary);
   white-space: nowrap;
 }
 
-.config-select,
-.config-input {
-  flex: 1;
-  padding: 8px 10px;
-  border: 1px solid rgba(0, 0, 0, 0.1);
-  border-radius: 6px;
+.info-value {
   font-size: 13px;
-  background: rgba(255, 255, 255, 0.9);
-  transition: all 0.2s;
-
-  &:focus {
-    outline: none;
-    border-color: #13C2C2;
-    box-shadow: 0 0 0 2px rgba(19, 194, 194, 0.1);
-  }
-
-  &:disabled {
-    background: rgba(0, 0, 0, 0.04);
-    cursor: not-allowed;
-  }
-}
-
-.config-hint {
-  font-size: 11px;
-  color: var(--text-secondary);
+  font-weight: 500;
+  color: #13C2C2;
+  padding: 4px 10px;
+  background: rgba(19, 194, 194, 0.08);
+  border-radius: 4px;
 }
 
 .modal-body {

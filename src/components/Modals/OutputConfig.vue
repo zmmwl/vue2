@@ -16,7 +16,21 @@
                   <span>🏢</span>
                   <span>输出参与方企业</span>
                 </div>
-                <div class="enterprise-display">
+                <!-- 固定企业（只读显示） -->
+                <div v-if="fixedEnterpriseId" class="enterprise-display locked">
+                  <div class="enterprise-card locked">
+                    <div class="enterprise-icon">
+                      {{ fixedEnterpriseName?.charAt(0) || '?' }}
+                    </div>
+                    <div class="enterprise-info">
+                      <div class="enterprise-name">{{ fixedEnterpriseName || fixedEnterpriseId }}</div>
+                      <div class="enterprise-id">{{ fixedEnterpriseId }}</div>
+                      <div class="enterprise-locked-hint">🔒 输出企业与任务所属企业一致</div>
+                    </div>
+                  </div>
+                </div>
+                <!-- 可选择企业 -->
+                <div v-else class="enterprise-display">
                   <div class="enterprise-card" @click="showEnterpriseSelector = true">
                     <div class="enterprise-icon">
                       {{ selectedEnterpriseName?.charAt(0) || '?' }}
@@ -128,7 +142,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import EnterpriseSelector from './EnterpriseSelector.vue'
-import type { EnterpriseOption, OutputField } from '@/types/nodes'
+import type { EnterpriseOption, OutputField, ExpressionConfig, GroupByConfig } from '@/types/nodes'
 
 interface AvailableField {
   id: string
@@ -137,7 +151,7 @@ interface AvailableField {
   source: string
   // 分组相关属性
   sourceNodeId?: string
-  sourceType?: 'dataSource' | 'outputData' | 'model'
+  sourceType?: 'dataSource' | 'outputData' | 'model' | 'expression' | 'groupby' | 'statistic'
   participantId?: string
   dataset?: string
   modelId?: string
@@ -174,6 +188,15 @@ interface Props {
     }>
   }
   closeOnOverlay?: boolean
+  // 新增：固定企业（用于本地Query任务）
+  fixedEnterpriseId?: string
+  fixedEnterpriseName?: string
+  // 新增：表达式配置（用于本地Query任务）
+  expressions?: ExpressionConfig[]
+  // 新增：分组统计配置（用于本地Query任务）
+  groupByConfig?: GroupByConfig
+  // 新增：源节点类型
+  sourceNodeType?: string
 }
 
 interface Emits {
@@ -189,7 +212,12 @@ interface Emits {
 const props = withDefaults(defineProps<Props>(), {
   modelOutputFields: () => [],
   initialConfig: undefined,
-  closeOnOverlay: true
+  closeOnOverlay: true,
+  fixedEnterpriseId: undefined,
+  fixedEnterpriseName: undefined,
+  expressions: () => [],
+  groupByConfig: undefined,
+  sourceNodeType: undefined
 })
 
 const emit = defineEmits<Emits>()
@@ -206,63 +234,83 @@ const datasetName = ref<string>('')
 // 选中的字段 ID 集合
 const selectedFieldIds = ref<Set<string>>(new Set())
 
+// 检查是否有分组统计配置（支持 taskData.models 和 props.groupByConfig 两种方式）
+const hasGroupByConfig = computed(() => {
+  // 方式1：从 taskData.models 检查
+  if (props.taskData?.models?.some((m: any) => m.type === 'GROUP_STAT')) {
+    return true
+  }
+  // 方式2：从 props.groupByConfig 检查
+  if (props.groupByConfig && props.groupByConfig.statistics.length > 0) {
+    return true
+  }
+  return false
+})
+
 // 所有可用字段
 const availableFields = computed(() => {
-  // 检查是否有分组统计模型
-  const hasGroupByModel = props.taskData?.models?.some((m: any) => m.type === 'GROUP_STAT')
-
-  if (hasGroupByModel) {
-    // 如果有分组统计模型，只返回分组统计的输出字段
-    return getGroupByOutputFields()
+  // 如果有分组统计配置，只返回分组统计的字段
+  if (hasGroupByConfig.value) {
+    return getGroupByFields()
   }
 
-  // 否则返回输入字段和模型输出字段
-  return [...props.inputFields, ...props.modelOutputFields]
+  // 否则返回输入字段、模型字段和表达式字段
+  const allFields: AvailableField[] = [...props.inputFields, ...props.modelOutputFields]
+
+  // 添加表达式字段（新增：用于本地Query任务）
+  if (props.expressions && props.expressions.length > 0) {
+    props.expressions.forEach(expr => {
+      if (expr.resultAlias) {
+        const exprPreview = expr.expression && expr.expression.length > 15
+          ? `${expr.expression.substring(0, 15)}...`
+          : expr.expression || ''
+        allFields.push({
+          id: `expr-${expr.id}`,
+          name: expr.resultAlias,
+          type: 'DOUBLE',
+          source: `表达式: ${exprPreview}`,
+          sourceType: 'expression'
+        })
+      }
+    })
+  }
+
+  return allFields
 })
 
 /**
- * 获取分组统计模型的输出字段
+ * 获取分组统计字段（用于本地Query任务）
  */
-function getGroupByOutputFields(): AvailableField[] {
-  const taskModels = props.taskData?.models || []
-  const groupByModel = taskModels.find((m: any) => m.type === 'GROUP_STAT')
-
-  if (!groupByModel || !groupByModel.groupByConfig) {
-    return []
-  }
-
+function getGroupByFields(): AvailableField[] {
   const fields: AvailableField[] = []
-  const config = groupByModel.groupByConfig
 
-  // 添加分组字段
-  config.groupByFields.forEach((field: any) => {
-    fields.push({
-      id: `groupby-${field.fieldId}`,
-      name: field.fieldAlias || field.fieldName,
-      type: field.fieldType,
-      source: `分组统计-${groupByModel.name}`,
-      sourceNodeId: undefined,
-      participantId: groupByModel.participantId,
-      modelId: groupByModel.id,
-      modelType: 'GROUP_STAT'
+  // 优先使用 props.groupByConfig
+  const config = props.groupByConfig
+  if (config) {
+    // 添加分组字段
+    config.groupByFields.forEach(field => {
+      fields.push({
+        id: `groupby-${field.fieldId}`,
+        name: field.fieldAlias || field.fieldName,
+        type: field.fieldType,
+        source: '分组字段',
+        sourceType: 'groupby'
+      })
     })
-  })
 
-  // 添加统计字段
-  config.statistics.forEach((stat: any) => {
-    const resultType = inferAggregationType(stat.functionType)
-
-    fields.push({
-      id: `groupby-stat-${stat.id}`,
-      name: stat.resultAlias,
-      type: resultType,
-      source: `分组统计-${groupByModel.name}`,
-      sourceNodeId: undefined,
-      participantId: groupByModel.participantId,
-      modelId: groupByModel.id,
-      modelType: 'GROUP_STAT'
+    // 添加统计字段
+    config.statistics.forEach(stat => {
+      if (stat.fieldId) {
+        fields.push({
+          id: `stat-${stat.id}`,
+          name: stat.resultAlias,
+          type: inferAggregationType(stat.functionType),
+          source: `统计: ${stat.functionType}`,
+          sourceType: 'statistic'
+        })
+      }
     })
-  })
+  }
 
   return fields
 }
@@ -290,30 +338,37 @@ function inferAggregationType(func: string): string {
  * 1. 输入数据源字段：按数据源分组
  * 2. 模型输出字段：按模型分组
  * 3. 分组统计字段：单独一个分组
+ * 4. 表达式字段：单独一个分组
  */
 const fieldGroups = computed<FieldGroup[]>(() => {
   const groups: FieldGroup[] = []
 
-  // 检查是否有分组统计模型
-  const hasGroupByModel = props.taskData?.models?.some((m: any) => m.type === 'GROUP_STAT')
-
-  if (hasGroupByModel) {
-    // 如果有分组统计模型，所有字段都来自分组统计
-    const groupByFields = availableFields.value.filter(f => f.modelType === 'GROUP_STAT')
+  // 如果有分组统计配置，按分组字段和统计字段分组
+  if (hasGroupByConfig.value) {
+    // 分组字段
+    const groupByFields = availableFields.value.filter(f => f.sourceType === 'groupby')
     if (groupByFields.length > 0) {
       groups.push({
         id: 'groupby-fields',
-        title: '分组统计输出字段',
+        title: '分组字段',
         icon: '📊',
         fields: groupByFields
+      })
+    }
+    // 统计字段
+    const statFields = availableFields.value.filter(f => f.sourceType === 'statistic')
+    if (statFields.length > 0) {
+      groups.push({
+        id: 'stat-fields',
+        title: '统计结果',
+        icon: '📈',
+        fields: statFields
       })
     }
     return groups
   }
 
   // 原有逻辑：按数据源和模型分组
-  let inputGroupIndex = 0
-  let modelGroupIndex = 0
 
   // 处理输入数据源字段 - 按数据源分组
   const dataSourceGroups = new Map<string, AvailableField[]>()
@@ -335,7 +390,6 @@ const fieldGroups = computed<FieldGroup[]>(() => {
         icon: '🗄️',
         fields
       })
-      inputGroupIndex++
     }
   })
 
@@ -360,9 +414,19 @@ const fieldGroups = computed<FieldGroup[]>(() => {
         icon,
         fields
       })
-      modelGroupIndex++
     }
   })
+
+  // 添加表达式分组（新增：用于本地Query任务）
+  const exprFields = availableFields.value.filter(f => f.sourceType === 'expression')
+  if (exprFields.length > 0) {
+    groups.push({
+      id: 'expressions',
+      title: '表达式结果',
+      icon: '📝',
+      fields: exprFields
+    })
+  }
 
   return groups
 })
@@ -392,7 +456,10 @@ watch(() => props.modelValue, (newVal) => {
  * 初始化配置
  */
 function initializeConfig() {
-  if (props.initialConfig) {
+  // 如果有固定企业，直接使用
+  if (props.fixedEnterpriseId) {
+    selectedEnterpriseId.value = props.fixedEnterpriseId
+  } else if (props.initialConfig) {
     selectedEnterpriseId.value = props.initialConfig.participantId
     datasetName.value = props.initialConfig.dataset
 
@@ -578,6 +645,18 @@ function handleClose() {
       }
     }
 
+    // 固定企业卡片样式（锁定状态）
+    .enterprise-card.locked {
+      cursor: default;
+      background: #f0f9ff;
+      border-color: #13C2C2;
+
+      &:hover {
+        background: #f0f9ff;
+        border-color: #13C2C2;
+      }
+    }
+
     .enterprise-icon {
       flex-shrink: 0;
       width: 44px;
@@ -617,6 +696,12 @@ function handleClose() {
     .enterprise-hint {
       font-size: 12px;
       color: #909399;
+    }
+
+    .enterprise-locked-hint {
+      font-size: 11px;
+      color: #13C2C2;
+      margin-top: 4px;
     }
 
     .arrow-icon {
