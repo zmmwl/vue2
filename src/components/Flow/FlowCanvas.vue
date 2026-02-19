@@ -2255,6 +2255,50 @@ function handleConfigGroupBy(data: { modelId: string; taskId: string }) {
 }
 
 /**
+ * 处理输入数据源配置事件（从 FlowDetailPanel 触发）
+ */
+function handleConfigInputProvider(data: { taskId: string; sourceNodeId: string; fields: FieldMapping[] }) {
+  logger.info('[FlowCanvas] Config input provider event received', data)
+
+  // 查找计算任务节点
+  const taskNode = nodes.value.find(n => n.id === data.taskId)
+  if (!taskNode) {
+    logger.warn('[FlowCanvas] Task node not found', { taskId: data.taskId })
+    return
+  }
+
+  const taskData = taskNode.data as ComputeTaskNodeData
+  if (!taskData.inputProviders) {
+    taskData.inputProviders = []
+  }
+
+  // 查找对应的输入提供者
+  const providerIndex = taskData.inputProviders.findIndex(
+    p => p.sourceNodeId === data.sourceNodeId
+  )
+
+  if (providerIndex !== -1 && taskData.inputProviders[providerIndex]) {
+    // 更新字段配置
+    taskData.inputProviders[providerIndex].fields = data.fields
+
+    // 重新构建 Join 条件
+    taskData.joinConditions = buildJoinConditions(taskData.inputProviders)
+
+    logger.info('[FlowCanvas] Input provider updated', {
+      taskId: data.taskId,
+      sourceNodeId: data.sourceNodeId,
+      fieldCount: data.fields.length,
+      joinConditionsCount: taskData.joinConditions.length
+    })
+  } else {
+    logger.warn('[FlowCanvas] Input provider not found', {
+      taskId: data.taskId,
+      sourceNodeId: data.sourceNodeId
+    })
+  }
+}
+
+/**
  * 确认参数配置
  */
 function handleParamConfigConfirm(parameters: ModelParameter[]) {
@@ -3552,7 +3596,8 @@ defineExpose({
   handleExport,
   handleImport,
   handleConfigParams,
-  handleConfigGroupBy
+  handleConfigGroupBy,
+  handleConfigInputProvider
 })
 
 /**

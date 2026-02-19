@@ -175,6 +175,9 @@
                 <span class="provider-index">{{ index + 1 }}</span>
                 <span class="provider-name">{{ getEnterpriseDisplayName(provider.participantId) }}</span>
                 <span class="provider-dataset">{{ provider.dataset }}</span>
+                <button class="config-provider-btn" @click="handleConfigProvider(provider)" title="配置字段">
+                  ⚙️ 配置
+                </button>
               </div>
               <div class="provider-fields">
                 <div class="fields-header">
@@ -564,13 +567,23 @@
         <p>该节点类型暂不支持详情查看</p>
       </div>
     </div>
+
+    <!-- 输入数据源配置弹窗 -->
+    <InputProviderConfig
+      v-model="showInputProviderConfig"
+      :provider="configProvider"
+      :available-fields="configProviderAvailableFields"
+      :participant-name="configProviderParticipantName"
+      @confirm="handleInputProviderConfigConfirm"
+      @cancel="handleInputProviderConfigCancel"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, watch, ref, onMounted } from 'vue'
 import type { Node } from '@vue-flow/core'
-import type { NodeData, ComputeTaskNodeData, ModelParameterSignature, AvailableFieldOption, LocalQueryNodeData, InputProvider, ExpressionConfig, GroupByConfig } from '@/types/nodes'
+import type { NodeData, ComputeTaskNodeData, ModelParameterSignature, AvailableFieldOption, LocalQueryNodeData, InputProvider, ExpressionConfig, GroupByConfig, FieldInfo, FieldMapping } from '@/types/nodes'
 import type { ExportJson } from '@/types/export'
 import { NodeCategory, TechPath } from '@/types/nodes'
 import { logger } from '@/utils/logger'
@@ -581,12 +594,19 @@ import CollapsibleSection from './CollapsibleSection.vue'
 import JsonPreviewPanel from './JsonPreviewPanel.vue'
 import ModelParamProgress from './ModelCard/ModelParamProgress.vue'
 import ModelParameterPreview from './ModelCard/ModelParameterPreview.vue'
+import InputProviderConfig from '@/components/Modals/InputProviderConfig.vue'
 
 // 企业数据缓存
 const enterpriseCache = ref<Map<string, { name: string; participantId: string }>>(new Map())
 
 // 模型参数签名缓存
 const modelSignaturesCache = ref<Map<string, ModelParameterSignature[]>>(new Map())
+
+// 输入数据源配置弹窗状态
+const showInputProviderConfig = ref(false)
+const configProvider = ref<InputProvider | null>(null)
+const configProviderAvailableFields = ref<FieldInfo[]>([])
+const configProviderParticipantName = ref('')
 
 /**
  * 加载企业数据
@@ -700,6 +720,7 @@ interface Emits {
   (e: 'configParams', data: { modelId: string; modelConfig: any; taskId: string }): void
   (e: 'configGroupBy', data: { modelId: string; taskId: string }): void
   (e: 'editOutput', nodeId: string): void  // 编辑输出数据节点
+  (e: 'configInputProvider', data: { taskId: string; sourceNodeId: string; fields: any[] }): void  // 配置输入数据源
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -1086,6 +1107,66 @@ function handleConfigGroupBy(model: any) {
     modelId: model.id,
     taskId: props.selectedNode.id
   })
+}
+
+/**
+ * 处理输入数据源配置
+ */
+function handleConfigProvider(provider: InputProvider) {
+  if (!props.selectedNode) return
+
+  logger.info('[FlowDetailPanel] Config provider clicked', {
+    sourceNodeId: provider.sourceNodeId,
+    taskId: props.selectedNode.id
+  })
+
+  // 查找源节点获取可用字段
+  const sourceNode = props.nodes.find(n => n.id === provider.sourceNodeId)
+  let availableFields: FieldInfo[] = []
+
+  if (sourceNode) {
+    // 从数据源节点获取字段列表
+    if (sourceNode.data?.assetInfo?.dataInfo?.fieldList) {
+      availableFields = sourceNode.data.assetInfo.dataInfo.fieldList
+    }
+  }
+
+  // 设置弹窗数据
+  configProvider.value = provider
+  configProviderAvailableFields.value = availableFields
+  configProviderParticipantName.value = getEnterpriseDisplayName(provider.participantId)
+  showInputProviderConfig.value = true
+}
+
+/**
+ * 处理输入数据源配置确认
+ */
+function handleInputProviderConfigConfirm(data: { sourceNodeId: string; fields: FieldMapping[] }) {
+  if (!props.selectedNode) return
+
+  logger.info('[FlowDetailPanel] Input provider config confirmed', {
+    sourceNodeId: data.sourceNodeId,
+    taskId: props.selectedNode.id,
+    fieldCount: data.fields.length
+  })
+
+  emit('configInputProvider', {
+    taskId: props.selectedNode.id,
+    sourceNodeId: data.sourceNodeId,
+    fields: data.fields
+  })
+
+  showInputProviderConfig.value = false
+  configProvider.value = null
+}
+
+/**
+ * 处理输入数据源配置取消
+ */
+function handleInputProviderConfigCancel() {
+  logger.info('[FlowDetailPanel] Input provider config cancelled')
+  showInputProviderConfig.value = false
+  configProvider.value = null
 }
 
 // 监听选中节点变化
@@ -1554,6 +1635,24 @@ watch(() => props.selectedNode, (node) => {
     padding: 2px 8px;
     background: rgba(0, 0, 0, 0.04);
     border-radius: 4px;
+  }
+
+  .config-provider-btn {
+    padding: 4px 10px;
+    font-size: 11px;
+    font-weight: 500;
+    color: #1890ff;
+    background: rgba(24, 144, 255, 0.06);
+    border: 1px solid rgba(24, 144, 255, 0.2);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+
+    &:hover {
+      background: rgba(24, 144, 255, 0.1);
+      border-color: rgba(24, 144, 255, 0.4);
+    }
   }
 }
 

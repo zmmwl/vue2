@@ -28,6 +28,7 @@
         @config-params="handleConfigParams"
         @config-group-by="handleConfigGroupBy"
         @edit-output="handleEditOutput"
+        @config-input-provider="handleConfigInputProvider"
       />
     </div>
     <!-- 隐藏的文件输入用于导入 -->
@@ -131,6 +132,18 @@ function handleConfigGroupBy(data: { modelId: string; taskId: string }) {
 function handleEditOutput(nodeId: string) {
   logger.info('[FlowEditor] Edit output requested', { nodeId })
   flowCanvasRef.value?.openEditOutputDialog(nodeId)
+}
+
+/**
+ * 处理输入数据源配置事件
+ */
+function handleConfigInputProvider(data: { taskId: string; sourceNodeId: string; fields: any[] }) {
+  logger.info('[FlowEditor] Config input provider event received', data)
+  // 直接调用 FlowCanvas 中定义的处理函数
+  const flowCanvas = flowCanvasRef.value as any
+  if (flowCanvas && typeof flowCanvas.handleConfigInputProvider === 'function') {
+    flowCanvas.handleConfigInputProvider(data)
+  }
 }
 
 /**
