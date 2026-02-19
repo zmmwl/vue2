@@ -2096,3 +2096,107 @@ test.describe('模型参数配置测试', () => {
     }
   });
 });
+
+/**
+ * 输入数据源配置测试
+ *
+ * 测试右侧详情面板中的输入数据源重新配置功能
+ */
+test.describe('输入数据源配置测试', () => {
+  test.beforeEach(async ({ page }) => {
+    await setupChineseFontSupportOnly(page);
+    await page.goto('/');
+    await page.waitForSelector('.flow-sidebar', { timeout: 10000 });
+    await page.waitForSelector('.flow-detail-panel', { timeout: 10000 });  // 等待详情面板挂载
+    await page.evaluate(() => {
+      (window as any).__PLAYWRIGHT_TEST__ = false;
+    });
+    // 等待组件完全初始化
+    await page.waitForTimeout(1000);
+  });
+
+  /**
+   * 测试：InputProviderConfig 弹窗组件存在且可以正常渲染
+   */
+  test('InputProviderConfig 弹窗组件应该正常工作', async ({ page }) => {
+    // 等待 FlowCanvas 组件完全挂载
+    await page.waitForSelector('.vue-flow', { timeout: 10000 });
+
+    // 直接使用测试事件打开配置弹窗
+    await page.evaluate(() => {
+      const provider = {
+        sourceNodeId: 'test_source_001',
+        sourceType: 'dataSource',
+        participantId: 'ent_001',
+        dataset: 'test_dataset',
+        fields: [
+          { columnName: 'user_id', columnAlias: 'user_id', columnType: 'VARCHAR', isJoinField: true, joinType: 'INNER' },
+          { columnName: 'amount', columnAlias: 'amount', columnType: 'DECIMAL', isJoinField: false, joinType: 'INNER' }
+        ]
+      };
+
+      window.dispatchEvent(new CustomEvent('test-open-input-provider-config', {
+        detail: { provider }
+      }));
+    });
+
+    // 等待弹窗显示
+    await page.waitForTimeout(1000);
+    await expect(page.locator('.input-provider-config-modal')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('.modal-title')).toContainText('配置输入数据源');
+
+    // 验证字段表格存在
+    await expect(page.locator('.field-table')).toBeVisible();
+
+    // 验证字段数量
+    const fieldRows = page.locator('.field-table tbody tr');
+    expect(await fieldRows.count()).toBe(2);
+
+    // 验证取消和确认按钮存在
+    await expect(page.locator('.input-provider-config-modal .modal-footer .btn.btn-secondary')).toBeVisible();
+    await expect(page.locator('.input-provider-config-modal .modal-footer .btn.btn-primary')).toBeVisible();
+  });
+
+  /**
+   * 测试：可以修改字段别名
+   */
+  test('应该能够修改字段别名', async ({ page }) => {
+    // 等待 FlowCanvas 组件完全挂载
+    await page.waitForSelector('.vue-flow', { timeout: 10000 });
+
+    // 直接使用测试事件打开配置弹窗
+    await page.evaluate(() => {
+      const provider = {
+        sourceNodeId: 'test_source_001',
+        sourceType: 'dataSource',
+        participantId: 'ent_001',
+        dataset: 'test_dataset',
+        fields: [
+          { columnName: 'user_id', columnAlias: 'user_id', columnType: 'VARCHAR', isJoinField: true, joinType: 'INNER' },
+          { columnName: 'amount', columnAlias: 'amount', columnType: 'DECIMAL', isJoinField: false, joinType: 'INNER' }
+        ]
+      };
+
+      window.dispatchEvent(new CustomEvent('test-open-input-provider-config', {
+        detail: { provider }
+      }));
+    });
+
+    // 等待弹窗显示
+    await page.waitForTimeout(1000);
+    await expect(page.locator('.input-provider-config-modal')).toBeVisible({ timeout: 10000 });
+
+    // 修改第一个字段的别名
+    const aliasInput = page.locator('.alias-input').first();
+    await aliasInput.clear();
+    await aliasInput.fill('updated_id');
+    await page.waitForTimeout(200);
+
+    // 验证别名已更新
+    expect(await aliasInput.inputValue()).toBe('updated_id');
+
+    // 验证确认按钮可点击
+    const confirmBtn = page.locator('.input-provider-config-modal .modal-footer .btn.btn-primary');
+    await expect(confirmBtn).toBeEnabled();
+  });
+});

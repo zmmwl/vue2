@@ -581,7 +581,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, watch, ref, onMounted } from 'vue'
+import { computed, watch, ref, onMounted, onUnmounted } from 'vue'
 import type { Node } from '@vue-flow/core'
 import type { NodeData, ComputeTaskNodeData, ModelParameterSignature, AvailableFieldOption, LocalQueryNodeData, InputProvider, ExpressionConfig, GroupByConfig, FieldInfo, FieldMapping } from '@/types/nodes'
 import type { ExportJson } from '@/types/export'
@@ -622,9 +622,31 @@ async function loadEnterprises() {
   }
 }
 
-// 组件挂载时加载数据
+/**
+ * 处理测试用的直接打开配置弹窗事件
+ */
+function handleTestOpenInputProviderConfig(event: Event) {
+  const customEvent = event as CustomEvent
+  const { provider } = customEvent.detail
+
+  logger.info('[FlowDetailPanel] test-open-input-provider-config event received', { provider })
+
+  configProvider.value = provider
+  // 从 provider.fields 生成 availableFields
+  configProviderAvailableFields.value = (provider.fields || []).map((field: any) => ({
+    name: field.columnName,
+    dataType: field.columnType || 'STRING',
+    description: '',
+    isPrimaryKey: field.isJoinField || false
+  }))
+  configProviderParticipantName.value = provider.participantId || 'Test Provider'
+  showInputProviderConfig.value = true
+}
+
+// 组件挂载时加载数据和注册事件监听器
 onMounted(() => {
   loadEnterprises()
+  window.addEventListener('test-open-input-provider-config', handleTestOpenInputProviderConfig)
 })
 
 /**
@@ -1168,6 +1190,11 @@ function handleInputProviderConfigCancel() {
   showInputProviderConfig.value = false
   configProvider.value = null
 }
+
+// 清理事件监听器
+onUnmounted(() => {
+  window.removeEventListener('test-open-input-provider-config', handleTestOpenInputProviderConfig)
+})
 
 // 监听选中节点变化
 watch(() => props.selectedNode, (node) => {

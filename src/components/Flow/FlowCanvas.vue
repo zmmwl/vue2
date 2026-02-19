@@ -3778,6 +3778,32 @@ function handleTestDeleteEdge(event: Event) {
   logger.info('[FlowCanvas] Test edge deleted', { edgeId })
 }
 
+/**
+ * 处理测试用的节点选中事件
+ */
+function handleTestSelectNode(event: Event) {
+  const customEvent = event as CustomEvent
+  const { nodeId } = customEvent.detail
+
+  logger.info('[FlowCanvas] test-select-node event received', { nodeId })
+
+  // 找到要选中的节点
+  const nodeToSelect = nodes.value.find(n => n.id === nodeId)
+  if (!nodeToSelect) {
+    logger.warn('[FlowCanvas] Node not found for selection', { nodeId })
+    return
+  }
+
+  // 手动设置选中状态
+  setNodes(nodes.value.map(n => ({
+    ...n,
+    selected: n.id === nodeId
+  })))
+
+  // 发出节点选中事件
+  emit('node-selected', nodeToSelect)
+}
+
 // 生命周期：注册全局事件监听器
 onMounted(() => {
   document.addEventListener('add-output', handleAddOutput)
@@ -3797,6 +3823,7 @@ onMounted(() => {
   window.addEventListener('test-drop-compute', handleTestDropCompute)
   window.addEventListener('test-delete-node', handleTestDeleteNode)
   window.addEventListener('test-delete-edge', handleTestDeleteEdge)
+  window.addEventListener('test-select-node', handleTestSelectNode)
 })
 
 onUnmounted(() => {
@@ -3816,6 +3843,7 @@ onUnmounted(() => {
   window.removeEventListener('test-drop-compute', handleTestDropCompute)
   window.removeEventListener('test-delete-node', handleTestDeleteNode)
   window.removeEventListener('test-delete-edge', handleTestDeleteEdge)
+  window.removeEventListener('test-select-node', handleTestSelectNode)
 })
 </script>
 
