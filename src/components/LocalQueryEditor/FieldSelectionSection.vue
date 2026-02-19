@@ -13,75 +13,89 @@
           v-for="(provider, index) in internalProviders"
           :key="provider.sourceNodeId"
           class="provider-card"
+          :class="{ collapsed: collapsedProviders[provider.sourceNodeId] }"
         >
-          <div class="provider-header">
+          <div class="provider-header" @click="toggleProvider(provider.sourceNodeId)">
+            <span class="collapse-icon">{{ collapsedProviders[provider.sourceNodeId] ? '▶' : '▼' }}</span>
             <span class="provider-index">{{ index + 1 }}</span>
             <span class="provider-name">{{ provider.participantId }}</span>
             <span class="provider-dataset">{{ provider.dataset }}</span>
             <span class="field-count">{{ provider.fields.filter(f => f.selected).length }}/{{ provider.fields.length }} 个字段</span>
           </div>
 
-          <!-- Join 类型选择 -->
-          <div class="join-type-row">
-            <label class="join-label">Join 类型:</label>
-            <select
-              :value="provider.fields[0]?.joinType || 'INNER'"
-              class="join-select"
-              @change="handleJoinTypeChange(provider.sourceNodeId, $event)"
-            >
-              <option value="INNER">INNER（内连接）</option>
-              <option value="CROSS">CROSS（交叉连接）</option>
-            </select>
-          </div>
+          <!-- 可折叠内容 -->
+          <div v-show="!collapsedProviders[provider.sourceNodeId]" class="provider-content">
+            <!-- Join 类型选择 -->
+            <div class="join-type-row">
+              <label class="join-label">Join 类型:</label>
+              <select
+                :value="provider.fields[0]?.joinType || 'INNER'"
+                class="join-select"
+                @change="handleJoinTypeChange(provider.sourceNodeId, $event)"
+              >
+                <option value="INNER">INNER（内连接）</option>
+                <option value="CROSS">CROSS（交叉连接）</option>
+              </select>
+            </div>
 
-          <!-- 字段表格 -->
-          <div class="fields-table-container">
-            <table class="fields-table">
-              <thead>
-                <tr>
-                  <th class="col-select">选择</th>
-                  <th class="col-name">字段名</th>
-                  <th class="col-type">类型</th>
-                  <th class="col-alias">别名</th>
-                  <th class="col-join">Join键</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr
-                  v-for="field in provider.fields"
-                  :key="field.columnName"
-                  :class="{ selected: field.selected }"
-                >
-                  <td class="col-select">
-                    <input
-                      v-model="field.selected"
-                      type="checkbox"
-                      @change="handleFieldChange"
-                    />
-                  </td>
-                  <td class="col-name">{{ field.columnName }}</td>
-                  <td class="col-type">
-                    <span class="type-badge">{{ field.columnType }}</span>
-                  </td>
-                  <td class="col-alias">
-                    <input
-                      v-model="field.columnAlias"
-                      type="text"
-                      class="alias-input"
-                      placeholder="默认=字段名"
-                      @change="handleFieldChange"
-                    />
-                  </td>
-                  <td class="col-join">
-                    <input
-                      v-model="field.isJoinField"
-                      type="checkbox"
-                      @change="handleFieldChange"
-                    />
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+            <!-- 字段表格 -->
+            <div class="fields-table-container">
+              <table class="fields-table">
+                <thead>
+                  <tr>
+                    <th class="col-drag"></th>
+                    <th class="col-select">选择</th>
+                    <th class="col-name">字段名</th>
+                    <th class="col-type">类型</th>
+                    <th class="col-alias">别名</th>
+                    <th class="col-join">Join键</th>
+                  </tr>
+                </thead>
+                <tbody ref="tableBody">
+                  <tr
+                    v-for="(field, fieldIndex) in provider.fields"
+                    :key="field.columnName"
+                    :class="{ selected: field.selected, dragging: dragState.field === field && dragState.providerId === provider.sourceNodeId }"
+                    :draggable="true"
+                    @dragstart="handleDragStart($event, provider.sourceNodeId, field, fieldIndex)"
+                    @dragend="handleDragEnd"
+                    @dragover="handleDragOver($event, fieldIndex)"
+                    @drop="handleDrop($event, provider.sourceNodeId, fieldIndex)"
+                  >
+                    <td class="col-drag">
+                      <span class="drag-handle" title="拖拽排序">⋮⋮</span>
+                    </td>
+                    <td class="col-select">
+                      <input
+                        v-model="field.selected"
+                        type="checkbox"
+                        @change="handleFieldChange"
+                      />
+                    </td>
+                    <td class="col-name">{{ field.columnName }}</td>
+                    <td class="col-type">
+                      <span class="type-badge">{{ field.columnType }}</span>
+                    </td>
+                    <td class="col-alias">
+                      <input
+                        v-model="field.columnAlias"
+                        type="text"
+                        class="alias-input"
+                        placeholder="默认=字段名"
+                        @change="handleFieldChange"
+                      />
+                    </td>
+                    <td class="col-join">
+                      <input
+                        v-model="field.isJoinField"
+                        type="checkbox"
+                        @change="handleFieldChange"
+                      />
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>
@@ -107,7 +121,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, reactive } from 'vue'
 import type { InputProvider, JoinCondition, FieldMapping } from '@/types/nodes'
 
 // 内部使用的字段类型（扩展 FieldMapping 添加 selected 属性）
@@ -135,6 +149,14 @@ const emit = defineEmits<Emits>()
 
 // 内部状态
 const internalProviders = ref<InternalInputProvider[]>([])
+const collapsedProviders = ref<Record<string, boolean>>({})
+
+// 拖拽状态
+const dragState = reactive({
+  providerId: '',
+  field: null as InternalField | null,
+  index: -1
+})
 
 // 监听 props 变化
 watch(() => props.inputProviders, (newVal) => {
@@ -147,6 +169,11 @@ watch(() => props.inputProviders, (newVal) => {
     }))
   }))
 }, { immediate: true, deep: true })
+
+// 切换 provider 的展开/收起状态
+function toggleProvider(sourceNodeId: string) {
+  collapsedProviders.value[sourceNodeId] = !collapsedProviders.value[sourceNodeId]
+}
 
 // 处理 Join 类型变化
 function handleJoinTypeChange(sourceNodeId: string, event: Event) {
@@ -162,6 +189,61 @@ function handleJoinTypeChange(sourceNodeId: string, event: Event) {
 
 // 处理字段变化
 function handleFieldChange() {
+  emitChanges()
+}
+
+// 拖拽开始
+function handleDragStart(event: DragEvent, providerId: string, field: InternalField, index: number) {
+  dragState.providerId = providerId
+  dragState.field = field
+  dragState.index = index
+
+  if (event.dataTransfer) {
+    event.dataTransfer.effectAllowed = 'move'
+    event.dataTransfer.setData('text/plain', index.toString())
+  }
+}
+
+// 拖拽结束
+function handleDragEnd() {
+  dragState.providerId = ''
+  dragState.field = null
+  dragState.index = -1
+}
+
+// 拖拽经过
+function handleDragOver(event: DragEvent, _index: number) {
+  event.preventDefault()
+  if (event.dataTransfer) {
+    event.dataTransfer.dropEffect = 'move'
+  }
+}
+
+// 放置
+function handleDrop(event: DragEvent, targetProviderId: string, targetIndex: number) {
+  event.preventDefault()
+
+  // 只在同一 provider 内允许拖拽排序
+  if (dragState.providerId !== targetProviderId || dragState.index === -1 || dragState.index === targetIndex) {
+    return
+  }
+
+  const provider = internalProviders.value.find(p => p.sourceNodeId === targetProviderId)
+  if (!provider) return
+
+  // 重新排序
+  const fields = [...provider.fields]
+  const removed = fields.splice(dragState.index, 1)
+  if (removed.length > 0) {
+    const movedField = removed[0] as InternalField
+    fields.splice(targetIndex, 0, movedField)
+    provider.fields = fields
+  }
+
+  // 重置拖拽状态
+  handleDragEnd()
+
+  // 发送更新
   emitChanges()
 }
 
@@ -292,6 +374,12 @@ function formatJoinOperands(operands: JoinCondition['operands']): string {
   &:hover {
     border-color: rgba(19, 194, 194, 0.2);
   }
+
+  &.collapsed {
+    .provider-header {
+      margin-bottom: 0;
+    }
+  }
 }
 
 .provider-header {
@@ -299,6 +387,21 @@ function formatJoinOperands(operands: JoinCondition['operands']): string {
   align-items: center;
   gap: 8px;
   margin-bottom: 10px;
+  cursor: pointer;
+  user-select: none;
+
+  &:hover {
+    .collapse-icon {
+      color: #13C2C2;
+    }
+  }
+
+  .collapse-icon {
+    font-size: 10px;
+    color: var(--text-secondary);
+    transition: all 0.2s;
+    width: 12px;
+  }
 
   .provider-index {
     width: 20px;
@@ -331,6 +434,21 @@ function formatJoinOperands(operands: JoinCondition['operands']): string {
     margin-left: auto;
     font-size: 11px;
     color: var(--text-secondary);
+  }
+}
+
+.provider-content {
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
@@ -400,6 +518,16 @@ function formatJoinOperands(operands: JoinCondition['operands']): string {
     background: rgba(19, 194, 194, 0.04);
   }
 
+  tr.dragging {
+    opacity: 0.5;
+    background: rgba(19, 194, 194, 0.1);
+  }
+
+  .col-drag {
+    width: 30px;
+    text-align: center;
+  }
+
   .col-select,
   .col-join {
     text-align: center;
@@ -416,6 +544,24 @@ function formatJoinOperands(operands: JoinCondition['operands']): string {
 
   .col-alias {
     width: 120px;
+  }
+}
+
+.drag-handle {
+  display: inline-block;
+  cursor: grab;
+  color: var(--text-secondary);
+  font-size: 12px;
+  opacity: 0.5;
+  transition: opacity 0.2s;
+
+  &:hover {
+    opacity: 1;
+    color: #13C2C2;
+  }
+
+  &:active {
+    cursor: grabbing;
   }
 }
 
