@@ -166,6 +166,15 @@
       @confirm="handleLocalQueryEditorConfirm"
       @cancel="handleLocalQueryEditorCancel"
     />
+
+    <!-- 错误提示 Toast -->
+    <Transition name="toast">
+      <div v-if="showErrorToast" class="error-toast">
+        <span class="toast-icon">⚠️</span>
+        <span class="toast-message">{{ errorMessage }}</span>
+        <button class="toast-close" @click="showErrorToast = false">×</button>
+      </div>
+    </Transition>
   </div>
 </template>
 
@@ -267,6 +276,20 @@ const pendingSourceType = ref<string>('')
 const pendingParticipantId = ref<string>('')
 const pendingDataset = ref<string>('')
 const pendingAvailableFields = ref<FieldInfo[]>([])
+
+// 错误提示状态
+const showErrorToast = ref(false)
+const errorMessage = ref('')
+
+// 显示错误提示
+function showError(message: string) {
+  errorMessage.value = message
+  showErrorToast.value = true
+  // 3秒后自动关闭
+  setTimeout(() => {
+    showErrorToast.value = false
+  }, 3000)
+}
 
 // 输出配置对话框状态
 const showOutputConfigDialog = ref(false)
@@ -719,6 +742,25 @@ const onConnect = (connection: Connection) => {
     } else {
       logger.warn('[FlowCanvas] Unsupported source node type for field selection')
       return
+    }
+
+    // 校验：本地Query节点的数据来源企业必须与任务执行企业一致
+    if (targetNode.type === 'local_query') {
+      const localQueryData = targetData as unknown as LocalQueryNodeData
+      const sourceParticipantId = pendingParticipantId.value
+      const targetParticipantId = localQueryData.participantId
+
+      if (sourceParticipantId !== targetParticipantId) {
+        const sourceEnterpriseName = availableEnterprises.value.find(e => e.id === sourceParticipantId)?.name || sourceParticipantId
+        const targetEnterpriseName = localQueryData.entityName || targetParticipantId
+
+        showError(`连接失败：数据来源企业 (${sourceEnterpriseName}) 与任务执行企业 (${targetEnterpriseName}) 不一致。本地Query任务只能使用本企业的数据。`)
+        logger.warn('[FlowCanvas] Connection rejected: enterprise mismatch', {
+          sourceParticipantId,
+          targetParticipantId
+        })
+        return
+      }
     }
 
     // 打开字段选择对话框
@@ -3792,5 +3834,60 @@ onUnmounted(() => {
     stroke: #389e0d;
     stroke-width: 1;
   }
+}
+
+// 错误提示 Toast 样式
+.error-toast {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 20px;
+  background: rgba(255, 77, 79, 0.95);
+  color: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(255, 77, 79, 0.3);
+  font-size: 14px;
+  max-width: 500px;
+
+  .toast-icon {
+    font-size: 18px;
+  }
+
+  .toast-message {
+    flex: 1;
+    line-height: 1.4;
+  }
+
+  .toast-close {
+    background: transparent;
+    border: none;
+    color: white;
+    font-size: 20px;
+    cursor: pointer;
+    padding: 0 5px;
+    opacity: 0.8;
+    transition: opacity 0.2s;
+
+    &:hover {
+      opacity: 1;
+    }
+  }
+}
+
+// Toast 动画
+.toast-enter-active,
+.toast-leave-active {
+  transition: all 0.3s ease;
+}
+
+.toast-enter-from,
+.toast-leave-to {
+  opacity: 0;
+  transform: translateX(-50%) translateY(-20px);
 }
 </style>
