@@ -2033,6 +2033,27 @@ watch(() => props.selectedNode, (node) => {
   border-radius: 4px;
   line-height: 1.4;
   word-break: break-all;
+
+  .config-params-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 8px;
+    padding: 4px 10px;
+    font-size: 11px;
+    font-weight: 500;
+    color: #1890ff;
+    background: rgba(24, 144, 255, 0.06);
+    border: 1px solid rgba(24, 144, 255, 0.2);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+
+    &:hover {
+      background: rgba(24, 144, 255, 0.1);
+      border-color: rgba(24, 144, 255, 0.4);
+    }
+  }
 }
 
 // 分组统计模型样式
@@ -2218,6 +2239,27 @@ watch(() => props.selectedNode, (node) => {
     border-color: rgba(250, 140, 22, 0.2);
     box-shadow: 0 2px 8px rgba(250, 140, 22, 0.08);
   }
+
+  .config-params-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 8px;
+    padding: 4px 10px;
+    font-size: 11px;
+    font-weight: 500;
+    color: #1890ff;
+    background: rgba(24, 144, 255, 0.06);
+    border: 1px solid rgba(24, 144, 255, 0.2);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+
+    &:hover {
+      background: rgba(24, 144, 255, 0.1);
+      border-color: rgba(24, 144, 255, 0.4);
+    }
+  }
 }
 
 .compute-header {
@@ -2269,6 +2311,27 @@ watch(() => props.selectedNode, (node) => {
   &:hover {
     border-color: rgba(82, 196, 26, 0.2);
     box-shadow: 0 2px 8px rgba(82, 196, 26, 0.08);
+  }
+
+  .config-params-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 8px;
+    padding: 4px 10px;
+    font-size: 11px;
+    font-weight: 500;
+    color: #1890ff;
+    background: rgba(24, 144, 255, 0.06);
+    border: 1px solid rgba(24, 144, 255, 0.2);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+
+    &:hover {
+      background: rgba(24, 144, 255, 0.1);
+      border-color: rgba(24, 144, 255, 0.4);
+    }
   }
 }
 
