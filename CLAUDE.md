@@ -96,6 +96,8 @@ src/
 - 内存存储（Map 缓存） + JSON 文件导入导出 (001-data-asset-select)
 - TypeScript 5.9.3 + Vue 3.5.24 + @vue-flow/core 1.48.1, Vite 7.2.4, Monaco Editor (002-dag-task-orchestration)
 - 内存存储（刷新后数据丢失）+ 手动JSON导出 (002-dag-task-orchestration)
+- TypeScript 5.9.3 + Vue 3.5.24 + @vue-flow/core 1.48.1, Vite 7.2.4, SCSS 1.97.2 (003-pir-fl-enhancement)
+- 内存存储（Map缓存）+ JSON文件导入导出 (003-pir-fl-enhancement)
 
 ## Recent Changes
 - 001-data-asset-select: Added TypeScript 5.9.3, Vue 3.5.24 + @vue-flow/core 1.48.1, Vite 7.2.4, Sass 1.97.2, Playwright 1.57.0
