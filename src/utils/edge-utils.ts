@@ -32,15 +32,7 @@ export const createUniqueEdge = (
       sourceHandle: `${connection.source}-output-${sourceIndex}`,
       targetHandle: `${connection.target}-input-${targetIndex}`,
       type: 'default',
-      animated: false,
-      style: {
-        stroke: '#D9D9D9',
-        strokeWidth: 2
-      },
-      markerEnd: {
-        type: 'arrowclosed',
-        color: '#D9D9D9'
-      }
+      animated: false
     } as CustomEdge
   }
 
@@ -49,15 +41,7 @@ export const createUniqueEdge = (
     ...connection,
     id: `edge_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
     type: 'default',
-    animated: false,
-    style: {
-      stroke: '#D9D9D9',
-      strokeWidth: 2
-    },
-    markerEnd: {
-      type: 'arrowclosed',
-      color: '#D9D9D9'
-    }
+    animated: false
   } as CustomEdge
 }
 

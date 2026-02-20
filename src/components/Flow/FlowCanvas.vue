@@ -9,7 +9,7 @@
       :min-zoom="0.3"
       :max-zoom="2"
       :fit-view-on-init="false"
-      :default-edge-options="{ type: 'smoothstep', style: { stroke: '#999999', strokeWidth: 1.5 } }"
+      :default-edge-options="{ type: 'default' }"
       :delete-key-code="'Delete'"
       :is-valid-connection="isValidConnection"
       @connect="onConnect"

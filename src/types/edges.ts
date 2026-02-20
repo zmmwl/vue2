@@ -4,6 +4,10 @@ import type { Edge } from '@vue-flow/core'
 export interface EdgeData {
   label?: string
   condition?: string
+  // 源节点颜色（用于渐变）
+  sourceColor?: string
+  // 目标节点颜色（用于渐变）
+  targetColor?: string
 }
 
 // 自定义连接线类型
