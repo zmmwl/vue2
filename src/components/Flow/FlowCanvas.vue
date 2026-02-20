@@ -773,7 +773,7 @@ const onConnect = (connection: Connection) => {
       target: correctedConnection.target,
       sourceHandle: correctedConnection.sourceHandle || 'output',
       targetHandle: correctedConnection.targetHandle || 'input'
-    }, edges.value)
+    }, edges.value, sourceData.category)
     addEdge(newEdge)
   }
 }
@@ -1448,12 +1448,14 @@ function handleFieldSelected(selection: {
   }
 
   // 创建连接
+  const sourceNode = nodes.value.find(n => n.id === pendingConnection.value!.source)
+  const sourceCategory = sourceNode ? (sourceNode.data as NodeData).category : undefined
   const newEdge = createUniqueEdge({
     source: pendingConnection.value.source,
     target: pendingConnection.value.target,
     sourceHandle: 'output',
     targetHandle: 'input'
-  }, edges.value)
+  }, edges.value, sourceCategory)
   edges.value.push(newEdge)
 
   // 更新目标计算任务节点的输入配置
@@ -1941,7 +1943,7 @@ function handleOutputConfigConfirmed(config: {
       target: outputNodeId,
       sourceHandle: 'output',
       targetHandle: 'input'
-    }, edges.value)
+    }, edges.value, taskData.category)
     edges.value.push(outputEdge)
 
     // 更新计算任务的 outputs 数组
@@ -2582,7 +2584,7 @@ function handleGroupByConfigConfirm(config: any) {
       target: taskNode.id,
       sourceHandle: 'output',
       targetHandle: 'input'
-    }, edges.value)
+    }, edges.value, 'model')
     edges.value.push(modelEdge)
 
     // 将模型添加到任务的 models 列表
@@ -2707,7 +2709,7 @@ function createModelNode(
     target: targetTaskNode.id,
     sourceHandle: 'output',
     targetHandle: 'input'
-  }, edges.value)
+  }, edges.value, 'model')
   edges.value.push(modelEdge)
 
   // 更新计算任务的 models 数组
@@ -2827,7 +2829,7 @@ function createComputeResourceNode(
     target: targetTaskNode.id,
     sourceHandle: 'output',
     targetHandle: 'compute-input'
-  }, edges.value)
+  }, edges.value, 'computeResource')
   edges.value.push(computeEdge)
 
   // 更新计算任务的 computeProviders 数组
@@ -2986,17 +2988,18 @@ function handleCreateTestTaskWithOutput(event: Event) {
 
   addNode(outputNode)
 
+  // 更新计算任务节点的输出配置
+  const nodeData = taskNode.data as ComputeTaskNodeData
+
   // 创建从计算任务到输出节点的连接
   const outputEdge = createUniqueEdge({
     source: taskNode.id,
     target: outputNode.id,
     sourceHandle: 'output',
     targetHandle: 'input'
-  }, edges.value)
+  }, edges.value, nodeData.category)
   edges.value.push(outputEdge)
 
-  // 更新计算任务节点的输出配置
-  const nodeData = taskNode.data as ComputeTaskNodeData
   if (!nodeData.outputs) {
     nodeData.outputs = []
   }
@@ -3076,7 +3079,7 @@ function handleCreateTestTaskWithModel(event: Event) {
     target: taskNode.id,
     sourceHandle: 'output',
     targetHandle: 'input'
-  }, edges.value)
+  }, edges.value, 'model')
   edges.value.push(modelEdge)
 
   // 更新计算任务的 models 数组
@@ -3161,7 +3164,7 @@ function handleCreateTestTaskWithCompute(event: Event) {
     target: taskNode.id,
     sourceHandle: 'output',
     targetHandle: 'compute-input'
-  }, edges.value)
+  }, edges.value, 'computeResource')
   edges.value.push(computeEdge)
 
   // 更新计算任务的 computeProviders 数组

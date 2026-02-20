@@ -4,10 +4,14 @@ import type { CustomEdge } from '@/types/edges'
 /**
  * 创建唯一的连接线
  * 确保每条连接线都有独立的 ID，不合并
+ * @param connection 连接信息
+ * @param existingEdges 现有连接线列表
+ * @param sourceCategory 源节点类型（用于决定连线路径类型）
  */
 export const createUniqueEdge = (
   connection: Connection,
-  existingEdges: Edge[]
+  existingEdges: Edge[],
+  sourceCategory?: string
 ): CustomEdge => {
   // 检查是否已存在完全相同的连接
   const exists = existingEdges.some(
@@ -17,6 +21,8 @@ export const createUniqueEdge = (
       edge.sourceHandle === connection.sourceHandle &&
       edge.targetHandle === connection.targetHandle
   )
+
+  const edgeData = sourceCategory ? { sourceCategory } : undefined
 
   if (exists && connection.sourceHandle && connection.targetHandle) {
     // 如果连接点已被使用，为当前连接创建新的 handle ID
@@ -32,7 +38,8 @@ export const createUniqueEdge = (
       sourceHandle: `${connection.source}-output-${sourceIndex}`,
       targetHandle: `${connection.target}-input-${targetIndex}`,
       type: 'default',
-      animated: false
+      animated: false,
+      data: edgeData
     } as CustomEdge
   }
 
@@ -41,7 +48,8 @@ export const createUniqueEdge = (
     ...connection,
     id: `edge_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
     type: 'default',
-    animated: false
+    animated: false,
+    data: edgeData
   } as CustomEdge
 }
 

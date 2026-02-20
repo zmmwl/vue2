@@ -8,6 +8,8 @@ export interface EdgeData {
   sourceColor?: string
   // 目标节点颜色（用于渐变）
   targetColor?: string
+  // 源节点类型（用于决定连线路径类型）
+  sourceCategory?: string
 }
 
 // 自定义连接线类型

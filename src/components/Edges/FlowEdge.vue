@@ -1,137 +1,19 @@
 <script setup lang="ts">
-import { computed, inject, type Ref } from 'vue'
-import { BaseEdge, getSmoothStepPath, getBezierPath, type EdgeProps, type Node } from '@vue-flow/core'
+import { computed } from 'vue'
+import { BaseEdge, getSmoothStepPath, getBezierPath, type EdgeProps } from '@vue-flow/core'
 
 const props = defineProps<EdgeProps>()
-
-// 从 Vue Flow 注入所有节点（用于智能路由和类型判断）
-const nodes = inject<Ref<Node[]>>('nodes')
 
 // 默认连线颜色
 const EDGE_COLOR = '#B8B8B8'
 const SELECTED_COLOR = '#1890ff'
 
-// 默认节点尺寸（用于碰撞检测）
-const DEFAULT_NODE_WIDTH = 200
-const DEFAULT_NODE_HEIGHT = 100
-
-/**
- * 获取节点的宽高
- */
-function getNodeDimensions(node: Node): { width: number; height: number } {
-  const nodeData = node.data as { width?: number; height?: number } | undefined
-  return {
-    width: nodeData?.width || DEFAULT_NODE_WIDTH,
-    height: nodeData?.height || DEFAULT_NODE_HEIGHT
-  }
-}
-
-/**
- * 检测点是否在矩形内
- */
-function isPointInRect(x: number, y: number, rect: { x: number; y: number; width: number; height: number }): boolean {
-  return x >= rect.x && x <= rect.x + rect.width && y >= rect.y && y <= rect.y + rect.height
-}
-
-/**
- * 检测线段是否与矩形相交
- */
-function lineIntersectsRect(
-  x1: number, y1: number,
-  x2: number, y2: number,
-  rect: { x: number; y: number; width: number; height: number }
-): boolean {
-  // 检测线段的两个端点是否在矩形内
-  if (isPointInRect(x1, y1, rect) || isPointInRect(x2, y2, rect)) {
-    return true
-  }
-
-  // 检测线段是否穿过矩形中心区域
-  const midX = (x1 + x2) / 2
-  const midY = (y1 + y2) / 2
-  if (isPointInRect(midX, midY, rect)) {
-    return true
-  }
-
-  // 检测多个采样点
-  for (let t = 0.2; t <= 0.8; t += 0.2) {
-    const px = x1 + (x2 - x1) * t
-    const py = y1 + (y2 - y1) * t
-    if (isPointInRect(px, py, rect)) {
-      return true
-    }
-  }
-
-  return false
-}
-
-/**
- * 获取路径穿过的节点（排除源节点和目标节点）
- */
-function getIntersectingNodes(
-  sourceX: number, sourceY: number,
-  targetX: number, targetY: number,
-  nodeList: Node[] | undefined,
-  sourceId: string,
-  targetId: string
-): Node[] {
-  if (!nodeList) return []
-
-  return nodeList.filter(node => {
-    if (node.id === sourceId || node.id === targetId) return false
-
-    const { width, height } = getNodeDimensions(node)
-    const rect = {
-      x: node.position.x,
-      y: node.position.y,
-      width,
-      height
-    }
-
-    return lineIntersectsRect(sourceX, sourceY, targetX, targetY, rect)
-  })
-}
-
-/**
- * 计算智能路径偏移量（用于避开节点）
- */
-function calculateOffset(
-  sourceY: number,
-  targetY: number,
-  intersectingNodes: Node[]
-): number {
-  if (intersectingNodes.length === 0) return 0
-
-  const baseOffset = 50
-  let offsetSum = 0
-
-  for (const node of intersectingNodes) {
-    const { height } = getNodeDimensions(node)
-    const nodeCenterY = node.position.y + height / 2
-    const lineMidY = (sourceY + targetY) / 2
-
-    if (nodeCenterY < lineMidY) {
-      offsetSum += baseOffset
-    } else {
-      offsetSum -= baseOffset
-    }
-  }
-
-  return offsetSum
-}
-
 /**
  * 判断是否使用圆角折线
  * 源节点是 model 或 computeResource 时使用圆角折线
  */
-function shouldUseSmoothStep(nodeList: Node[] | undefined, sourceId: string): boolean {
-  if (!nodeList) return false
-
-  const sourceNode = nodeList.find(n => n.id === sourceId)
-  if (!sourceNode) return false
-
-  const category = (sourceNode.data as { category?: string })?.category
-  return category === 'model' || category === 'computeResource'
+function shouldUseSmoothStep(sourceCategory: string | undefined): boolean {
+  return sourceCategory === 'model' || sourceCategory === 'computeResource'
 }
 
 /**
@@ -143,20 +25,11 @@ function extractPath(pathResult: string | [string, number, number, number, numbe
 
 // 计算路径（根据源节点类型选择路径类型）
 const path = computed(() => {
-  const useSmoothStep = shouldUseSmoothStep(nodes?.value, props.source)
+  const sourceCategory = (props.data as { sourceCategory?: string })?.sourceCategory
+  const useSmoothStep = shouldUseSmoothStep(sourceCategory)
 
   if (useSmoothStep) {
-    // 圆角折线 + 智能路由
-    const intersectingNodes = getIntersectingNodes(
-      props.sourceX, props.sourceY,
-      props.targetX, props.targetY,
-      nodes?.value,
-      props.source,
-      props.target
-    )
-
-    const offset = calculateOffset(props.sourceY, props.targetY, intersectingNodes)
-
+    // 圆角折线
     return extractPath(getSmoothStepPath({
       sourceX: props.sourceX,
       sourceY: props.sourceY,
@@ -164,8 +37,7 @@ const path = computed(() => {
       targetX: props.targetX,
       targetY: props.targetY,
       targetPosition: props.targetPosition,
-      borderRadius: 8,
-      offset: offset || undefined
+      borderRadius: 8
     }))
   } else {
     // 贝塞尔曲线
