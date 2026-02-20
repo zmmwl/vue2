@@ -2338,9 +2338,20 @@ function handleConfigOutput(data: { outputIndex: number; taskId: string }) {
     return
   }
 
+  const taskData = taskNode.data as ComputeTaskNodeData
+
+  // 从 outputs 数组获取对应索引的输出配置
+  const outputConfig = taskData.outputs?.[data.outputIndex]
+  if (!outputConfig || !outputConfig.outputNodeId) {
+    logger.warn('[FlowCanvas] Output config not found or missing outputNodeId', {
+      outputIndex: data.outputIndex,
+      outputs: taskData.outputs
+    })
+    return
+  }
+
   // 打开输出配置弹窗进行重新配置
-  // 使用已有的 openEditOutputDialog 方法
-  openEditOutputDialog(data.taskId)
+  openEditOutputDialog(outputConfig.outputNodeId)
 }
 
 /**
@@ -2356,24 +2367,48 @@ function handleConfigModelNode(data: { nodeId: string; modelType: string }) {
     return
   }
 
-  const modelData = modelNode.data as any
+  // 通过边查找模型节点连接的任务节点
+  const modelEdge = edges.value.find(e => e.source === data.nodeId)
+  if (!modelEdge) {
+    logger.warn('[FlowCanvas] No edge found from model node', { nodeId: data.nodeId })
+    return
+  }
 
-  // 根据模型类型打开对应的编辑器
+  const parentTaskId = modelEdge.target
+  const taskNode = nodes.value.find(n => n.id === parentTaskId)
+  if (!taskNode) {
+    logger.warn('[FlowCanvas] Parent task node not found', { parentTaskId })
+    return
+  }
+
+  const taskData = taskNode.data as ComputeTaskNodeData
+
+  // 从任务节点的 models 数组中找到对应的模型配置
+  const modelConfig = taskData.models?.find(m => m.modelNodeId === data.nodeId)
+  if (!modelConfig) {
+    logger.warn('[FlowCanvas] Model config not found in task', { nodeId: data.nodeId, parentTaskId })
+    return
+  }
+
+  // 根据模型类型打开对应的编辑器，传递完整的任务上下文
   if (data.modelType === 'expression') {
     // 设置表达式编辑器的输入数据
-    pendingExpression.value = modelData.expression || ''
+    currentModelConfig.value = modelConfig
+    currentTaskId.value = parentTaskId
+    pendingExpression.value = modelConfig.expression || ''
     pendingExpressionData.value = null
-    pendingTargetTaskNodeId.value = modelData.parentTaskId
+    pendingTargetTaskNodeId.value = parentTaskId
     showExpressionEditorDialog.value = true
   } else if (data.modelType === 'GROUP_STAT') {
     // 打开分组统计配置
-    currentGroupByModelId.value = modelData.modelId || data.nodeId
-    currentGroupByTaskId.value = modelData.parentTaskId
+    currentGroupByModelId.value = modelConfig.id
+    currentGroupByTaskId.value = parentTaskId
     showGroupByConfigDialog.value = true
   } else {
     // 打开模型参数配置
-    currentModelConfig.value = modelData
-    currentTaskId.value = modelData.parentTaskId
+    currentModelConfig.value = modelConfig
+    currentTaskId.value = parentTaskId
+    availableFields.value = generateAvailableFields(taskData)
     paramConfigVisible.value = true
   }
 }
@@ -2658,6 +2693,7 @@ function createModelNode(
       type: data.modelType || model.type,
       participantId: participantId,
       modelId: model.id,
+      parentTaskId: targetTaskNode.id,  // 添加父任务ID
       expression: expression,
       parameters: []
     } as any

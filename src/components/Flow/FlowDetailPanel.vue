@@ -997,10 +997,17 @@ const outputData = computed(() => {
   return props.selectedNode?.data as any
 })
 
-// 获取父任务节点
+// 获取父任务节点（支持输出数据节点和模型节点）
 const parentTaskNode = computed(() => {
-  if (!outputData.value?.parentTaskId || !props.nodes?.length) return null
-  return props.nodes.find(n => n.id === outputData.value.parentTaskId)
+  // 优先检查输出数据节点
+  if (outputData.value?.parentTaskId && props.nodes?.length) {
+    return props.nodes.find(n => n.id === outputData.value.parentTaskId)
+  }
+  // 检查模型节点
+  if (modelNodeData.value?.parentTaskId && props.nodes?.length) {
+    return props.nodes.find(n => n.id === modelNodeData.value.parentTaskId)
+  }
+  return null
 })
 
 // 父任务数据
@@ -2552,6 +2559,34 @@ watch(() => props.selectedNode, (node) => {
     color: #333;
     white-space: pre-wrap;
     word-break: break-all;
+  }
+}
+
+// 模型节点详情面板中的配置按钮样式（统一风格）
+.info-section {
+  .config-params-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 500;
+    color: #1890ff;
+    background: rgba(24, 144, 255, 0.06);
+    border: 1px solid rgba(24, 144, 255, 0.2);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin-top: 8px;
+
+    &:hover {
+      background: rgba(24, 144, 255, 0.1);
+      border-color: rgba(24, 144, 255, 0.4);
+    }
+
+    &:active {
+      transform: scale(0.98);
+    }
   }
 }
 
