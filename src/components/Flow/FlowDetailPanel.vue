@@ -242,7 +242,10 @@
                 <span class="model-participant">{{ getEnterpriseDisplayName(model.participantId) }}</span>
               </div>
               <div v-if="model.type === 'expression'" class="model-expression">
-                {{ expressionPreview(model) }}
+                <div class="expression-preview">{{ expressionPreview(model) }}</div>
+                <button class="config-params-btn" @click="handleConfigExpression(model)">
+                  ⚙️ 编辑表达式
+                </button>
               </div>
               <div v-else-if="model.type === 'GROUP_STAT'" class="model-groupby">
                 <!-- 分组字段 -->
@@ -323,6 +326,9 @@
                 <span class="compute-participant">{{ getEnterpriseDisplayName(compute.participantId) }}</span>
               </div>
               <div class="compute-type">{{ compute.type }}</div>
+              <button class="config-params-btn" @click="handleConfigCompute(compute)">
+                ⚙️ 配置
+              </button>
             </div>
           </div>
         </CollapsibleSection>
@@ -348,6 +354,9 @@
               <div class="output-fields">
                 <span class="fields-count">{{ output.outputFields?.length || 0 }} 个字段</span>
               </div>
+              <button class="config-params-btn" @click="handleConfigOutput(output, index)">
+                ⚙️ 配置
+              </button>
             </div>
           </div>
         </CollapsibleSection>
@@ -561,6 +570,87 @@
         </CollapsibleSection>
       </div>
 
+      <!-- 模型节点 -->
+      <div v-else-if="isModelNode" class="detail-info">
+        <!-- 模型基本信息 -->
+        <div class="info-section">
+          <h4 class="section-title">模型信息</h4>
+          <div class="info-grid">
+            <div class="info-item">
+              <span class="info-label">模型类型</span>
+              <span class="info-value">{{ modelNodeData?.type || '-' }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">模型名称</span>
+              <span class="info-value">{{ modelNodeData?.name || modelNodeData?.modelId || '-' }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">所属企业</span>
+              <span class="info-value">{{ modelNodeData?.entityName || modelNodeData?.participantId || '-' }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">所属任务</span>
+              <span class="info-value">{{ parentTaskNode?.data?.label || '-' }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 表达式内容 -->
+        <div v-if="modelNodeData?.type === 'expression'" class="info-section">
+          <h4 class="section-title">表达式内容</h4>
+          <div class="expression-content">
+            <pre>{{ modelNodeData?.expression || '// 暂无表达式' }}</pre>
+          </div>
+          <button class="config-params-btn" @click="handleConfigModelNode">
+            ⚙️ 编辑表达式
+          </button>
+        </div>
+
+        <!-- 分组统计配置 -->
+        <div v-else-if="modelNodeData?.type === 'GROUP_STAT'" class="info-section">
+          <h4 class="section-title">分组统计配置</h4>
+          <div class="groupby-info">
+            <!-- 分组字段 -->
+            <div class="groupby-section">
+              <div class="groupby-title">分组字段 ({{ modelNodeData?.groupByConfig?.groupByFields?.length || 0 }})</div>
+              <div class="fields-chip-list">
+                <span v-for="field in modelNodeData?.groupByConfig?.groupByFields" :key="field.fieldId" class="field-chip groupby-chip">
+                  {{ field.fieldAlias || field.fieldName }} ({{ field.fieldType }})
+                </span>
+              </div>
+            </div>
+            <!-- 统计配置 -->
+            <div class="statistics-section">
+              <div class="statistics-title">统计配置 ({{ modelNodeData?.groupByConfig?.statistics?.length || 0 }})</div>
+              <div v-for="stat in modelNodeData?.groupByConfig?.statistics" :key="stat.id" class="stat-card">
+                <span class="function-badge">{{ stat.functionType }}</span>
+                <span class="field-name">{{ stat.resultAlias }}</span>
+              </div>
+            </div>
+          </div>
+          <button class="config-params-btn" @click="handleConfigModelNode">
+            ⚙️ 编辑配置
+          </button>
+        </div>
+
+        <!-- 模型参数 -->
+        <div v-else class="info-section">
+          <h4 class="section-title">模型参数</h4>
+          <div v-if="!modelNodeData?.parameters || modelNodeData.parameters.length === 0" class="empty-hint">
+            暂无参数配置
+          </div>
+          <div v-else class="params-list">
+            <div v-for="param in modelNodeData?.parameters" :key="param.name" class="param-item">
+              <span class="param-name">{{ param.name }}</span>
+              <span class="param-value">{{ param.value || '-' }}</span>
+            </div>
+          </div>
+          <button class="config-params-btn" @click="handleConfigModelNode">
+            ⚙️ 配置参数
+          </button>
+        </div>
+      </div>
+
       <!-- 其他节点类型 -->
       <div v-else class="empty-state">
         <div class="empty-icon">ℹ️</div>
@@ -741,6 +831,10 @@ interface Emits {
   (e: 'viewModeChange', mode: 'detail' | 'preview'): void
   (e: 'configParams', data: { modelId: string; modelConfig: any; taskId: string }): void
   (e: 'configGroupBy', data: { modelId: string; taskId: string }): void
+  (e: 'configExpression', data: { modelId: string; taskId: string }): void  // 配置表达式模型
+  (e: 'configCompute', data: { computeId: string; taskId: string }): void  // 配置算力资源
+  (e: 'configOutput', data: { outputIndex: number; taskId: string }): void  // 配置输出数据
+  (e: 'configModelNode', data: { nodeId: string; modelType: string }): void  // 配置模型节点
   (e: 'editOutput', nodeId: string): void  // 编辑输出数据节点
   (e: 'configInputProvider', data: { taskId: string; sourceNodeId: string; fields: any[] }): void  // 配置输入数据源
 }
@@ -769,6 +863,11 @@ const isOutputDataNode = computed(() => {
 // 判断是否为本地任务节点
 const isLocalTaskNode = computed(() => {
   return props.selectedNode?.data?.category === NodeCategory.LOCAL_TASK
+})
+
+// 判断是否为模型节点
+const isModelNode = computed(() => {
+  return props.selectedNode?.data?.category === NodeCategory.MODEL
 })
 
 // 判断数据源节点是否已配置
@@ -807,6 +906,12 @@ const taskData = computed(() => {
 const localTaskData = computed((): LocalQueryNodeData | null => {
   if (!isLocalTaskNode.value) return null
   return props.selectedNode?.data as LocalQueryNodeData
+})
+
+// 模型节点数据
+const modelNodeData = computed(() => {
+  if (!isModelNode.value) return null
+  return props.selectedNode?.data as any
 })
 
 // 本地任务输入提供者列表
@@ -1128,6 +1233,74 @@ function handleConfigGroupBy(model: any) {
   emit('configGroupBy', {
     modelId: model.id,
     taskId: props.selectedNode.id
+  })
+}
+
+/**
+ * 处理表达式模型配置
+ */
+function handleConfigExpression(model: any) {
+  if (!props.selectedNode) return
+
+  logger.info('[FlowDetailPanel] Expression config clicked', {
+    modelId: model.id,
+    taskId: props.selectedNode.id
+  })
+
+  emit('configExpression', {
+    modelId: model.id,
+    taskId: props.selectedNode.id
+  })
+}
+
+/**
+ * 处理算力资源配置
+ */
+function handleConfigCompute(compute: any) {
+  if (!props.selectedNode) return
+
+  logger.info('[FlowDetailPanel] Compute config clicked', {
+    computeId: compute.id,
+    taskId: props.selectedNode.id
+  })
+
+  emit('configCompute', {
+    computeId: compute.id,
+    taskId: props.selectedNode.id
+  })
+}
+
+/**
+ * 处理输出数据配置
+ */
+function handleConfigOutput(_output: any, index: number) {
+  if (!props.selectedNode) return
+
+  logger.info('[FlowDetailPanel] Output config clicked', {
+    outputIndex: index,
+    taskId: props.selectedNode.id
+  })
+
+  emit('configOutput', {
+    outputIndex: index,
+    taskId: props.selectedNode.id
+  })
+}
+
+/**
+ * 处理模型节点配置
+ */
+function handleConfigModelNode() {
+  if (!props.selectedNode) return
+
+  logger.info('[FlowDetailPanel] Model node config clicked', {
+    nodeId: props.selectedNode.id,
+    modelType: modelNodeData.value?.type
+  })
+
+  emit('configModelNode', {
+    nodeId: props.selectedNode.id,
+    modelType: modelNodeData.value?.type || ''
   })
 }
 
@@ -2361,5 +2534,65 @@ watch(() => props.selectedNode, (node) => {
       }
     }
   }
+}
+
+// 模型节点详情样式
+.expression-content {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  padding: 12px;
+  margin-bottom: 12px;
+
+  pre {
+    margin: 0;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 12px;
+    line-height: 1.5;
+    color: #333;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+}
+
+.params-list {
+  margin-bottom: 12px;
+
+  .param-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background: #f8f9fa;
+    border-radius: 4px;
+    margin-bottom: 6px;
+
+    .param-name {
+      font-size: 12px;
+      font-weight: 500;
+      color: #333;
+    }
+
+    .param-value {
+      font-size: 12px;
+      color: #666;
+      font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    }
+  }
+}
+
+// 表达式预览样式
+.expression-preview {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 4px;
+  padding: 8px 12px;
+  margin-bottom: 8px;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 12px;
+  color: #333;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 </style>

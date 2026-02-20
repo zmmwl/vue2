@@ -2255,6 +2255,130 @@ function handleConfigGroupBy(data: { modelId: string; taskId: string }) {
 }
 
 /**
+ * 处理表达式模型配置事件（从 FlowDetailPanel 触发）
+ */
+function handleConfigExpression(data: { modelId: string; taskId: string }) {
+  logger.info('[FlowCanvas] Config Expression event received', data)
+
+  // 查找计算任务节点
+  const taskNode = nodes.value.find(n => n.id === data.taskId)
+  if (!taskNode) {
+    logger.warn('[FlowCanvas] Task node not found', { taskId: data.taskId })
+    return
+  }
+
+  const taskData = taskNode.data as ComputeTaskNodeData
+  const model = taskData.models?.find(m => m.id === data.modelId)
+  if (!model) {
+    logger.warn('[FlowCanvas] Model not found', { modelId: data.modelId })
+    return
+  }
+
+  // 设置当前编辑的表达式模型
+  currentModelConfig.value = model
+  currentTaskId.value = data.taskId
+
+  // 设置表达式编辑器的输入数据
+  pendingExpression.value = model.expression || ''
+  pendingExpressionData.value = null
+  pendingTargetTaskNodeId.value = data.taskId
+
+  // 打开表达式编辑器
+  showExpressionEditorDialog.value = true
+}
+
+/**
+ * 处理算力资源配置事件（从 FlowDetailPanel 触发）
+ */
+function handleConfigCompute(data: { computeId: string; taskId: string }) {
+  logger.info('[FlowCanvas] Config Compute event received', data)
+
+  // 查找计算任务节点
+  const taskNode = nodes.value.find(n => n.id === data.taskId)
+  if (!taskNode) {
+    logger.warn('[FlowCanvas] Task node not found', { taskId: data.taskId })
+    return
+  }
+
+  const taskData = taskNode.data as ComputeTaskNodeData
+  const compute = taskData.computeProviders?.find(c => c.id === data.computeId)
+  if (!compute) {
+    logger.warn('[FlowCanvas] Compute provider not found', { computeId: data.computeId })
+    return
+  }
+
+  // 打开统一资源选择器进行重新配置
+  // 设置选择器结果以便重新配置
+  pendingSelectorResult.value = {
+    data: {
+      label: compute.id,
+      category: 'computeResource',
+      type: 'compute_resource',
+      icon: '⚡',
+      color: '#13c2c2',
+      sourceType: compute.type,
+      participantId: compute.participantId
+    },
+    targetTaskNodeId: data.taskId
+  }
+
+  showUnifiedSelector.value = true
+}
+
+/**
+ * 处理输出数据配置事件（从 FlowDetailPanel 触发）
+ */
+function handleConfigOutput(data: { outputIndex: number; taskId: string }) {
+  logger.info('[FlowCanvas] Config Output event received', data)
+
+  // 查找计算任务节点
+  const taskNode = nodes.value.find(n => n.id === data.taskId)
+  if (!taskNode) {
+    logger.warn('[FlowCanvas] Task node not found', { taskId: data.taskId })
+    return
+  }
+
+  // 打开输出配置弹窗进行重新配置
+  // 使用已有的 openEditOutputDialog 方法
+  openEditOutputDialog(data.taskId)
+}
+
+/**
+ * 处理模型节点配置事件（从 FlowDetailPanel 触发）
+ */
+function handleConfigModelNode(data: { nodeId: string; modelType: string }) {
+  logger.info('[FlowCanvas] Config Model Node event received', data)
+
+  // 查找模型节点
+  const modelNode = nodes.value.find(n => n.id === data.nodeId)
+  if (!modelNode) {
+    logger.warn('[FlowCanvas] Model node not found', { nodeId: data.nodeId })
+    return
+  }
+
+  const modelData = modelNode.data as any
+
+  // 根据模型类型打开对应的编辑器
+  if (data.modelType === 'expression') {
+    // 设置表达式编辑器的输入数据
+    pendingExpression.value = modelData.expression || ''
+    pendingExpressionData.value = null
+    pendingTargetTaskNodeId.value = modelData.parentTaskId
+    showExpressionEditorDialog.value = true
+  } else if (data.modelType === 'GROUP_STAT') {
+    // 打开分组统计配置
+    currentGroupByModelId.value = modelData.modelId || data.nodeId
+    currentGroupByTaskId.value = modelData.parentTaskId
+    showGroupByConfigDialog.value = true
+  } else {
+    // 打开模型参数配置
+    currentModelConfig.value = modelData
+    currentTaskId.value = modelData.parentTaskId
+    paramConfigVisible.value = true
+  }
+}
+
+/**
  * 处理输入数据源配置事件（从 FlowDetailPanel 触发）
  */
 function handleConfigInputProvider(data: { taskId: string; sourceNodeId: string; fields: FieldMapping[] }) {
@@ -3597,6 +3721,10 @@ defineExpose({
   handleImport,
   handleConfigParams,
   handleConfigGroupBy,
+  handleConfigExpression,
+  handleConfigCompute,
+  handleConfigOutput,
+  handleConfigModelNode,
   handleConfigInputProvider
 })
 

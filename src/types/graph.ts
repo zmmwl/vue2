@@ -19,6 +19,7 @@ export interface DroppedNodeData {
   description?: string
   type: string
   modelType?: string  // 模型类型（用于模型节点）
+  participantId?: string  // 参与方ID（用于算力资源配置）
 }
 
 // 流程验证结果

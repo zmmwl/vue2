@@ -27,6 +27,10 @@
         @view-mode-change="handleViewModeChange"
         @config-params="handleConfigParams"
         @config-group-by="handleConfigGroupBy"
+        @config-expression="handleConfigExpression"
+        @config-compute="handleConfigCompute"
+        @config-output="handleConfigOutput"
+        @config-model-node="handleConfigModelNode"
         @edit-output="handleEditOutput"
         @config-input-provider="handleConfigInputProvider"
       />
@@ -123,6 +127,54 @@ function handleConfigGroupBy(data: { modelId: string; taskId: string }) {
   const flowCanvas = flowCanvasRef.value as any
   if (flowCanvas && typeof flowCanvas.handleConfigGroupBy === 'function') {
     flowCanvas.handleConfigGroupBy(data)
+  }
+}
+
+/**
+ * 处理表达式模型配置事件
+ */
+function handleConfigExpression(data: { modelId: string; taskId: string }) {
+  logger.info('[FlowEditor] Config Expression event received', data)
+  // 直接调用 FlowCanvas 中定义的处理函数
+  const flowCanvas = flowCanvasRef.value as any
+  if (flowCanvas && typeof flowCanvas.handleConfigExpression === 'function') {
+    flowCanvas.handleConfigExpression(data)
+  }
+}
+
+/**
+ * 处理算力资源配置事件
+ */
+function handleConfigCompute(data: { computeId: string; taskId: string }) {
+  logger.info('[FlowEditor] Config Compute event received', data)
+  // 直接调用 FlowCanvas 中定义的处理函数
+  const flowCanvas = flowCanvasRef.value as any
+  if (flowCanvas && typeof flowCanvas.handleConfigCompute === 'function') {
+    flowCanvas.handleConfigCompute(data)
+  }
+}
+
+/**
+ * 处理输出数据配置事件
+ */
+function handleConfigOutput(data: { outputIndex: number; taskId: string }) {
+  logger.info('[FlowEditor] Config Output event received', data)
+  // 直接调用 FlowCanvas 中定义的处理函数
+  const flowCanvas = flowCanvasRef.value as any
+  if (flowCanvas && typeof flowCanvas.handleConfigOutput === 'function') {
+    flowCanvas.handleConfigOutput(data)
+  }
+}
+
+/**
+ * 处理模型节点配置事件
+ */
+function handleConfigModelNode(data: { nodeId: string; modelType: string }) {
+  logger.info('[FlowEditor] Config Model Node event received', data)
+  // 直接调用 FlowCanvas 中定义的处理函数
+  const flowCanvas = flowCanvasRef.value as any
+  if (flowCanvas && typeof flowCanvas.handleConfigModelNode === 'function') {
+    flowCanvas.handleConfigModelNode(data)
   }
 }
 
