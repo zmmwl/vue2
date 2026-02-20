@@ -214,6 +214,7 @@ import TypeSelector from '@/components/Modals/TypeSelector.vue'
 import LocalQueryEditor from '@/components/Modals/LocalQueryEditor.vue'
 import { MODEL_TEMPLATES, RESOURCE_TEMPLATES } from '@/utils/node-templates'
 import { createUniqueEdge } from '@/utils/edge-utils'
+import { layoutGraph } from '@/utils/layout-utils'
 import { generateAvailableFields } from '@/utils/model-config-utils'
 import { logger } from '@/utils/logger'
 import { downloadJsonFile } from '@/utils/file-downloader'
@@ -237,7 +238,7 @@ const emit = defineEmits<Emits>()
 const { nodes, edges, addNode, addEdge, setNodes, setEdges } = useGraphState()
 
 // 获取坐标投影函数（将屏幕坐标转换为画布坐标）
-const { project } = useVueFlow()
+const { project, fitView } = useVueFlow()
 
 // 注册自定义节点类型
 const nodeTypes = {
@@ -1601,6 +1602,39 @@ async function handleImport(file: File) {
     // TODO: 显示错误提示
     throw error
   }
+}
+
+/**
+ * 一键自动布局
+ * 使用 dagre 算法自动调整所有节点位置
+ */
+function handleAutoLayout() {
+  if (nodes.value.length === 0) {
+    logger.warn('[FlowCanvas] No nodes to layout')
+    return
+  }
+
+  logger.info('[FlowCanvas] Starting auto layout', {
+    nodeCount: nodes.value.length,
+    edgeCount: edges.value.length
+  })
+
+  // 执行布局计算
+  const layoutedNodes = layoutGraph(nodes.value, edges.value, {
+    direction: 'TB',        // 从上到下
+    rankSpacing: 120,       // 层级间距
+    nodeSpacing: 80         // 节点间距
+  })
+
+  // 更新节点位置
+  setNodes(layoutedNodes)
+
+  // 适应视口
+  nextTick(() => {
+    fitView({ padding: 0.2, duration: 300 })
+  })
+
+  logger.info('[FlowCanvas] Auto layout completed')
 }
 
 /**
@@ -3758,6 +3792,7 @@ defineExpose({
   openEditOutputDialog,
   handleExport,
   handleImport,
+  handleAutoLayout,
   handleConfigParams,
   handleConfigGroupBy,
   handleConfigExpression,

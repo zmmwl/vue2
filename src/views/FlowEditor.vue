@@ -3,6 +3,7 @@
     <FlowHeader
       @export="handleExport"
       @import="handleImport"
+      @auto-layout="handleAutoLayout"
     />
     <div class="editor-content">
       <FlowSidebar />
@@ -210,6 +211,14 @@ function handleExport() {
  */
 function handleImport() {
   fileInputRef.value?.click()
+}
+
+/**
+ * 处理自动布局事件
+ */
+function handleAutoLayout() {
+  flowCanvasRef.value?.handleAutoLayout()
+  logger.info('[FlowEditor] Auto layout triggered')
 }
 
 /**
