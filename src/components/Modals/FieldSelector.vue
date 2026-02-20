@@ -33,6 +33,7 @@
               <table class="field-table">
                 <thead>
                   <tr>
+                    <th class="col-drag"></th>
                     <th class="col-select">选择</th>
                     <th class="col-name">字段名</th>
                     <th class="col-type">类型</th>
@@ -43,9 +44,20 @@
                 <tbody>
                   <tr
                     v-for="(field, index) in fields"
-                    :key="index"
-                    :class="{ selected: field.selected }"
+                    :key="field.columnName"
+                    :class="{
+                      selected: field.selected,
+                      dragging: dragState.index === index
+                    }"
+                    :draggable="field.selected"
+                    @dragstart="handleDragStart($event, index)"
+                    @dragend="handleDragEnd"
+                    @dragover="handleDragOver($event, index)"
+                    @drop="handleDrop($event, index)"
                   >
+                    <td class="col-drag">
+                      <span v-if="field.selected" class="drag-handle" title="拖拽排序">⋮⋮</span>
+                    </td>
                     <td class="col-select">
                       <input
                         :id="`field-select-${index}`"
@@ -112,7 +124,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, reactive } from 'vue'
 import type { FieldInfo, FieldMapping } from '@/types/nodes'
 
 interface FieldMappingWithSelection extends FieldMapping {
@@ -156,6 +168,11 @@ const globalJoinType = ref<'INNER' | 'CROSS'>('INNER')
 
 // 字段列表（带选择状态）
 const fields = ref<FieldMappingWithSelection[]>([])
+
+// 拖拽状态
+const dragState = reactive({
+  index: -1
+})
 
 // 已选择的字段数量
 const selectedCount = ref(0)
@@ -287,6 +304,60 @@ function checkAllAliases() {
   conflictedAliases.value = conflicts
 }
 
+// ========== 拖拽排序相关 ==========
+
+/**
+ * 拖拽开始
+ */
+function handleDragStart(event: DragEvent, index: number) {
+  dragState.index = index
+
+  if (event.dataTransfer) {
+    event.dataTransfer.effectAllowed = 'move'
+    event.dataTransfer.setData('text/plain', index.toString())
+  }
+}
+
+/**
+ * 拖拽结束
+ */
+function handleDragEnd() {
+  dragState.index = -1
+}
+
+/**
+ * 拖拽经过
+ */
+function handleDragOver(event: DragEvent, _index: number) {
+  event.preventDefault()
+  if (event.dataTransfer) {
+    event.dataTransfer.dropEffect = 'move'
+  }
+}
+
+/**
+ * 放置
+ */
+function handleDrop(event: DragEvent, targetIndex: number) {
+  event.preventDefault()
+
+  if (dragState.index === -1 || dragState.index === targetIndex) {
+    return
+  }
+
+  // 重新排序
+  const fieldsList = [...fields.value]
+  const removed = fieldsList.splice(dragState.index, 1)
+  const movedField = removed[0]
+  if (movedField) {
+    fieldsList.splice(targetIndex, 0, movedField)
+    fields.value = fieldsList
+  }
+
+  // 重置拖拽状态
+  handleDragEnd()
+}
+
 /**
  * 获取选中的字段映射
  */
@@ -331,6 +402,7 @@ function handleClose() {
   emit('update:modelValue', false)
   fields.value = []
   conflictedAliases.value.clear()
+  dragState.index = -1
 }
 </script>
 
@@ -433,6 +505,11 @@ function handleClose() {
       border-bottom: 1px solid #e8e8e8;
       white-space: nowrap;
 
+      &.col-drag {
+        width: 40px;
+        text-align: center;
+      }
+
       &.col-select {
         width: 50px;
         text-align: center;
@@ -474,18 +551,40 @@ function handleClose() {
         background-color: #e6f7ff;
       }
 
+      &.dragging {
+        opacity: 0.5;
+        background-color: #bae7ff;
+      }
+
       td {
         padding: 10px 8px;
 
-        &.col-select {
-          text-align: center;
-        }
-
+        &.col-drag,
+        &.col-select,
         &.col-join {
           text-align: center;
         }
       }
     }
+  }
+}
+
+.drag-handle {
+  display: inline-block;
+  cursor: grab;
+  color: #bfbfbf;
+  font-size: 14px;
+  opacity: 0.6;
+  transition: all 0.2s;
+  padding: 4px;
+
+  &:hover {
+    opacity: 1;
+    color: #1890ff;
+  }
+
+  &:active {
+    cursor: grabbing;
   }
 }
 
