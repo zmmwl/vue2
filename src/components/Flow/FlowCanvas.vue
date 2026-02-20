@@ -1606,7 +1606,10 @@ async function handleImport(file: File) {
 
 /**
  * 一键自动布局
- * 使用 dagre 算法自动调整所有节点位置
+ * 使用自定义布局算法：
+ * - 主数据流自上而下
+ * - 模型节点在所属计算任务左侧
+ * - 算力节点在所属计算任务右侧
  */
 function handleAutoLayout() {
   if (nodes.value.length === 0) {
@@ -1621,9 +1624,11 @@ function handleAutoLayout() {
 
   // 执行布局计算
   const layoutedNodes = layoutGraph(nodes.value, edges.value, {
-    direction: 'TB',        // 从上到下
-    rankSpacing: 120,       // 层级间距
-    nodeSpacing: 80         // 节点间距
+    nodeWidth: 280,
+    nodeHeight: 120,
+    verticalSpacing: 180,     // 层级间距
+    horizontalSpacing: 400,   // 节点水平间距
+    sideNodeOffset: 300       // 侧边节点偏移
   })
 
   // 更新节点位置
