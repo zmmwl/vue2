@@ -4502,6 +4502,7 @@ onUnmounted(() => {
   width: 100%;
   height: 100%;
   background-color: #ffffff;
+  overflow: hidden;
 }
 
 // n8n 风格控制按钮样式

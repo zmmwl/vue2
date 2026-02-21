@@ -34,6 +34,8 @@
         @config-model-node="handleConfigModelNode"
         @edit-output="handleEditOutput"
         @config-input-provider="handleConfigInputProvider"
+        @config-pir-task="handleConfigPIRTask"
+        @config-fl-task="handleConfigFLTask"
       />
     </div>
     <!-- 隐藏的文件输入用于导入 -->
@@ -200,6 +202,30 @@ function handleConfigInputProvider(data: { taskId: string; sourceNodeId: string;
 }
 
 /**
+ * 处理 PIR 任务配置事件
+ */
+function handleConfigPIRTask(nodeId: string) {
+  logger.info('[FlowEditor] Config PIR task event received', { nodeId })
+  // 直接调用 FlowCanvas 中定义的处理函数
+  const flowCanvas = flowCanvasRef.value as any
+  if (flowCanvas && typeof flowCanvas.handleConfigPIRTask === 'function') {
+    flowCanvas.handleConfigPIRTask(nodeId)
+  }
+}
+
+/**
+ * 处理 FL 任务配置事件
+ */
+function handleConfigFLTask(nodeId: string) {
+  logger.info('[FlowEditor] Config FL task event received', { nodeId })
+  // 直接调用 FlowCanvas 中定义的处理函数
+  const flowCanvas = flowCanvasRef.value as any
+  if (flowCanvas && typeof flowCanvas.handleConfigFLTask === 'function') {
+    flowCanvas.handleConfigFLTask(nodeId)
+  }
+}
+
+/**
  * 处理导出事件
  */
 function handleExport() {
@@ -299,7 +325,7 @@ onUnmounted(() => {
 .editor-content {
   display: flex;
   flex: 1;
-  overflow: hidden;
+  overflow: visible;
   position: relative;
 }
 
