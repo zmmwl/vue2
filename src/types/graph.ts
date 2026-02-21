@@ -20,6 +20,12 @@ export interface DroppedNodeData {
   type: string
   modelType?: string  // 模型类型（用于模型节点）
   participantId?: string  // 参与方ID（用于算力资源配置）
+  flTask?: {  // FL 任务信息（用于联邦学习任务）
+    taskName: string
+    taskDisplayName: string
+    category: string
+    mode: string
+  }
 }
 
 // 流程验证结果

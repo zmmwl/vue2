@@ -418,3 +418,139 @@ export async function createLocalQueryNodeDirectly(
     { timeout: 5000 }
   );
 }
+
+/**
+ * FL 任务类型定义
+ */
+export type FLMode = 'training' | 'inference';
+export type FLTaskCategory = 'preprocessing' | 'feature_engineering' | 'horizontal_model' | 'vertical_model' | 'inference';
+
+/**
+ * 直接创建 FL 任务节点（用于测试）
+ */
+export async function createFLTaskNodeDirectly(
+  page: Page,
+  options: {
+    taskName: string;
+    taskDisplayName: string;
+    category: FLTaskCategory;
+    mode: FLMode;
+    icon?: string;
+    position?: { x: number; y: number };
+  }
+): Promise<void> {
+  const { taskName, taskDisplayName, category, mode, icon = '🎓', position = { x: 400, y: 200 } } = options;
+
+  await page.evaluate((opts) => {
+    const categoryColors: Record<string, string> = {
+      preprocessing: '#52C41A',
+      feature_engineering: '#1890FF',
+      horizontal_model: '#722ED1',
+      vertical_model: '#EB2F96',
+      inference: '#FA8C16'
+    };
+
+    const flTaskData = {
+      type: 'fl_task',
+      label: opts.taskDisplayName,
+      category: 'compute_task',
+      taskType: 'federated_learning',
+      icon: opts.icon,
+      color: categoryColors[opts.category] || '#1890FF',
+      flTask: {
+        taskName: opts.taskName,
+        taskDisplayName: opts.taskDisplayName,
+        category: opts.category,
+        mode: opts.mode
+      }
+    };
+
+    window.dispatchEvent(new CustomEvent('create-test-node', {
+      detail: { data: flTaskData, position: opts.position }
+    }));
+  }, { taskName, taskDisplayName, category, mode, icon, position });
+
+  // Wait for the node to be added to DOM
+  await page.waitForFunction(
+    () => document.querySelectorAll('.vue-flow__node').length > 0,
+    { timeout: 5000 }
+  );
+}
+
+/**
+ * 悬停并展开 FL 训练菜单
+ */
+export async function hoverAndExpandFLTrainingMenu(page: Page): Promise<void> {
+  // 使用 JavaScript 直接触发 mouseenter 事件
+  await page.evaluate(() => {
+    const flSections = document.querySelectorAll('.fl-section');
+    flSections.forEach((section) => {
+      if (section.textContent?.includes('联邦学习训练')) {
+        const event = new MouseEvent('mouseenter', {
+          bubbles: true,
+          cancelable: true,
+          view: window
+        });
+        section.dispatchEvent(event);
+      }
+    });
+  });
+
+  await page.waitForTimeout(300);
+
+  // 等待子菜单出现
+  const submenu = page.locator('.fl-submenu');
+  await submenu.first().waitFor({ state: 'visible', timeout: 5000 }).catch(() => {});
+}
+
+/**
+ * 悬停并展开 FL 推断菜单
+ */
+export async function hoverAndExpandFLInferenceMenu(page: Page): Promise<void> {
+  // 使用 JavaScript 直接触发 mouseenter 事件
+  await page.evaluate(() => {
+    const flSections = document.querySelectorAll('.fl-section');
+    flSections.forEach((section) => {
+      if (section.textContent?.includes('联邦学习推断')) {
+        const event = new MouseEvent('mouseenter', {
+          bubbles: true,
+          cancelable: true,
+          view: window
+        });
+        section.dispatchEvent(event);
+      }
+    });
+  });
+
+  await page.waitForTimeout(300);
+
+  // 等待子菜单出现
+  const submenu = page.locator('.fl-submenu');
+  await submenu.first().waitFor({ state: 'visible', timeout: 5000 }).catch(() => {});
+}
+
+/**
+ * 悬停并展开 FL 分类菜单
+ */
+export async function hoverAndExpandFLCategory(page: Page, categoryName: string): Promise<void> {
+  // 使用 JavaScript 直接触发 mouseenter 事件
+  await page.evaluate((name) => {
+    const categories = document.querySelectorAll('.fl-category');
+    categories.forEach((category) => {
+      if (category.textContent?.includes(name)) {
+        const event = new MouseEvent('mouseenter', {
+          bubbles: true,
+          cancelable: true,
+          view: window
+        });
+        category.dispatchEvent(event);
+      }
+    });
+  }, categoryName);
+
+  await page.waitForTimeout(300);
+
+  // 等待任务列表出现
+  const taskList = page.locator('.fl-task-list');
+  await taskList.first().waitFor({ state: 'visible', timeout: 5000 }).catch(() => {});
+}

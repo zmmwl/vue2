@@ -1,5 +1,7 @@
 <template>
-  <div class="flow-sidebar" ref="sidebarRef">
+  <div class="flow-sidebar">
+    <!-- 滚动内容容器 -->
+    <div class="sidebar-content" ref="sidebarRef">
     <!-- 数据源部分 -->
     <div class="sidebar-section" ref="dataSourceSectionRef">
       <div class="section-title">数据源</div>
@@ -52,6 +54,118 @@
           </div>
         </div>
       </div>
+    </div>
+
+    <!-- 联邦学习训练部分 (三级菜单) -->
+    <div
+      class="sidebar-section fl-section"
+      @mouseenter="flTrainingExpanded = true"
+      @mouseleave="flTrainingExpanded = false; activeFlTrainingCategory = null"
+    >
+      <div class="section-title">
+        <span class="section-icon">🎓</span>
+        联邦学习训练
+        <span class="expand-arrow">▸</span>
+      </div>
+
+      <!-- 二级菜单：任务类型 -->
+      <Transition name="slide">
+        <div v-if="flTrainingExpanded" class="fl-submenu">
+          <div
+            v-for="category in FL_TRAINING_MENU.categories"
+            :key="category.category"
+            class="fl-category"
+            @mouseenter="activeFlTrainingCategory = category.category"
+          >
+            <div class="fl-category-title">
+              <span class="category-icon">{{ category.icon }}</span>
+              {{ category.name }}
+              <span class="expand-arrow">▸</span>
+            </div>
+
+            <!-- 三级菜单：具体任务 -->
+            <Transition name="slide">
+              <div
+                v-if="activeFlTrainingCategory === category.category"
+                class="fl-task-list"
+              >
+                <div
+                  v-for="task in category.tasks"
+                  :key="task.taskName"
+                  class="palette-node fl-task-node"
+                  draggable="true"
+                  :style="{ '--fl-color': getFLCategoryColor(category.category) }"
+                  @dragstart="onDragStartFLTask($event, task, category.category, FLMode.TRAINING)"
+                >
+                  <div class="palette-node-icon">{{ task.icon }}</div>
+                  <div class="palette-node-content">
+                    <div class="palette-node-label">{{ task.name }}</div>
+                    <div v-if="task.description" class="palette-node-desc">
+                      {{ task.description }}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </Transition>
+          </div>
+        </div>
+      </Transition>
+    </div>
+
+    <!-- 联邦学习推断部分 (三级菜单) -->
+    <div
+      class="sidebar-section fl-section"
+      @mouseenter="flInferenceExpanded = true"
+      @mouseleave="flInferenceExpanded = false; activeFlInferenceCategory = null"
+    >
+      <div class="section-title">
+        <span class="section-icon">🔮</span>
+        联邦学习推断
+        <span class="expand-arrow">▸</span>
+      </div>
+
+      <!-- 二级菜单：任务类型 -->
+      <Transition name="slide">
+        <div v-if="flInferenceExpanded" class="fl-submenu">
+          <div
+            v-for="category in FL_INFERENCE_MENU.categories"
+            :key="category.category"
+            class="fl-category"
+            @mouseenter="activeFlInferenceCategory = category.category"
+          >
+            <div class="fl-category-title">
+              <span class="category-icon">{{ category.icon }}</span>
+              {{ category.name }}
+              <span class="expand-arrow">▸</span>
+            </div>
+
+            <!-- 三级菜单：具体任务 -->
+            <Transition name="slide">
+              <div
+                v-if="activeFlInferenceCategory === category.category"
+                class="fl-task-list"
+              >
+                <div
+                  v-for="task in category.tasks"
+                  :key="task.taskName"
+                  class="palette-node fl-task-node"
+                  draggable="true"
+                  :style="{ '--fl-color': getFLCategoryColor(category.category) }"
+                  @dragstart="onDragStartFLTask($event, task, category.category, FLMode.INFERENCE)"
+                >
+                  <div class="palette-node-icon">{{ task.icon }}</div>
+                  <div class="palette-node-content">
+                    <div class="palette-node-label">{{ task.name }}</div>
+                    <div v-if="task.description" class="palette-node-desc">
+                      {{ task.description }}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </Transition>
+          </div>
+        </div>
+      </Transition>
     </div>
 
     <!-- 计算模型部分 -->
@@ -144,6 +258,7 @@
         </div>
       </div>
     </div>
+    </div><!-- /.sidebar-content -->
   </div>
 </template>
 
@@ -151,10 +266,19 @@
 import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { DATA_SOURCE_TEMPLATES, COMPUTE_TASK_TEMPLATES, MODEL_TEMPLATES, RESOURCE_TEMPLATES, LOCAL_TASK_TEMPLATES } from '@/utils/node-templates'
 import type { NodeTemplate } from '@/types/nodes'
-import { ComputeTaskType } from '@/types/nodes'
+import { ComputeTaskType, NodeCategory } from '@/types/nodes'
+import { FL_TRAINING_MENU, FL_INFERENCE_MENU, getFLCategoryColor } from '@/utils/fl-task-templates'
+import { FLTaskCategory, FLMode } from '@/types/fl-tasks'
+import type { FLTaskMenuItem } from '@/types/fl-tasks'
 
 // 高亮状态
 const highlightType = ref<'models' | 'computes' | null>(null)
+
+// FL 菜单展开状态
+const flTrainingExpanded = ref(false)
+const flInferenceExpanded = ref(false)
+const activeFlTrainingCategory = ref<FLTaskCategory | null>(null)
+const activeFlInferenceCategory = ref<FLTaskCategory | null>(null)
 
 // Section 引用
 const sidebarRef = ref<HTMLElement | null>(null)
@@ -218,6 +342,40 @@ const onDragStart = (event: DragEvent, template: NodeTemplate) => {
       return
     }
     event.dataTransfer.setData('application/vueflow', JSON.stringify(template))
+    event.dataTransfer.effectAllowed = 'move'
+  }
+}
+
+/**
+ * 处理 FL 任务拖拽开始事件
+ */
+const onDragStartFLTask = (
+  event: DragEvent,
+  task: FLTaskMenuItem,
+  category: FLTaskCategory,
+  mode: FLMode
+) => {
+  if (event.dataTransfer) {
+    const flTaskTemplate: NodeTemplate = {
+      type: 'fl_task',
+      label: task.name,
+      category: NodeCategory.COMPUTE_TASK,
+      taskType: ComputeTaskType.FL,
+      icon: task.icon,
+      color: getFLCategoryColor(category),
+      description: task.description
+    }
+    // 附加 FL 任务信息
+    const data = {
+      ...flTaskTemplate,
+      flTask: {
+        taskName: task.taskName,
+        taskDisplayName: task.name,
+        category,
+        mode
+      }
+    }
+    event.dataTransfer.setData('application/vueflow', JSON.stringify(data))
     event.dataTransfer.effectAllowed = 'move'
   }
 }
@@ -291,8 +449,15 @@ const onDragStartLocalTask = (event: DragEvent) => {
   border-right: 1px solid var(--glass-border);
   display: flex;
   flex-direction: column;
-  overflow-y: auto;
+  overflow: visible;
+  position: relative;
   box-shadow: 4px 0 16px rgba(0, 0, 0, 0.05);
+}
+
+.sidebar-content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: visible;
 
   &::-webkit-scrollbar {
     width: 5px;
@@ -514,5 +679,148 @@ const onDragStartLocalTask = (event: DragEvent) => {
     border-color: #1890ff;
     box-shadow: 0 4px 16px rgba(24, 144, 255, 0.3);
   }
+}
+
+// ========== 联邦学习三级菜单样式 ==========
+
+.fl-section {
+  position: relative;
+
+  .section-title {
+    cursor: pointer;
+    user-select: none;
+
+    .section-icon {
+      margin-right: 8px;
+    }
+
+    .expand-arrow {
+      margin-left: auto;
+      font-size: 12px;
+      color: var(--text-secondary);
+      transition: transform 0.2s ease;
+    }
+  }
+
+  &:hover .expand-arrow {
+    transform: translateX(2px);
+  }
+}
+
+.fl-submenu {
+  position: absolute;
+  left: 100%;
+  top: 0;
+  width: 200px;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  z-index: 100;
+  padding: 8px 0;
+}
+
+.fl-category {
+  position: relative;
+
+  .fl-category-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s ease;
+
+    .category-icon {
+      font-size: 16px;
+    }
+
+    .expand-arrow {
+      margin-left: auto;
+      font-size: 11px;
+      color: var(--text-secondary);
+      transition: transform 0.2s ease;
+    }
+
+    &:hover {
+      background: var(--list-item-hover-bg);
+    }
+  }
+
+  &:hover .expand-arrow {
+    transform: translateX(2px);
+  }
+}
+
+.fl-task-list {
+  position: absolute;
+  left: 100%;
+  top: 0;
+  width: 180px;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  z-index: 101;
+  padding: 8px;
+  max-height: 300px;
+  overflow-y: auto;
+
+  &::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 2px;
+  }
+}
+
+.fl-task-node {
+  --fl-color: var(--datasource-blue);
+  padding: 10px 12px;
+  margin-bottom: 6px;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+
+  &::before {
+    background: var(--fl-color);
+  }
+
+  &:hover {
+    border-color: var(--fl-color);
+
+    .palette-node-label {
+      color: var(--fl-color);
+    }
+  }
+
+  .palette-node-icon {
+    background: linear-gradient(135deg, var(--fl-color), var(--fl-color) 100%);
+    background-size: 0% 100%;
+    background-position: left;
+    background-repeat: no-repeat;
+    transition: background-size 0.2s ease;
+
+    &:hover {
+      background-size: 100% 100%;
+    }
+  }
+}
+
+// 滑入动画
+.slide-enter-active,
+.slide-leave-active {
+  transition: all 0.2s ease-out;
+}
+
+.slide-enter-from,
+.slide-leave-to {
+  opacity: 0;
+  transform: translateX(-8px);
 }
 </style>

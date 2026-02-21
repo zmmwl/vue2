@@ -167,6 +167,25 @@
       @cancel="handleLocalQueryEditorCancel"
     />
 
+    <!-- 实时数据源配置弹窗 -->
+    <RealtimeDataSourceConfig
+      v-model="showRealtimeDataSourceDialog"
+      :initial-data="pendingRealtimeDataSource"
+      :source-node-id="realtimeSourceNodeId"
+      :imported-fields="importedRealtimeFields"
+      @confirm="handleRealtimeDataSourceConfirm"
+    />
+
+    <!-- FL 任务配置弹窗 -->
+    <FLTaskConfig
+      v-model="showFLTaskConfigDialog"
+      :initial-data="pendingFLTaskData"
+      :task-name="pendingFLTaskData?.taskName"
+      :fl-mode="pendingFLTaskData?.flMode"
+      :fl-category="pendingFLTaskData?.flCategory"
+      @confirm="handleFLTaskConfigConfirm"
+    />
+
     <!-- 错误提示 Toast -->
     <Transition name="toast">
       <div v-if="showErrorToast" class="error-toast">
@@ -196,6 +215,8 @@ import ModelNode from '@/components/Nodes/ModelNode.vue'
 import ComputeResourceNode from '@/components/Nodes/ComputeResourceNode.vue'
 import LocalTaskNode from '@/components/Nodes/LocalTaskNode.vue'
 import LocalQueryNode from '@/components/Nodes/LocalQueryNode.vue'
+import FLTaskNode from '@/components/Nodes/FLTaskNode.vue'
+import PIRTaskNode from '@/components/Nodes/PIRTaskNode.vue'
 import FlowEdge from '@/components/Edges/FlowEdge.vue'
 import AssetSelectorDialog from '@/components/Dialogs/AssetSelectorDialog.vue'
 import TechPathSelector from '@/components/Modals/TechPathSelector.vue'
@@ -212,6 +233,8 @@ import UnifiedResourceSelector from '@/components/Modals/UnifiedResourceSelector
 import GroupByConfig from '@/components/Modals/GroupByConfig.vue'
 import TypeSelector from '@/components/Modals/TypeSelector.vue'
 import LocalQueryEditor from '@/components/Modals/LocalQueryEditor.vue'
+import RealtimeDataSourceConfig from '@/components/Modals/RealtimeDataSourceConfig.vue'
+import FLTaskConfig from '@/components/Modals/FLTaskConfig.vue'
 import { MODEL_TEMPLATES, RESOURCE_TEMPLATES } from '@/utils/node-templates'
 import { createUniqueEdge } from '@/utils/edge-utils'
 import { layoutGraph } from '@/utils/layout-utils'
@@ -248,7 +271,9 @@ const nodeTypes = {
   modelNode: markRaw(ModelNode),
   computeResource: markRaw(ComputeResourceNode),
   localTask: markRaw(LocalTaskNode),
-  local_query: markRaw(LocalQueryNode)
+  local_query: markRaw(LocalQueryNode),
+  fl_task: markRaw(FLTaskNode),
+  pir_task: markRaw(PIRTaskNode)
 }
 
 // 注册自定义连接线类型
@@ -370,6 +395,18 @@ const pendingTypeSelectionKind = ref<'model' | 'compute'>('model')
 const showLocalQueryEditorDialog = ref(false)
 const pendingLocalQueryNodeId = ref<string>('')
 const pendingLocalQueryNodeData = ref<LocalQueryNodeData | undefined>(undefined)
+
+// 实时数据源配置弹窗状态
+const showRealtimeDataSourceDialog = ref(false)
+const pendingPIRTaskNodeId = ref<string>('')
+const pendingRealtimeDataSource = ref<import('@/types/nodes').RealtimeDataSourceInfo | undefined>(undefined)
+const realtimeSourceNodeId = ref<string>('')
+const importedRealtimeFields = ref<import('@/types/nodes').RealtimeFieldInfo[]>([])
+
+// FL 任务配置弹窗状态
+const showFLTaskConfigDialog = ref(false)
+const pendingFLTaskNodeId = ref<string>('')
+const pendingFLTaskData = ref<import('@/types/nodes').FLTaskNodeData | undefined>(undefined)
 
 /**
  * 可用的企业选项（按优先级排序）
@@ -604,6 +641,7 @@ const expressionEditorInputProviders = computed(() => {
  * 1. 两个数据源节点不能直接连接
  * 2. 连接必须从输出 handle 连接到输入 handle
  * 3. 不能连接到同一个节点
+ * 4. PIR 任务节点有两种输入：预加载数据源(preload-input)和实时数据源(realtime-input)
  */
 const isValidConnection = (
   connection: Connection,
@@ -623,7 +661,24 @@ const isValidConnection = (
     return false
   }
 
-  // 规则 2: 连接到计算任务节点或本地任务节点时，根据源节点类型自动修正 targetHandle
+  // 规则 2: 连接到 PIR 任务节点时，根据源节点类型自动修正 targetHandle
+  if (targetNode.type === 'pir_task') {
+    let correctHandle: string
+    // 如果源节点是 PIR 输出（实时数据源），连接到 realtime-input
+    if ((sourceData as any).isPIROutput || sourceData.category === NodeCategory.OUTPUT_DATA) {
+      correctHandle = connection.targetHandle === 'preload-input' ? 'preload-input' : 'realtime-input'
+    } else {
+      // 普通数据源连接到 preload-input
+      correctHandle = 'preload-input'
+    }
+
+    // 直接修改 connection 对象的 targetHandle
+    if (connection.targetHandle && connection.targetHandle !== correctHandle) {
+      ;(connection as any).targetHandle = correctHandle
+    }
+  }
+
+  // 规则 3: 连接到计算任务节点或本地任务节点时，根据源节点类型自动修正 targetHandle
   if (targetData.category === NodeCategory.COMPUTE_TASK || targetData.category === NodeCategory.LOCAL_TASK) {
     // 根据源节点类型确定正确的 targetHandle
     let correctHandle: string
@@ -645,7 +700,7 @@ const isValidConnection = (
     }
   }
 
-  // 规则 3: 连接必须从源节点的输出 handle 开始
+  // 规则 4: 连接必须从源节点的输出 handle 开始
   if (connection.sourceHandle !== 'output') {
     console.warn('⚠️ 连接被拒绝：必须从源节点的输出 handle (output) 开始')
     return false
@@ -767,6 +822,28 @@ const onConnect = (connection: Connection) => {
     // 打开字段选择对话框
     showFieldSelectorDialog.value = true
     logger.info('[FlowCanvas] Opening field selector dialog for connection')
+  } else if (targetNode.type === 'pir_task') {
+    // 处理 PIR 任务节点连接
+    // 直接创建连接，PIR 任务不需要字段选择对话框
+    const newEdge = createUniqueEdge({
+      source: correctedConnection.source,
+      target: correctedConnection.target,
+      sourceHandle: correctedConnection.sourceHandle || 'output',
+      targetHandle: correctedConnection.targetHandle || 'preload-input'
+    }, edges.value, sourceData.category)
+
+    // 如果连接到 realtime-input，使用特殊样式
+    if (correctedConnection.targetHandle === 'realtime-input') {
+      newEdge.animated = true
+      newEdge.style = { stroke: '#13c2c2', strokeWidth: 2 }
+    }
+
+    addEdge(newEdge)
+    logger.info('[FlowCanvas] Created PIR task connection', {
+      source: correctedConnection.source,
+      target: correctedConnection.target,
+      targetHandle: correctedConnection.targetHandle
+    })
   } else {
     // 直接创建连接（非计算任务节点）
     const newEdge = createUniqueEdge({
@@ -1141,6 +1218,10 @@ const onDrop = (event: DragEvent) => {
         showTechPathDialog.value = true
         logger.info('[FlowCanvas] Opening tech path selector dialog for compute task')
       }
+    } else if (data.type === 'fl_task' && (data as any).flTask) {
+      // 联邦学习任务节点：直接创建，稍后配置参数
+      logger.info('[FlowCanvas] Creating FL task node', { flTask: (data as any).flTask })
+      createFLTaskNode(data as any)
     } else if (data.category === 'model') {
       // 模型节点：检查是否拖拽到计算任务节点上
       const targetElement = document.elementFromPoint(event.clientX, event.clientY)
@@ -1214,14 +1295,32 @@ const onDrop = (event: DragEvent) => {
         logger.warn('[FlowCanvas] No target node found for compute resource drop')
       }
     } else if (data.category === 'localTask' || data.category === NodeCategory.LOCAL_TASK) {
-      // 本地任务节点：弹出企业选择对话框
+      // 本地任务节点
+      const isTestMode = !!(window as any).__PLAYWRIGHT_TEST__
+
       pendingLocalTaskData.value = data
       // 保存节点位置，用于创建节点时使用
       if ('offsetX' in event) {
         pendingNodePosition.value = { x: event.offsetX, y: event.offsetY }
       }
-      showLocalTaskEnterpriseDialog.value = true
-      logger.info('[FlowCanvas] Opening local task enterprise selector dialog')
+
+      if (isTestMode) {
+        // 测试模式：直接使用默认企业创建节点
+        logger.info('[FlowCanvas] Test mode detected, creating local task node with default enterprise')
+        const defaultParticipantId = 'test_enterprise_001'
+        if (data.computeType === LocalTaskType.LOCAL_QUERY || data.type === 'local_query') {
+          createLocalQueryNode(data, defaultParticipantId)
+        } else {
+          createLocalTaskNode(data, defaultParticipantId)
+        }
+        // 清理状态
+        pendingLocalTaskData.value = null
+        pendingNodePosition.value = null
+      } else {
+        // 非测试模式：弹出企业选择对话框
+        showLocalTaskEnterpriseDialog.value = true
+        logger.info('[FlowCanvas] Opening local task enterprise selector dialog')
+      }
     } else {
       // 其他节点类型直接创建
       createNode(data, event)
@@ -1337,6 +1436,51 @@ function createLocalQueryNode(
     type: newNode.type,
     participantId,
     entityName
+  })
+}
+
+/**
+ * 创建联邦学习任务节点
+ */
+function createFLTaskNode(data: DroppedNodeData & { flTask: {
+  taskName: string
+  taskDisplayName: string
+  category: any
+  mode: any
+} }) {
+  // 使用保存的位置或默认位置
+  const position = pendingNodePosition.value || { x: 100, y: 100 }
+
+  const flTask = data.flTask
+
+  const newNode: Node = {
+    id: `node_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    type: 'fl_task',
+    position,
+    data: {
+      label: flTask.taskDisplayName,
+      category: NodeCategory.COMPUTE_TASK,
+      taskType: ComputeTaskType.FL,
+      icon: data.icon,
+      color: data.color,
+      description: data.description,
+      // FL 任务特有字段
+      flCategory: flTask.category,
+      flMode: flTask.mode,
+      taskName: flTask.taskName,
+      taskDisplayName: flTask.taskDisplayName,
+      inputProviders: [],
+      parameters: {}
+    } as any
+  }
+
+  addNode(newNode)
+  logger.info('[FlowCanvas] FL task node created', {
+    nodeId: newNode.id,
+    type: newNode.type,
+    taskName: flTask.taskName,
+    category: flTask.category,
+    mode: flTask.mode
   })
 }
 
@@ -1536,6 +1680,16 @@ function onNodeClick(event: any) {
 
   // 发出节点选中事件
   emit('node-selected', clickedNode)
+
+  // 处理 PIR 任务节点点击 - 打开实时数据源配置
+  if (clickedNode.type === 'pir_task') {
+    openRealtimeDataSourceConfig(clickedNodeId)
+  }
+
+  // 处理 FL 任务节点点击 - 打开任务配置弹窗
+  if (clickedNode.type === 'fl_task') {
+    openFLTaskConfig(clickedNodeId)
+  }
 }
 
 /**
@@ -1799,6 +1953,212 @@ function handleLocalQueryEditorCancel() {
   showLocalQueryEditorDialog.value = false
   pendingLocalQueryNodeId.value = ''
   pendingLocalQueryNodeData.value = undefined
+}
+
+/**
+ * 处理实时数据源配置确认
+ */
+function handleRealtimeDataSourceConfirm(data: import('@/types/nodes').RealtimeDataSourceInfo) {
+  const node = nodes.value.find(n => n.id === pendingPIRTaskNodeId.value)
+  if (!node) {
+    logger.warn('[FlowCanvas] PIR task node not found for realtime datasource update', { nodeId: pendingPIRTaskNodeId.value })
+    return
+  }
+
+  // 更新节点数据
+  const nodeData = node.data as import('@/types/nodes').PIRTaskNodeData
+  nodeData.realtimeDataSource = data
+
+  logger.info('[FlowCanvas] PIR task realtime datasource updated', {
+    nodeId: pendingPIRTaskNodeId.value,
+    sourceType: data.sourceType,
+    fieldCount: data.fields?.length || 0
+  })
+
+  // 关闭弹窗
+  showRealtimeDataSourceDialog.value = false
+  pendingPIRTaskNodeId.value = ''
+  pendingRealtimeDataSource.value = undefined
+}
+
+/**
+ * 打开实时数据源配置弹窗
+ */
+function openRealtimeDataSourceConfig(nodeId: string) {
+  const node = nodes.value.find(n => n.id === nodeId)
+  if (!node) {
+    logger.warn('[FlowCanvas] PIR task node not found', { nodeId })
+    return
+  }
+
+  const nodeData = node.data as import('@/types/nodes').PIRTaskNodeData
+
+  // 设置待处理状态
+  pendingPIRTaskNodeId.value = nodeId
+  pendingRealtimeDataSource.value = nodeData.realtimeDataSource
+
+  // 检查是否有上游连接到 realtime-input handle
+  const incomingEdge = edges.value.find(e =>
+    e.target === nodeId && e.targetHandle === 'realtime-input'
+  )
+
+  if (incomingEdge) {
+    realtimeSourceNodeId.value = incomingEdge.source
+    // 获取上游节点的字段信息
+    const sourceNode = nodes.value.find(n => n.id === incomingEdge.source)
+    if (sourceNode && sourceNode.data) {
+      const sourceData = sourceNode.data
+      // 如果上游是 OutputDataNode 且是 PIR 输出
+      if ((sourceData as any).isPIROutput) {
+        importedRealtimeFields.value = (sourceData as any).fields?.map((f: any) => ({
+          name: f.columnName || f.name,
+          dataType: f.columnType || f.dataType || 'STRING',
+          description: f.columnAlias || f.description || ''
+        })) || []
+      } else if ((sourceData as any).selectedFields) {
+        // 如果是普通数据源节点
+        importedRealtimeFields.value = (sourceData as any).selectedFields.map((f: string) => ({
+          name: f,
+          dataType: 'STRING',
+          description: ''
+        }))
+      }
+    }
+  } else {
+    realtimeSourceNodeId.value = ''
+    importedRealtimeFields.value = []
+  }
+
+  showRealtimeDataSourceDialog.value = true
+  logger.info('[FlowCanvas] Opening realtime datasource config', {
+    nodeId,
+    hasConnection: !!incomingEdge,
+    importedFieldCount: importedRealtimeFields.value.length
+  })
+}
+
+/**
+ * 打开 FL 任务配置弹窗
+ */
+function openFLTaskConfig(nodeId: string) {
+  const node = nodes.value.find(n => n.id === nodeId)
+  if (!node) {
+    logger.warn('[FlowCanvas] FL task node not found', { nodeId })
+    return
+  }
+
+  const nodeData = node.data as import('@/types/nodes').FLTaskNodeData
+
+  pendingFLTaskNodeId.value = nodeId
+  pendingFLTaskData.value = nodeData
+
+  showFLTaskConfigDialog.value = true
+  logger.info('[FlowCanvas] Opening FL task config', {
+    nodeId,
+    taskName: nodeData.taskName,
+    flMode: nodeData.flMode,
+    flCategory: nodeData.flCategory
+  })
+}
+
+/**
+ * 处理 FL 任务配置确认
+ */
+function handleFLTaskConfigConfirm(data: Partial<import('@/types/nodes').FLTaskNodeData>) {
+  const node = nodes.value.find(n => n.id === pendingFLTaskNodeId.value)
+  if (!node) {
+    logger.warn('[FlowCanvas] FL task node not found for update', { nodeId: pendingFLTaskNodeId.value })
+    return
+  }
+
+  // 更新节点数据
+  const nodeData = node.data as import('@/types/nodes').FLTaskNodeData
+  Object.assign(nodeData, data)
+
+  logger.info('[FlowCanvas] FL task node updated', {
+    nodeId: pendingFLTaskNodeId.value,
+    taskName: data.taskName,
+    hasParameters: !!data.parameters
+  })
+
+  // 对于特征工程和模型任务，自动生成输出节点
+  if (nodeData.flCategory !== 'preprocess' && nodeData.inputProviders && nodeData.inputProviders.length > 0) {
+    // 先清理旧的输出节点
+    if (nodeData.outputNodeId) {
+      const oldOutputNode = nodes.value.find(n => n.id === nodeData.outputNodeId)
+      if (oldOutputNode) {
+        setNodes(nodes.value.filter(n => n.id !== nodeData.outputNodeId))
+        // 删除相关连线
+        setEdges(edges.value.filter(e => e.source !== nodeData.outputNodeId && e.target !== nodeData.outputNodeId))
+      }
+    }
+
+    // 创建新的输出节点（所有参与方共享一个输出）
+    const participantIds = [...new Set(nodeData.inputProviders.map(p => p.participantId))]
+    const outputNodeId = `fl_output_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+
+    // 收集所有字段
+    const allFields: import('@/types/nodes').OutputField[] = []
+    nodeData.inputProviders.forEach(provider => {
+      provider.fields.forEach(field => {
+        allFields.push({
+          source: 'input',
+          columnName: field.columnName,
+          columnAlias: field.columnAlias,
+          columnType: field.columnType
+        })
+      })
+    })
+
+    // 输出节点位置
+    const outputPosition = {
+      x: node.position.x,
+      y: node.position.y + 150
+    }
+
+    const outputNode: Node = {
+      id: outputNodeId,
+      type: 'outputData',
+      position: outputPosition,
+      data: {
+        label: `${nodeData.taskDisplayName || 'FL任务'}输出`,
+        category: NodeCategory.OUTPUT_DATA,
+        color: '#722ed1',
+        icon: '📤',
+        description: `联邦学习任务输出`,
+        parentTaskId: pendingFLTaskNodeId.value,
+        participantId: participantIds[0] || '',
+        entityName: participantIds.length > 1 ? `${participantIds.length}个参与方` : '',
+        dataset: `${nodeData.taskDisplayName || 'fl'}_output`,
+        fields: allFields
+      } as any
+    }
+
+    addNode(outputNode)
+
+    // 创建连线
+    const outputEdge = createUniqueEdge({
+      source: pendingFLTaskNodeId.value,
+      target: outputNodeId,
+      sourceHandle: 'output',
+      targetHandle: 'input'
+    }, edges.value, NodeCategory.COMPUTE_TASK)
+    edges.value.push(outputEdge)
+
+    // 更新节点的输出节点ID
+    nodeData.outputNodeId = outputNodeId
+
+    logger.info('[FlowCanvas] FL task output node created', {
+      taskId: pendingFLTaskNodeId.value,
+      outputNodeId,
+      participantCount: participantIds.length
+    })
+  }
+
+  // 关闭弹窗
+  showFLTaskConfigDialog.value = false
+  pendingFLTaskNodeId.value = ''
+  pendingFLTaskData.value = undefined
 }
 
 /**
@@ -2499,6 +2859,40 @@ function handleConfigInputProvider(data: { taskId: string; sourceNodeId: string;
 }
 
 /**
+ * 处理 PIR 任务配置事件（从 FlowDetailPanel 触发）
+ */
+function handleConfigPIRTask(nodeId: string) {
+  logger.info('[FlowCanvas] Config PIR task event received', { nodeId })
+
+  // 查找 PIR 任务节点
+  const taskNode = nodes.value.find(n => n.id === nodeId)
+  if (!taskNode) {
+    logger.warn('[FlowCanvas] PIR task node not found', { nodeId })
+    return
+  }
+
+  // 打开 PIR 任务配置弹窗
+  openRealtimeDataSourceConfig(nodeId)
+}
+
+/**
+ * 处理 FL 任务配置事件（从 FlowDetailPanel 触发）
+ */
+function handleConfigFLTask(nodeId: string) {
+  logger.info('[FlowCanvas] Config FL task event received', { nodeId })
+
+  // 查找 FL 任务节点
+  const taskNode = nodes.value.find(n => n.id === nodeId)
+  if (!taskNode) {
+    logger.warn('[FlowCanvas] FL task node not found', { nodeId })
+    return
+  }
+
+  // 打开 FL 任务配置弹窗
+  openFLTaskConfig(nodeId)
+}
+
+/**
  * 确认参数配置
  */
 function handleParamConfigConfirm(parameters: ModelParameter[]) {
@@ -2941,7 +3335,7 @@ function handleCreateTestNode(event: Event) {
   const customEvent = event as CustomEvent
   const { data, position } = customEvent.detail
 
-  logger.info('[FlowCanvas] create-test-node data:', { category: data.category, position })
+  logger.info('[FlowCanvas] create-test-node data:', { category: data.category, type: data.type, position })
 
   // 保存节点位置
   pendingNodePosition.value = position
@@ -2972,6 +3366,53 @@ function handleCreateTestNode(event: Event) {
       assetInfo,
       selectedFields: fieldInfos
     })
+  } else if (category === 'localtask' || category === 'local_task') {
+    // 对于本地任务节点，使用默认企业创建
+    logger.info('[FlowCanvas] Creating local task node from test event', {
+      type: data.type,
+      computeType: data.computeType
+    })
+
+    const defaultParticipantId = 'test_enterprise_001'
+
+    if (data.computeType === LocalTaskType.LOCAL_QUERY || data.type === 'local_query') {
+      createLocalQueryNode(data, defaultParticipantId)
+    } else {
+      createLocalTaskNode(data, defaultParticipantId)
+    }
+
+    // 清理状态
+    pendingLocalTaskData.value = null
+    pendingNodePosition.value = null
+  } else if (category === 'compute_task' || category === NodeCategory.COMPUTE_TASK || data.type === 'fl_task') {
+    // 对于计算任务节点（包括 FL 任务）
+    logger.info('[FlowCanvas] Creating compute task node from test event', {
+      type: data.type,
+      taskType: data.taskType,
+      flTask: data.flTask
+    })
+
+    // 使用默认技术路径创建
+    const techPath = TechPath.SOFTWARE
+
+    // 创建节点数据
+    const nodeData: DroppedNodeData = {
+      type: data.type || 'compute_task',
+      label: data.label,
+      category: NodeCategory.COMPUTE_TASK,
+      taskType: data.taskType || ComputeTaskType.FL,
+      icon: data.icon || '🎓',
+      color: data.color || '#1890ff',
+      description: data.description || '',
+      flTask: data.flTask
+    }
+
+    // 直接创建节点
+    createNode(nodeData, position || { x: 400, y: 200 }, techPath)
+
+    // 清理状态
+    pendingNodeData.value = null
+    pendingNodePosition.value = null
   } else {
     logger.warn('[FlowCanvas] Unsupported category in create-test-node:', category)
   }
@@ -3804,7 +4245,9 @@ defineExpose({
   handleConfigCompute,
   handleConfigOutput,
   handleConfigModelNode,
-  handleConfigInputProvider
+  handleConfigInputProvider,
+  handleConfigPIRTask,
+  handleConfigFLTask
 })
 
 /**
