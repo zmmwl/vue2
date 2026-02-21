@@ -266,6 +266,10 @@ const flCardExpanded = ref(false)
 const activeFLMode = ref<FLMode>(FLMode.TRAINING)
 const hoveredCategory = ref<FLTaskCategory | null>(null)
 
+// 离开计时器
+let categoryLeaveTimer: ReturnType<typeof setTimeout> | null = null
+let taskCardLeaveTimer: ReturnType<typeof setTimeout> | null = null
+
 // 卡片位置
 const flCardSubmenuStyle = ref<{ top: string; left: string }>({ top: '0px', left: '0px' })
 const flTaskCardStyle = ref<{ top: string; left: string }>({ top: '0px', left: '0px' })
@@ -306,7 +310,6 @@ function updateFLCardSubmenuPosition() {
   if (!flCardRef.value) return
   const rect = flCardRef.value.getBoundingClientRect()
 
-  const submenuWidth = 200
   const viewportHeight = window.innerHeight
   const headerHeight = 60
   const estimatedHeight = 280
@@ -321,9 +324,11 @@ function updateFLCardSubmenuPosition() {
   // 确保不超出顶部
   top = Math.max(headerHeight, top)
 
+  const left = rect.right + 8
+
   flCardSubmenuStyle.value = {
     top: `${top}px`,
-    left: `${rect.right + 8}px`
+    left: `${left}px`
   }
 }
 
@@ -346,6 +351,7 @@ function updateFLTaskCardPosition() {
  * 处理 FL 卡片进入
  */
 function handleFLCardEnter() {
+  // 先计算位置，再展开
   updateFLCardSubmenuPosition()
   flCardExpanded.value = true
 }
@@ -370,10 +376,11 @@ function handleFLCardLeave() {
  * 切换 FL 卡片展开状态
  */
 function toggleFLCard() {
-  flCardExpanded.value = !flCardExpanded.value
-  if (flCardExpanded.value) {
+  // 先计算位置，再展开（这样元素出现时就有正确的位置）
+  if (!flCardExpanded.value) {
     updateFLCardSubmenuPosition()
   }
+  flCardExpanded.value = !flCardExpanded.value
 }
 
 /**
@@ -389,12 +396,18 @@ function handleFLSubmenuEnter() {
 function handleFLSubmenuLeave() {
   setTimeout(() => {
     const taskCard = document.querySelector('.fl-task-card')
-    if (taskCard && taskCard.matches(':hover')) {
+    const flCard = document.querySelector('.fl-trigger-card')
+    const categoryCard = document.querySelector('.fl-category-card:hover')
+
+    // 如果任务卡片、触发卡片或类别卡片仍被悬停，则保持状态
+    if ((taskCard && taskCard.matches(':hover')) ||
+        (flCard && flCard.matches(':hover')) ||
+        categoryCard) {
       return
     }
     flCardExpanded.value = false
     hoveredCategory.value = null
-  }, 200)
+  }, 300)
 }
 
 /**
@@ -411,27 +424,66 @@ function handleCategoryEnter(category: FLTaskCategory) {
  * 处理类别离开
  */
 function handleCategoryLeave() {
-  setTimeout(() => {
+  // 清除之前的计时器
+  if (categoryLeaveTimer) {
+    clearTimeout(categoryLeaveTimer)
+  }
+  // 设置新计时器，给用户足够时间移动到任务卡片
+  categoryLeaveTimer = setTimeout(() => {
+    // 检查任务卡片是否被悬停
     const taskCard = document.querySelector('.fl-task-card')
     if (taskCard && taskCard.matches(':hover')) {
       return
     }
+    // 检查是否有任何类别卡片被悬停
+    const hoveredCategoryCard = document.querySelector('.fl-category-card:hover')
+    if (hoveredCategoryCard) {
+      return
+    }
     hoveredCategory.value = null
-  }, 200)
+    categoryLeaveTimer = null
+  }, 300) // 增加到 300ms
 }
 
 /**
  * 处理任务卡片进入
  */
 function handleTaskCardEnter() {
-  // 保持状态
+  // 清除类别离开计时器，防止任务卡片消失
+  if (categoryLeaveTimer) {
+    clearTimeout(categoryLeaveTimer)
+    categoryLeaveTimer = null
+  }
+  // 清除任务卡片离开计时器
+  if (taskCardLeaveTimer) {
+    clearTimeout(taskCardLeaveTimer)
+    taskCardLeaveTimer = null
+  }
 }
 
 /**
  * 处理任务卡片离开
  */
 function handleTaskCardLeave() {
-  hoveredCategory.value = null
+  // 清除之前的计时器
+  if (taskCardLeaveTimer) {
+    clearTimeout(taskCardLeaveTimer)
+  }
+  // 设置新计时器，给用户足够时间移动回类别卡片
+  taskCardLeaveTimer = setTimeout(() => {
+    // 检查是否有类别卡片被悬停
+    const hoveredCard = document.querySelector('.fl-category-card.is-hovered')
+    if (hoveredCard && hoveredCard.matches(':hover')) {
+      return
+    }
+    // 检查是否有任何类别卡片被悬停（备用检查）
+    const anyHoveredCategory = document.querySelector('.fl-category-card:hover')
+    if (anyHoveredCategory) {
+      return
+    }
+    hoveredCategory.value = null
+    taskCardLeaveTimer = null
+  }, 300) // 增加到 300ms
 }
 
 /**
@@ -1038,12 +1090,11 @@ const onDragStartLocalTask = (event: DragEvent) => {
 // 卡片滑入动画
 .fl-card-slide-enter-active,
 .fl-card-slide-leave-active {
-  transition: all 0.2s ease-out;
+  transition: opacity 0.2s ease-out;
 }
 
 .fl-card-slide-enter-from,
 .fl-card-slide-leave-to {
   opacity: 0;
-  transform: translateX(-8px);
 }
 </style>
