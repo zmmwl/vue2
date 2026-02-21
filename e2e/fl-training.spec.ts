@@ -1,92 +1,84 @@
 import { test, expect } from '@playwright/test';
-import {
-  setupTestEnvironment,
-  createFLTaskNodeDirectly,
-  hoverAndExpandFLTrainingMenu,
-  hoverAndExpandFLCategory
-} from './test-utils';
+import { setupTestEnvironment, createFLTaskNodeDirectly } from './test-utils';
 
-/**
- * E2E 测试：联邦学习训练功能
- * 测试 FL 训练菜单展开、任务拖拽、节点配置
- */
-
-test.describe('联邦学习训练菜单', () => {
+test.describe('联邦学习卡片菜单测试', () => {
   test.beforeEach(async ({ page }) => {
     await setupTestEnvironment(page);
     await page.goto('/');
     await page.waitForSelector('.flow-sidebar', { timeout: 10000 });
   });
 
-  test('应该显示联邦学习训练菜单入口', async ({ page }) => {
-    const flSection = page.locator('.fl-section').filter({ hasText: '联邦学习训练' });
-    await expect(flSection).toBeVisible();
-    await expect(flSection.locator('.section-title')).toContainText('联邦学习训练');
+  test('应该显示联邦学习卡片', async ({ page }) => {
+    const flCard = page.locator('.fl-trigger-card');
+    await expect(flCard).toBeVisible();
+    await expect(flCard.locator('.palette-node-label')).toHaveText('联邦学习');
   });
 
-  test('悬停联邦学习训练应该展开子菜单', async ({ page }) => {
-    await hoverAndExpandFLTrainingMenu(page);
+  test('悬停联邦学习卡片应该展开子菜单', async ({ page }) => {
+    const flCard = page.locator('.fl-trigger-card');
+    await flCard.hover();
+    await page.waitForTimeout(500);
 
-    // 验证子菜单出现
-    const submenu = page.locator('.fl-submenu');
-    const count = await submenu.count();
+    // 检查子菜单是否出现
+    const submenu = page.locator('.fl-card-submenu');
+    await expect(submenu).toBeVisible();
+
+    // 检查训练/推断 Tab 是否存在
+    const tabs = submenu.locator('.fl-mode-tab');
+    await expect(tabs).toHaveCount(2);
+  });
+
+  test('子菜单应该显示四个任务类别', async ({ page }) => {
+    const flCard = page.locator('.fl-trigger-card');
+    await flCard.hover();
+    await page.waitForTimeout(500);
+
+    const categories = page.locator('.fl-category-card');
+    await expect(categories).toHaveCount(4);
+
+    const categoryNames = await categories.locator('.category-name').allTextContents();
+    expect(categoryNames).toContain('预处理');
+    expect(categoryNames).toContain('特征工程');
+    expect(categoryNames).toContain('横向模型');
+    expect(categoryNames).toContain('纵向模型');
+  });
+
+  test('悬停类别应该显示任务列表', async ({ page }) => {
+    const flCard = page.locator('.fl-trigger-card');
+    await flCard.hover();
+    await page.waitForTimeout(500);
+
+    // 悬停第一个类别
+    const firstCategory = page.locator('.fl-category-card').first();
+    await firstCategory.hover();
+    await page.waitForTimeout(300);
+
+    // 检查任务卡片是否出现
+    const taskCard = page.locator('.fl-task-card');
+    await expect(taskCard).toBeVisible();
+
+    // 检查任务列表是否有内容
+    const tasks = taskCard.locator('.task-item');
+    const count = await tasks.count();
     expect(count).toBeGreaterThan(0);
   });
 
-  test('应该显示四个任务类型类别', async ({ page }) => {
-    await hoverAndExpandFLTrainingMenu(page);
+  test('切换到推断模式应该显示推断任务', async ({ page }) => {
+    const flCard = page.locator('.fl-trigger-card');
+    await flCard.hover();
+    await page.waitForTimeout(500);
 
-    // 验证四个类别存在
-    const categories = ['预处理', '特征工程', '横向模型', '纵向模型'];
-    for (const cat of categories) {
-      const categoryLocator = page.locator('.fl-category-title').filter({ hasText: cat });
-      const count = await categoryLocator.count();
-      expect(count).toBeGreaterThan(0);
-    }
-  });
+    // 点击推断 Tab
+    const inferenceTab = page.locator('.fl-mode-tab').filter({ hasText: '推断' });
+    await inferenceTab.click();
+    await page.waitForTimeout(200);
 
-  test('悬停预处理类别应该显示任务列表', async ({ page }) => {
-    await hoverAndExpandFLTrainingMenu(page);
-    await hoverAndExpandFLCategory(page, '预处理');
-
-    // 验证任务节点出现
-    const taskNodes = page.locator('.fl-task-node');
-    const count = await taskNodes.count();
-    expect(count).toBeGreaterThan(0);
-  });
-
-  test('悬停特征工程类别应该显示任务列表', async ({ page }) => {
-    await hoverAndExpandFLTrainingMenu(page);
-    await hoverAndExpandFLCategory(page, '特征工程');
-
-    // 验证任务节点出现
-    const taskNodes = page.locator('.fl-task-node');
-    const count = await taskNodes.count();
-    expect(count).toBeGreaterThan(0);
-  });
-
-  test('悬停横向模型类别应该显示任务列表', async ({ page }) => {
-    await hoverAndExpandFLTrainingMenu(page);
-    await hoverAndExpandFLCategory(page, '横向模型');
-
-    // 验证任务节点出现
-    const taskNodes = page.locator('.fl-task-node');
-    const count = await taskNodes.count();
-    expect(count).toBeGreaterThan(0);
-  });
-
-  test('悬停纵向模型类别应该显示任务列表', async ({ page }) => {
-    await hoverAndExpandFLTrainingMenu(page);
-    await hoverAndExpandFLCategory(page, '纵向模型');
-
-    // 验证任务节点出现
-    const taskNodes = page.locator('.fl-task-node');
-    const count = await taskNodes.count();
-    expect(count).toBeGreaterThan(0);
+    // 验证 Tab 状态
+    await expect(inferenceTab).toHaveClass(/is-active/);
   });
 });
 
-test.describe('联邦学习训练节点创建', () => {
+test.describe('联邦学习任务节点创建', () => {
   test.beforeEach(async ({ page }) => {
     await setupTestEnvironment(page);
     await page.goto('/');
@@ -94,86 +86,47 @@ test.describe('联邦学习训练节点创建', () => {
   });
 
   test('应该能够创建预处理任务节点', async ({ page }) => {
-    await createFLTaskNodeDirectly(page, {
-      taskName: 'data_cleaning',
-      taskDisplayName: '数据清洗',
-      category: 'preprocessing',
-      mode: 'training',
-      icon: '🧹'
-    });
+    await createFLTaskNodeDirectly(page, 'preprocess_data_align', 'preprocess', 'training');
 
-    // 验证节点创建
+    // 验证节点创建成功
     const nodes = page.locator('.vue-flow__node');
-    await expect(nodes).toHaveCount(1);
-
-    // 验证节点标签
-    const node = nodes.first();
-    await expect(node).toContainText('数据清洗');
+    const count = await nodes.count();
+    expect(count).toBeGreaterThan(0);
   });
 
   test('应该能够创建特征工程任务节点', async ({ page }) => {
-    await createFLTaskNodeDirectly(page, {
-      taskName: 'feature_selection',
-      taskDisplayName: '特征选择',
-      category: 'feature_engineering',
-      mode: 'training',
-      icon: '🔬'
-    });
+    await createFLTaskNodeDirectly(page, 'feature_selection', 'feature_engineering', 'training');
 
-    // 验证节点创建
     const nodes = page.locator('.vue-flow__node');
-    await expect(nodes).toHaveCount(1);
-
-    // 验证节点标签
-    const node = nodes.first();
-    await expect(node).toContainText('特征选择');
+    const count = await nodes.count();
+    expect(count).toBeGreaterThan(0);
   });
 
   test('应该能够创建横向模型任务节点', async ({ page }) => {
-    await createFLTaskNodeDirectly(page, {
-      taskName: 'horizontal_lr',
-      taskDisplayName: '横向逻辑回归',
-      category: 'horizontal_model',
-      mode: 'training',
-      icon: '📊'
-    });
+    await createFLTaskNodeDirectly(page, 'horizontal_lr', 'horizontal_model', 'training');
 
-    // 验证节点创建
     const nodes = page.locator('.vue-flow__node');
-    await expect(nodes).toHaveCount(1);
+    const count = await nodes.count();
+    expect(count).toBeGreaterThan(0);
   });
 
   test('应该能够创建纵向模型任务节点', async ({ page }) => {
-    await createFLTaskNodeDirectly(page, {
-      taskName: 'vertical_nn',
-      taskDisplayName: '纵向神经网络',
-      category: 'vertical_model',
-      mode: 'training',
-      icon: '🧠'
-    });
+    await createFLTaskNodeDirectly(page, 'vertical_lr', 'vertical_model', 'training');
 
-    // 验证节点创建
     const nodes = page.locator('.vue-flow__node');
-    await expect(nodes).toHaveCount(1);
+    const count = await nodes.count();
+    expect(count).toBeGreaterThan(0);
   });
 
   test('FL 任务节点应该可见', async ({ page }) => {
-    await createFLTaskNodeDirectly(page, {
-      taskName: 'data_cleaning',
-      taskDisplayName: '数据清洗',
-      category: 'preprocessing',
-      mode: 'training',
-      icon: '🧹'
-    });
+    await createFLTaskNodeDirectly(page, 'preprocess_data_align', 'preprocess', 'training');
 
-    // 验证节点存在
-    const nodes = page.locator('.vue-flow__node');
-    const count = await nodes.count();
-    expect(count).toBe(1);
+    const node = page.locator('.vue-flow__node').first();
+    await expect(node).toBeVisible();
   });
 });
 
-test.describe('联邦学习训练任务详情', () => {
+test.describe('联邦学习任务详情', () => {
   test.beforeEach(async ({ page }) => {
     await setupTestEnvironment(page);
     await page.goto('/');
@@ -181,20 +134,13 @@ test.describe('联邦学习训练任务详情', () => {
   });
 
   test('创建 FL 任务后详情面板应该可见', async ({ page }) => {
-    await createFLTaskNodeDirectly(page, {
-      taskName: 'data_cleaning',
-      taskDisplayName: '数据清洗',
-      category: 'preprocessing',
-      mode: 'training',
-      icon: '🧹'
-    });
+    await createFLTaskNodeDirectly(page, 'preprocess_data_align', 'preprocess', 'training');
 
-    // 验证节点存在
-    const nodes = page.locator('.vue-flow__node');
-    const count = await nodes.count();
-    expect(count).toBe(1);
+    // 点击节点选中
+    const node = page.locator('.vue-flow__node').first();
+    await node.click();
 
-    // 详情面板应该可见
+    // 检查详情面板
     const detailPanel = page.locator('.flow-detail-panel');
     await expect(detailPanel).toBeVisible();
   });

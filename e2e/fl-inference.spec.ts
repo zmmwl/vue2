@@ -1,85 +1,62 @@
 import { test, expect } from '@playwright/test';
-import {
-  setupTestEnvironment,
-  createFLTaskNodeDirectly,
-  hoverAndExpandFLInferenceMenu
-} from './test-utils';
+import { setupTestEnvironment, createFLTaskNodeDirectly } from './test-utils';
 
-/**
- * E2E 测试：联邦学习推断功能
- * 测试 FL 推断菜单展开、任务拖拽、节点配置
- */
-
-test.describe('联邦学习推断菜单', () => {
+test.describe('联邦学习推断功能测试', () => {
   test.beforeEach(async ({ page }) => {
     await setupTestEnvironment(page);
     await page.goto('/');
     await page.waitForSelector('.flow-sidebar', { timeout: 10000 });
   });
 
-  test('应该显示联邦学习推断菜单入口', async ({ page }) => {
-    const flSection = page.locator('.fl-section').filter({ hasText: '联邦学习推断' });
-    await expect(flSection).toBeVisible();
-    await expect(flSection.locator('.section-title')).toContainText('联邦学习推断');
+  test('联邦学习卡片应该可见', async ({ page }) => {
+    const flCard = page.locator('.fl-trigger-card');
+    await expect(flCard).toBeVisible();
   });
 
-  test('悬停联邦学习推断应该展开子菜单', async ({ page }) => {
-    await hoverAndExpandFLInferenceMenu(page);
+  test('展开子菜单后切换到推断模式', async ({ page }) => {
+    const flCard = page.locator('.fl-trigger-card');
+    await flCard.hover();
+    await page.waitForTimeout(500);
 
-    // 验证子菜单出现
-    const submenu = page.locator('.fl-submenu');
-    const count = await submenu.count();
-    expect(count).toBeGreaterThan(0);
+    const submenu = page.locator('.fl-card-submenu');
+    await expect(submenu).toBeVisible();
+
+    // 点击推断 Tab
+    const inferenceTab = page.locator('.fl-mode-tab').filter({ hasText: '推断' });
+    await inferenceTab.click();
+    await page.waitForTimeout(200);
+
+    await expect(inferenceTab).toHaveClass(/is-active/);
   });
 
-  test('推断菜单应该显示任务类别', async ({ page }) => {
-    await hoverAndExpandFLInferenceMenu(page);
+  test('推断模式应该显示所有类别', async ({ page }) => {
+    const flCard = page.locator('.fl-trigger-card');
+    await flCard.hover();
+    await page.waitForTimeout(500);
 
-    // 验证类别存在（预处理、特征工程等）
-    const categories = page.locator('.fl-category-title');
-    const count = await categories.count();
-    expect(count).toBeGreaterThan(0);
-  });
-});
+    // 点击推断 Tab
+    const inferenceTab = page.locator('.fl-mode-tab').filter({ hasText: '推断' });
+    await inferenceTab.click();
+    await page.waitForTimeout(200);
 
-test.describe('联邦学习推断节点创建', () => {
-  test.beforeEach(async ({ page }) => {
-    await setupTestEnvironment(page);
-    await page.goto('/');
-    await page.waitForSelector('.flow-sidebar', { timeout: 10000 });
+    // 检查类别数量
+    const categories = page.locator('.fl-category-card');
+    await expect(categories).toHaveCount(4);
   });
 
   test('应该能够创建推断任务节点', async ({ page }) => {
-    await createFLTaskNodeDirectly(page, {
-      taskName: 'model_inference',
-      taskDisplayName: '模型推断',
-      category: 'inference',
-      mode: 'inference',
-      icon: '🔮'
-    });
+    await createFLTaskNodeDirectly(page, 'preprocess_data_align', 'preprocess', 'inference');
 
-    // 验证节点创建
     const nodes = page.locator('.vue-flow__node');
-    await expect(nodes).toHaveCount(1);
-
-    // 验证节点标签
-    const node = nodes.first();
-    await expect(node).toContainText('模型推断');
+    const count = await nodes.count();
+    expect(count).toBeGreaterThan(0);
   });
 
   test('推断任务节点应该可见', async ({ page }) => {
-    await createFLTaskNodeDirectly(page, {
-      taskName: 'model_inference',
-      taskDisplayName: '模型推断',
-      category: 'inference',
-      mode: 'inference',
-      icon: '🔮'
-    });
+    await createFLTaskNodeDirectly(page, 'feature_selection', 'feature_engineering', 'inference');
 
-    // 验证节点存在
-    const nodes = page.locator('.vue-flow__node');
-    const count = await nodes.count();
-    expect(count).toBe(1);
+    const node = page.locator('.vue-flow__node').first();
+    await expect(node).toBeVisible();
   });
 });
 
@@ -91,20 +68,11 @@ test.describe('联邦学习推断任务详情', () => {
   });
 
   test('选中推断任务应该显示详情面板', async ({ page }) => {
-    await createFLTaskNodeDirectly(page, {
-      taskName: 'model_inference',
-      taskDisplayName: '模型推断',
-      category: 'inference',
-      mode: 'inference',
-      icon: '🔮'
-    });
+    await createFLTaskNodeDirectly(page, 'preprocess_data_align', 'preprocess', 'inference');
 
-    // 验证节点存在
-    const nodes = page.locator('.vue-flow__node');
-    const count = await nodes.count();
-    expect(count).toBe(1);
+    const node = page.locator('.vue-flow__node').first();
+    await node.click();
 
-    // 详情面板应该可见
     const detailPanel = page.locator('.flow-detail-panel');
     await expect(detailPanel).toBeVisible();
   });

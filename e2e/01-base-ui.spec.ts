@@ -70,18 +70,12 @@ test.describe('侧边栏节点类型', () => {
     expect(count).toBeGreaterThan(0)
   })
 
-  test('应该显示联邦学习训练菜单', async ({ page }) => {
+  test('应该显示联邦学习卡片', async ({ page }) => {
     const sidebar = page.locator('.flow-sidebar')
-    // 联邦学习训练菜单存在
-    const flSection = sidebar.locator('.fl-section')
-    const count = await flSection.count()
-    expect(count).toBeGreaterThanOrEqual(0)
-  })
-
-  test('应该显示联邦学习推断菜单', async ({ page }) => {
-    const sidebar = page.locator('.flow-sidebar')
-    // 检查是否有更多 FL 相关内容
-    await expect(sidebar).toBeVisible()
+    // 联邦学习卡片存在（在计算任务部分）
+    const flCard = sidebar.locator('.fl-trigger-card')
+    await expect(flCard).toBeVisible()
+    await expect(flCard.locator('.palette-node-label')).toHaveText('联邦学习')
   })
 })
 
