@@ -5,8 +5,9 @@
 
 import type { Connection, Edge } from '@vue-flow/core'
 import type { GraphNode } from '@vue-flow/core'
-import type { NodeData } from '@/types/nodes'
+import type { NodeData, FLTaskNodeData } from '@/types/nodes'
 import { NodeCategory } from '@/types/nodes'
+import { FLTaskCategory, FLMode } from '@/types/fl-tasks'
 
 /**
  * 验证连接是否有效
@@ -33,7 +34,7 @@ export function isValidConnection(
   }
 
   // 规则 2: 目标节点必须有输入 handle
-  if (connection.targetHandle !== 'input' && connection.targetHandle !== 'right') {
+  if (connection.targetHandle !== 'input' && connection.targetHandle !== 'right' && connection.targetHandle !== 'preload-input' && connection.targetHandle !== 'realtime-input') {
     return false
   }
 
@@ -42,10 +43,81 @@ export function isValidConnection(
     return false
   }
 
-  // 规则 4: 阻止连线到不支持类型的节点（如联邦学习）
-  // 这将在后续实现中根据实际需求添加
+  // 规则 4: FL 任务节点连接验证
+  if (targetNode.type === 'fl_task') {
+    const flTaskData = targetData as FLTaskNodeData
+
+    // 数据源只能连接到数据源输入（不是模型/算力输入）
+    if (sourceData.category === NodeCategory.DATA_SOURCE) {
+      // 对于推断任务，必须先选择已部署模型
+      if (flTaskData.flMode === FLMode.INFERENCE && !flTaskData.deployedModelId) {
+        return false
+      }
+    }
+  }
+
+  // 规则 5: 验证 FL 任务是否需要更多输入
+  if (targetNode.type === 'fl_task') {
+    const flTaskData = targetData as FLTaskNodeData
+
+    // 预处理任务只接受一个数据源
+    if (flTaskData.flCategory === FLTaskCategory.PREPROCESS) {
+      // 这里不检查连接数量，由 FlowCanvas 处理
+      // 但可以添加其他验证逻辑
+    }
+  }
 
   return true
+}
+
+/**
+ * 获取 FL 任务的最大输入数量
+ * 根据任务类别返回允许的最大数据源连接数
+ */
+export function getFLTaskMaxInputs(category: FLTaskCategory, mode: FLMode): number {
+  // 预处理任务只接受一个数据源
+  if (category === FLTaskCategory.PREPROCESS) {
+    return 1
+  }
+
+  // 特征工程和模型训练可以接受多个数据源
+  if (mode === FLMode.TRAINING) {
+    // 特征工程和模型训练：最多4个参与方
+    if (category === FLTaskCategory.FEATURE_ENGINEERING ||
+        category === FLTaskCategory.HORIZONTAL_MODEL ||
+        category === FLTaskCategory.VERTICAL_MODEL) {
+      return 4
+    }
+  }
+
+  // 推断模式：参与方数量由已部署模型决定
+  if (mode === FLMode.INFERENCE) {
+    // 这里返回一个较高的值，实际限制由已部署模型的参与方数量决定
+    return 10
+  }
+
+  // 默认无限制
+  return Infinity
+}
+
+/**
+ * 验证 FL 任务是否可以接受更多数据源输入
+ */
+export function canFLTaskAcceptMoreInputs(
+  node: GraphNode,
+  currentInputCount: number
+): boolean {
+  if (node.type !== 'fl_task') return true
+
+  const flTaskData = node.data as FLTaskNodeData
+  const maxInputs = getFLTaskMaxInputs(flTaskData.flCategory, flTaskData.flMode)
+
+  // 对于推断任务，需要检查已部署模型的参与方数量
+  if (flTaskData.flMode === FLMode.INFERENCE && flTaskData.trainingParticipants) {
+    return currentInputCount < flTaskData.trainingParticipants.length
+  }
+
+  return currentInputCount < maxInputs
 }
 
 /**

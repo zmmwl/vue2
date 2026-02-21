@@ -517,3 +517,90 @@ export interface LocalQueryNodeData extends NodeData {
   // 输出数据集名称（仅输出到执行企业本地）
   outputDataset?: string
 }
+
+// ========== PIR 实时数据源相关类型 ==========
+
+/** 实时数据源字段信息 */
+export interface RealtimeFieldInfo {
+  name: string                  // 字段名称
+  dataType: 'STRING' | 'INTEGER' | 'FLOAT' | 'BOOLEAN' | 'DATE' | 'TIMESTAMP'  // 字段类型
+  description?: string          // 字段描述（可选）
+}
+
+/** 实时数据源信息 */
+export interface RealtimeDataSourceInfo {
+  id: string                    // 实时数据源唯一ID
+  name: string                  // 实时数据源名称
+  sourceType: 'connection' | 'manual'  // 来源类型：连线导入 | 手工录入
+  fields: RealtimeFieldInfo[]   // 字段列表
+  sourceNodeId?: string         // 连线来源节点ID（连线导入时存在）
+}
+
+/** PIR任务节点数据 */
+export interface PIRTaskNodeData extends NodeData {
+  category: NodeCategory.COMPUTE_TASK
+  taskType: ComputeTaskType.PIR
+
+  // 预加载数据源（来自数据资产）
+  preloadDataSource?: InputProvider
+
+  // 实时数据源（来自连线或手工配置）
+  realtimeDataSource?: RealtimeDataSourceInfo
+
+  // 输出数据节点ID（PIR输出以实时数据源样式展示）
+  outputNodeId?: string
+}
+
+// ========== 联邦学习任务相关类型 ==========
+
+/** 联邦学习任务类别 */
+export enum FLTaskCategory {
+  PREPROCESS = 'preprocess',        // 预处理
+  FEATURE_ENGINEERING = 'feature_engineering',  // 特征工程
+  HORIZONTAL_MODEL = 'horizontal',  // 横向模型
+  VERTICAL_MODEL = 'vertical'       // 纵向模型
+}
+
+/** 联邦学习模式 */
+export enum FLMode {
+  TRAINING = 'training',    // 训练模式
+  INFERENCE = 'inference'   // 推断模式
+}
+
+/** 联邦学习任务节点数据 */
+export interface FLTaskNodeData extends NodeData {
+  category: NodeCategory.COMPUTE_TASK
+  taskType: ComputeTaskType.FL
+
+  // FL任务类别
+  flCategory: FLTaskCategory
+  // FL模式（训练/推断）
+  flMode: FLMode
+  // 具体任务名称（如 logistic_regression, secureboost 等）
+  taskName: string
+  // 任务显示名称
+  taskDisplayName: string
+
+  // 输入数据源配置
+  inputProviders?: InputProvider[]
+
+  // 参数配置
+  parameters?: Record<string, any>
+
+  // 已部署模型（仅推断模式）
+  deployedModelId?: string
+  deployedModelName?: string
+  trainingParticipants?: string[]  // 训练参与方列表
+
+  // 输出节点ID
+  outputNodeId?: string
+}
+
+/** 已部署模型信息 */
+export interface DeployedModel {
+  modelId: string                    // 模型ID
+  modelName: string                  // 模型名称
+  modelType?: string                 // 模型类型（horizontal, vertical）
+  participants: string[]             // 训练参与方ID列表
+  createdAt: string                  // 创建时间
+}

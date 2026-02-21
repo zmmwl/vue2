@@ -19,10 +19,10 @@
 
 **Purpose**: 新增类型定义、样式变量、Mock数据结构
 
-- [ ] T001 [P] 扩展节点类型定义，添加 RealtimeDataSourceInfo、PIRTaskNodeData、FLTaskNodeData 等类型 in `src/types/nodes.ts`
-- [ ] T002 [P] 创建联邦学习任务类型定义 (FLTaskCategory, FLMode, FLTaskParameterDef 等) in `src/types/fl-tasks.ts`
-- [ ] T003 [P] 添加联邦学习任务相关颜色变量 in `src/assets/styles/variables.scss`
-- [ ] T004 [P] 创建联邦学习任务Mock数据 (已部署模型、参数模板) in `src/utils/mock-fl-data.ts`
+- [X] T001 [P] 扩展节点类型定义，添加 RealtimeDataSourceInfo、PIRTaskNodeData、FLTaskNodeData 等类型 in `src/types/nodes.ts`
+- [X] T002 [P] 创建联邦学习任务类型定义 (FLTaskCategory, FLMode, FLTaskParameterDef 等) in `src/types/fl-tasks.ts`
+- [X] T003 [P] 添加联邦学习任务相关颜色变量 in `src/assets/styles/variables.scss`
+- [X] T004 [P] 创建联邦学习任务Mock数据 (已部署模型、参数模板) in `src/utils/mock-fl-data.ts`
 
 ---
 
@@ -32,9 +32,9 @@
 
 **⚠️ CRITICAL**: FL任务节点实现依赖此阶段完成
 
-- [ ] T005 创建联邦学习任务模板定义 (预处理、特征工程、横向模型、纵向模型) in `src/utils/fl-task-templates.ts`
-- [ ] T006 重构 FlowSidebar 组件，实现联邦学习训练/推断三级菜单展开 in `src/components/Flow/FlowSidebar.vue`
-- [ ] T007 在 FlowCanvas 中注册 FL 任务节点类型 in `src/components/Flow/FlowCanvas.vue`
+- [X] T005 创建联邦学习任务模板定义 (预处理、特征工程、横向模型、纵向模型) in `src/utils/fl-task-templates.ts`
+- [X] T006 重构 FlowSidebar 组件，实现联邦学习训练/推断三级菜单展开 in `src/components/Flow/FlowSidebar.vue`
+- [X] T007 在 FlowCanvas 中注册 FL 任务节点类型 in `src/components/Flow/FlowCanvas.vue`
 
 **Checkpoint**: 联邦学习菜单可正常展开，任务可拖拽到画布
 
@@ -48,11 +48,11 @@
 
 ### Implementation for User Story 1
 
-- [ ] T008 [P] [US1] 创建实时数据源配置弹窗组件 in `src/components/Modals/RealtimeDataSourceConfig.vue`
-- [ ] T009 [P] [US1] 创建字段编辑器组件（支持手工录入字段名、类型、描述） in `src/components/Modals/FieldEditor.vue`
-- [ ] T010 [US1] 创建PIR专用任务节点组件，区分预加载数据源和实时数据源输入 in `src/components/Nodes/PIRTaskNode.vue`
-- [ ] T011 [US1] 修改 FlowCanvas 支持PIR任务节点的实时数据源配置弹窗 in `src/components/Flow/FlowCanvas.vue`
-- [ ] T012 [US1] 在 FlowDetailPanel 中添加PIR任务详情展示，区分预加载数据源和实时数据源 in `src/components/Flow/FlowDetailPanel.vue`
+- [X] T008 [P] [US1] 创建实时数据源配置弹窗组件 in `src/components/Modals/RealtimeDataSourceConfig.vue`
+- [X] T009 [P] [US1] 创建字段编辑器组件（支持手工录入字段名、类型、描述） in `src/components/Modals/FieldEditor.vue`
+- [X] T010 [US1] 创建PIR专用任务节点组件，区分预加载数据源和实时数据源输入 in `src/components/Nodes/PIRTaskNode.vue`
+- [X] T011 [US1] 修改 FlowCanvas 支持PIR任务节点的实时数据源配置弹窗 in `src/components/Flow/FlowCanvas.vue`
+- [X] T012 [US1] 在 FlowDetailPanel 中添加PIR任务详情展示，区分预加载数据源和实时数据源 in `src/components/Flow/FlowDetailPanel.vue`
 
 **Checkpoint**: PIR任务可配置预加载数据源和实时数据源，实时数据源支持手工录入字段
 
@@ -66,10 +66,10 @@
 
 ### Implementation for User Story 2
 
-- [ ] T013 [US2] 修改 OutputDataNode 组件，添加实时数据源样式支持 in `src/components/Nodes/OutputDataNode.vue`
-- [ ] T014 [US2] 扩展 connection-validator 添加PIR输出连接限制（只能连接到PIR任务） in `src/utils/connection-validator.ts`
-- [ ] T015 [US2] 修改 FlowCanvas 处理PIR输出到PIR的连接，自动识别为实时数据源 in `src/components/Flow/FlowCanvas.vue`
-- [ ] T016 [US2] 实现PIR输出节点字段信息自动传递到下游PIR任务 in `src/components/Flow/FlowCanvas.vue`
+- [X] T013 [US2] 修改 OutputDataNode 组件，添加实时数据源样式支持 in `src/components/Nodes/OutputDataNode.vue`
+- [X] T014 [US2] 扩展 connection-validator 添加PIR输出连接限制（只能连接到PIR任务） in `src/utils/connection-validator.ts`
+- [X] T015 [US2] 修改 FlowCanvas 处理PIR输出到PIR的连接，自动识别为实时数据源 in `src/components/Flow/FlowCanvas.vue`
+- [X] T016 [US2] 实现PIR输出节点字段信息自动传递到下游PIR任务 in `src/components/Flow/FlowCanvas.vue`
 
 **Checkpoint**: PIR输出以实时数据源样式展示，只能连接到PIR任务，链式调用正常
 
@@ -83,10 +83,10 @@
 
 ### Implementation for User Story 3
 
-- [ ] T017 [P] [US3] 创建预处理任务节点组件 in `src/components/Nodes/FLPreprocessNode.vue`
-- [ ] T018 [P] [US3] 创建预处理任务参数配置弹窗 in `src/components/Modals/FLPreprocessConfig.vue`
-- [ ] T019 [US3] 修改 FlowCanvas 支持预处理任务的单数据源输入限制 in `src/components/Flow/FlowCanvas.vue`
-- [ ] T020 [US3] 实现预处理任务在 FlowDetailPanel 中的详情展示和重新编辑 in `src/components/Flow/FlowDetailPanel.vue`
+- [X] T017 [P] [US3] 创建预处理任务节点组件 in `src/components/Nodes/FLPreprocessNode.vue` (使用统一的 FLTaskNode)
+- [X] T018 [P] [US3] 创建预处理任务参数配置弹窗 in `src/components/Modals/FLPreprocessConfig.vue` (使用统一的 FLTaskConfig)
+- [X] T019 [US3] 修改 FlowCanvas 支持预处理任务的单数据源输入限制 in `src/components/Flow/FlowCanvas.vue`
+- [X] T020 [US3] 实现预处理任务在 FlowDetailPanel 中的详情展示和重新编辑 in `src/components/Flow/FlowDetailPanel.vue`
 
 **Checkpoint**: 预处理任务只能接入一个数据源，无输出节点生成
 
@@ -100,10 +100,10 @@
 
 ### Implementation for User Story 4
 
-- [ ] T021 [P] [US4] 创建特征工程任务节点组件 in `src/components/Nodes/FLFeatureNode.vue`
-- [ ] T022 [P] [US4] 创建特征工程任务参数配置弹窗 in `src/components/Modals/FLFeatureConfig.vue`
-- [ ] T023 [US4] 修改 FlowCanvas 支持特征工程任务的多数据源输入和输出节点生成 in `src/components/Flow/FlowCanvas.vue`
-- [ ] T024 [US4] 实现特征工程任务的参与方数量校验 in `src/utils/connection-validator.ts`
+- [X] T021 [P] [US4] 创建特征工程任务节点组件 in `src/components/Nodes/FLFeatureNode.vue` (使用统一的 FLTaskNode)
+- [X] T022 [P] [US4] 创建特征工程任务参数配置弹窗 in `src/components/Modals/FLFeatureConfig.vue` (使用统一的 FLTaskConfig)
+- [X] T023 [US4] 修改 FlowCanvas 支持特征工程任务的多数据源输入和输出节点生成 in `src/components/Flow/FlowCanvas.vue`
+- [X] T024 [US4] 实现特征工程任务的参与方数量校验 in `src/utils/connection-validator.ts`
 
 **Checkpoint**: 特征工程任务支持多方多数据源，生成输出节点
 
@@ -117,11 +117,11 @@
 
 ### Implementation for User Story 5
 
-- [ ] T025 [P] [US5] 创建模型训练任务节点组件 in `src/components/Nodes/FLModelNode.vue`
-- [ ] T026 [P] [US5] 创建模型参数配置弹窗，支持动态参数模板 in `src/components/Modals/FLModelConfig.vue`
-- [ ] T027 [US5] 创建参数输入组件，支持多种参数类型（select, number, text, boolean, multiselect） in `src/components/Modals/ParameterInput.vue`
-- [ ] T028 [US5] 实现模型任务输出节点生成 in `src/components/Flow/FlowCanvas.vue`
-- [ ] T029 [US5] 实现模型任务在 FlowDetailPanel 中的详情展示和重新编辑 in `src/components/Flow/FlowDetailPanel.vue`
+- [X] T025 [P] [US5] 创建模型训练任务节点组件 in `src/components/Nodes/FLModelNode.vue` (使用统一的 FLTaskNode)
+- [X] T026 [P] [US5] 创建模型参数配置弹窗，支持动态参数模板 in `src/components/Modals/FLModelConfig.vue` (使用统一的 FLTaskConfig)
+- [X] T027 [US5] 创建参数输入组件，支持多种参数类型（select, number, text, boolean, multiselect） in `src/components/Modals/ParameterInput.vue`
+- [X] T028 [US5] 实现模型任务输出节点生成 in `src/components/Flow/FlowCanvas.vue`
+- [X] T029 [US5] 实现模型任务在 FlowDetailPanel 中的详情展示和重新编辑 in `src/components/Flow/FlowDetailPanel.vue`
 
 **Checkpoint**: 横向/纵向模型任务支持多种模型类型，参数配置正常
 
@@ -135,11 +135,11 @@
 
 ### Implementation for User Story 6
 
-- [ ] T030 [P] [US6] 创建推断任务节点组件 in `src/components/Nodes/FLInferenceNode.vue`
-- [ ] T031 [P] [US6] 创建已部署模型选择器组件 in `src/components/Modals/DeployedModelSelector.vue`
-- [ ] T032 [US6] 实现已部署模型选择后自动确定推断参与方 in `src/components/Modals/FLInferenceConfig.vue`
-- [ ] T033 [US6] 实现已部署模型被删除时的提示和重新选择功能 in `src/components/Modals/DeployedModelSelector.vue`
-- [ ] T034 [US6] 创建推断任务参数配置弹窗 in `src/components/Modals/FLInferenceConfig.vue`
+- [X] T030 [P] [US6] 创建推断任务节点组件 in `src/components/Nodes/FLInferenceNode.vue` (使用统一的 FLTaskNode)
+- [X] T031 [P] [US6] 创建已部署模型选择器组件 in `src/components/Modals/DeployedModelSelector.vue`
+- [X] T032 [US6] 实现已部署模型选择后自动确定推断参与方 in `src/components/Modals/FLInferenceConfig.vue` (使用统一的 FLTaskConfig)
+- [X] T033 [US6] 实现已部署模型被删除时的提示和重新选择功能 in `src/components/Modals/DeployedModelSelector.vue`
+- [X] T034 [US6] 创建推断任务参数配置弹窗 in `src/components/Modals/FLInferenceConfig.vue` (使用统一的 FLTaskConfig)
 
 **Checkpoint**: 推断任务支持已部署模型选择，选择后参与方自动确定
 
@@ -149,11 +149,11 @@
 
 **Purpose**: 测试、Mock数据完善、JSON导出格式兼容
 
-- [ ] T035 [P] 创建PIR实时数据源E2E测试 in `tests/e2e/pir-realtime-datasource.spec.ts`
-- [ ] T036 [P] 创建联邦学习任务E2E测试 in `tests/e2e/fl-task-workflow.spec.ts`
-- [ ] T037 扩展JSON导出格式，支持PIR和FL任务节点的导出 in `src/components/Flow/JsonPreviewPanel.vue`
-- [ ] T038 验证构建通过 `npm run build`
-- [ ] T039 运行 quickstart.md 中的验证流程
+- [X] T035 [P] 创建PIR实时数据源E2E测试 in `tests/e2e/pir-realtime-datasource.spec.ts`
+- [X] T036 [P] 创建联邦学习任务E2E测试 in `tests/e2e/fl-task-workflow.spec.ts`
+- [X] T037 扩展JSON导出格式，支持PIR和FL任务节点的导出 in `src/components/Flow/JsonPreviewPanel.vue`
+- [X] T038 验证构建通过 `npm run build`
+- [X] T039 运行 quickstart.md 中的验证流程
 
 ---
 

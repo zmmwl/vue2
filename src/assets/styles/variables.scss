@@ -265,4 +265,43 @@ $tag-privacy-text: #f5222d;
   --param-preview-bg: rgba(0, 0, 0, 0.02);
   --param-preview-border: rgba(0, 0, 0, 0.06);
   --param-preview-hover: rgba(14, 165, 233, 0.04);
+
+  // ========== 联邦学习任务颜色 ==========
+
+  // FL 任务类别颜色
+  --fl-preprocess-color: #52C41A;           // 预处理 - 绿色
+  --fl-feature-color: #1890FF;              // 特征工程 - 蓝色
+  --fl-horizontal-color: #722ED1;           // 横向模型 - 紫色
+  --fl-vertical-color: #FA8C16;             // 纵向模型 - 橙色
+
+  // FL 任务类别背景色
+  --fl-preprocess-bg: rgba(82, 196, 26, 0.08);
+  --fl-feature-bg: rgba(24, 144, 255, 0.08);
+  --fl-horizontal-bg: rgba(114, 46, 209, 0.08);
+  --fl-vertical-bg: rgba(250, 140, 22, 0.08);
+
+  // FL 模式徽章颜色
+  --fl-training-badge-bg: #1890FF;          // 训练模式 - 蓝色背景
+  --fl-training-badge-text: #FFFFFF;
+  --fl-inference-badge-bg: #52C41A;         // 推断模式 - 绿色背景
+  --fl-inference-badge-text: #FFFFFF;
+
+  // ========== 实时数据源颜色 ==========
+
+  // 实时数据源节点样式
+  --realtime-datasource-color: #0EA5E9;     // 实时数据源主色（天蓝色）
+  --realtime-datasource-bg: rgba(14, 165, 233, 0.08);
+  --realtime-datasource-border: rgba(14, 165, 233, 0.25);
+  --realtime-datasource-border-style: dashed;  // 虚线边框
+
+  // PIR 输出节点样式（与实时数据源一致）
+  --pir-output-color: #0EA5E9;
+  --pir-output-bg: #E6F7FF;                 // 浅蓝色背景
+  --pir-output-border: #91D5FF;
+  --pir-output-border-style: dashed;
+
+  // 连接验证状态颜色
+  --connection-valid-color: #52C41A;        // 有效连接 - 绿色
+  --connection-invalid-color: #FF4D4F;      // 无效连接 - 红色
+  --connection-invalid-style: dashed;       // 无效连线样式
 }

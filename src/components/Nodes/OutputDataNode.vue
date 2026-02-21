@@ -1,5 +1,13 @@
 <template>
-  <div class="output-data-node" :class="{ selected }" :data-testid="`node-${data.label}`">
+  <div
+    class="output-data-node"
+    :class="{
+      selected,
+      'is-realtime': isRealtimeDataSource,
+      'is-pir-output': isPIROutput
+    }"
+    :data-testid="`node-${data.label}`"
+  >
     <!-- 固定的顶部输入连接点 -->
     <Handle
       id="input"
@@ -13,14 +21,20 @@
       <!-- 头部：图标 + 标题 -->
       <div class="node-header">
         <div class="node-icon-wrapper">
-          <div class="node-icon">📤</div>
+          <div class="node-icon">{{ nodeIcon }}</div>
         </div>
         <div class="node-title-section">
           <div class="node-title" :title="outputDataset">{{ displayTitle }}</div>
           <div v-if="participantDisplay" class="node-meta">
-            接收方: <span class="participant-text">{{ participantDisplay }}</span>
+            {{ isPIROutput ? '实时数据源' : '接收方' }}: <span class="participant-text">{{ participantDisplay }}</span>
           </div>
         </div>
+      </div>
+
+      <!-- 实时数据源标识 -->
+      <div v-if="isPIROutput" class="realtime-badge">
+        <span class="badge-icon">⚡</span>
+        <span class="badge-text">PIR输出 · 实时数据源</span>
       </div>
 
       <!-- 字段信息 -->
@@ -65,6 +79,7 @@
       :position="Position.Bottom"
       :style="{ left: '50%' }"
       class="output-handle"
+      :class="{ 'is-realtime': isPIROutput }"
     />
   </div>
 </template>
@@ -83,6 +98,19 @@ const isExpanded = ref(false)
 // 输出数据节点数据
 const outputData = computed(() => props.data as OutputDataNodeData)
 
+// 是否是 PIR 输出（实时数据源）
+const isPIROutput = computed(() => {
+  return !!(outputData.value as any)?.isPIROutput
+})
+
+// 是否是实时数据源样式
+const isRealtimeDataSource = computed(() => isPIROutput.value)
+
+// 节点图标
+const nodeIcon = computed(() => {
+  return isPIROutput.value ? '⚡' : '📤'
+})
+
 // 输出数据集名称
 const outputDataset = computed(() => outputData.value?.dataset || '')
 
@@ -97,7 +125,7 @@ const hasFields = computed(() => outputFieldsCount.value > 0)
 // 显示的标题（截断过长的名称）
 const displayTitle = computed(() => {
   const dataset = outputDataset.value
-  if (!dataset) return '输出数据'
+  if (!dataset) return isPIROutput.value ? 'PIR输出' : '输出数据'
   if (dataset.length > 15) {
     return dataset.substring(0, 15) + '...'
   }
@@ -106,6 +134,9 @@ const displayTitle = computed(() => {
 
 // 参与方显示（同时显示企业名称和ID）
 const participantDisplay = computed(() => {
+  if (isPIROutput.value) {
+    return '可连接下游PIR任务'
+  }
   const { participantId, entityName } = outputData.value || {}
   if (entityName && participantId) {
     return `${entityName} (${participantId})`
@@ -456,6 +487,52 @@ const displayFields = computed(() => {
   .expand-leave-from {
     max-height: 180px;
     opacity: 1;
+  }
+
+  // 实时数据源样式
+  &.is-realtime,
+  &.is-pir-output {
+    .node-card {
+      background: linear-gradient(135deg, #f0f9ff 0%, #e0f7fa 100%);
+      border: 2px dashed var(--realtime-datasource-color, #13c2c2);
+    }
+  }
+
+  .realtime-badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    background: linear-gradient(135deg, rgba(19, 194, 194, 0.1), rgba(19, 194, 194, 0.05));
+    border: 1px dashed rgba(19, 194, 194, 0.4);
+    border-radius: 6px;
+    margin-top: 4px;
+
+    .badge-icon {
+      font-size: 14px;
+    }
+
+    .badge-text {
+      font-size: 11px;
+      font-weight: 500;
+      color: #0891b2;
+    }
+  }
+
+  // 实时数据源输出 handle 样式
+  .output-handle.is-realtime {
+    background: var(--realtime-datasource-color, #13c2c2);
+    border: 2px dashed #ffffff;
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% {
+      box-shadow: 0 0 0 0 rgba(19, 194, 194, 0.4);
+    }
+    50% {
+      box-shadow: 0 0 0 4px rgba(19, 194, 194, 0);
+    }
   }
 
   &.selected .node-card {

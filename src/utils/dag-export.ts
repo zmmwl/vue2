@@ -4,7 +4,7 @@
  */
 
 import type { Node, Edge } from '@vue-flow/core'
-import type { ComputeTaskNodeData, OutputDataNodeData, LocalTaskNodeData } from '@/types/nodes'
+import type { ComputeTaskNodeData, OutputDataNodeData, LocalTaskNodeData, PIRTaskNodeData, FLTaskNodeData } from '@/types/nodes'
 import type { ExportJson, Task, Participant, DataProvider, JoinCondition, ModelProvider, ComputeProvider, ResultConsumer, Expression, ComputeType, TechPath } from '@/types/export'
 import { ComputeTaskType, TechPath as NodeTechPath } from '@/types/nodes'
 
@@ -21,10 +21,13 @@ export function convertDagToJson(nodes: Node[], edges: Edge[]): ExportJson {
   // 1. 生成 jobId
   const jobId = generateJobId()
 
-  // 2. 提取所有计算任务节点和本地任务节点
+  // 2. 提取所有计算任务节点（包括 PIR 和 FL 任务）
   const taskNodes = nodes.filter(node =>
-    node.type === 'compute_task' || node.type === 'localTask'
-  ) as Array<Node<ComputeTaskNodeData | LocalTaskNodeData>>
+    node.type === 'compute_task' ||
+    node.type === 'localTask' ||
+    node.type === 'pir_task' ||
+    node.type === 'fl_task'
+  ) as Array<Node<ComputeTaskNodeData | LocalTaskNodeData | PIRTaskNodeData | FLTaskNodeData>>
 
   // 3. 拓扑排序确定任务执行顺序
   const sortedTasks = topologicalSort(taskNodes, edges)
@@ -59,9 +62,9 @@ export function generateJobId(): string {
  * @returns 拓扑排序后的任务节点列表
  */
 export function topologicalSort(
-  taskNodes: Array<Node<ComputeTaskNodeData | LocalTaskNodeData>>,
+  taskNodes: Array<Node<ComputeTaskNodeData | LocalTaskNodeData | PIRTaskNodeData | FLTaskNodeData>>,
   edges: Edge[]
-): Array<Node<ComputeTaskNodeData | LocalTaskNodeData>> {
+): Array<Node<ComputeTaskNodeData | LocalTaskNodeData | PIRTaskNodeData | FLTaskNodeData>> {
   // 构建依赖图
   const inDegree = new Map<string, number>()
   const adjList = new Map<string, string[]>()
@@ -79,15 +82,19 @@ export function topologicalSort(
     // 只有当目标节点是任务节点时，才建立依赖关系
     if (targetNode) {
       // 检查源节点是否是其他任务节点的输出
-      const sourceIsOutput = taskNodes.some(n =>
-        n.data?.outputs?.some(o => o.outputNodeId === edge.source)
-      )
+      const sourceIsOutput = taskNodes.some(n => {
+        const data = n.data as any
+        return data?.outputs?.some((o: any) => o.outputNodeId === edge.source) ||
+               data?.outputNodeId === edge.source
+      })
 
       if (sourceIsOutput) {
         // 找到源任务节点
-        const sourceTask = taskNodes.find(n =>
-          n.data?.outputs?.some(o => o.outputNodeId === edge.source)
-        )
+        const sourceTask = taskNodes.find(n => {
+          const data = n.data as any
+          return data?.outputs?.some((o: any) => o.outputNodeId === edge.source) ||
+                 data?.outputNodeId === edge.source
+        })
         if (sourceTask) {
           adjList.get(sourceTask.id)?.push(edge.target)
           inDegree.set(edge.target, (inDegree.get(edge.target) || 0) + 1)
@@ -98,7 +105,7 @@ export function topologicalSort(
 
   // Kahn 算法
   const queue: string[] = []
-  const result: Array<Node<ComputeTaskNodeData | LocalTaskNodeData>> = []
+  const result: Array<Node<ComputeTaskNodeData | LocalTaskNodeData | PIRTaskNodeData | FLTaskNodeData>> = []
 
   // 找到所有入度为0的节点
   inDegree.forEach((degree, nodeId) => {
@@ -202,6 +209,29 @@ export function extractParticipants(nodes: Node[]): Participant[] {
         })
       }
     }
+
+    // FL 任务的训练参与方
+    if (data.trainingParticipants) {
+      data.trainingParticipants.forEach((participantId: string) => {
+        if (!participants.has(participantId)) {
+          participants.set(participantId, {
+            participantId,
+            entityName: participantId
+          })
+        }
+      })
+    }
+
+    // PIR 任务的预加载数据源参与方
+    if (data.preloadDataSource?.participantId) {
+      const participantId = data.preloadDataSource.participantId
+      if (!participants.has(participantId)) {
+        participants.set(participantId, {
+          participantId,
+          entityName: participantId
+        })
+      }
+    }
   })
 
   return Array.from(participants.values())
@@ -222,7 +252,7 @@ export function getDependencyIds(taskId: string, edges: Edge[], nodes: Node[]): 
     if (edge.target === taskId) {
       // 找到连接到这个任务的源节点
       const sourceNode = nodes.find(n => n.id === edge.source)
-      if (sourceNode && (sourceNode.type === 'compute_task' || sourceNode.type === 'localTask')) {
+      if (sourceNode && (sourceNode.type === 'compute_task' || sourceNode.type === 'localTask' || sourceNode.type === 'pir_task' || sourceNode.type === 'fl_task')) {
         dependencies.push(sourceNode.id)
       } else {
         // 源节点可能是输出节点，找到父任务
@@ -374,39 +404,103 @@ export function mapComputeType(computeType: string, techPath?: string): ComputeT
  * @returns 任务对象
  */
 export function buildTask(
-  taskNode: Node<ComputeTaskNodeData | LocalTaskNodeData>,
+  taskNode: Node<ComputeTaskNodeData | LocalTaskNodeData | PIRTaskNodeData | FLTaskNodeData>,
   edges: Edge[],
   nodes: Node[]
 ): Task {
   const data = taskNode.data as any
+  const nodeType = taskNode.type
 
   // 确定计算类型
-  const computeType = data.computeType === 'CONCAT'
-    ? ('CONCAT' as ComputeType)
-    : mapComputeType(data.taskType || data.computeType, data.techPath)
+  let computeType: ComputeType
+  let techPath: TechPath | undefined = data.techPath === NodeTechPath.TEE ? ('TEE' as TechPath) : ('SOFTWARE_CRYPTO' as TechPath)
+
+  if (nodeType === 'pir_task') {
+    computeType = 'PIR' as ComputeType
+  } else if (nodeType === 'fl_task') {
+    computeType = 'FEDERATED_LEARNING' as ComputeType
+  } else if (data.computeType === 'CONCAT') {
+    computeType = 'CONCAT' as ComputeType
+  } else {
+    computeType = mapComputeType(data.taskType || data.computeType, data.techPath)
+  }
 
   // 获取依赖任务 ID
   const taskSrcIdList = getDependencyIds(taskNode.id, edges, nodes)
 
-  // 判断是否为最终任务（有输出或没有下游任务）
+  // 构建 dataProviderList - 处理 PIR 和 FL 任务的输入
+  let dataProviderList: DataProvider[] = []
+  if (nodeType === 'pir_task') {
+    // PIR 任务：预加载数据源
+    if (data.preloadDataSource) {
+      dataProviderList = [{
+        participantId: data.preloadDataSource.participantId,
+        assetId: data.preloadDataSource.dataset,
+        fieldList: data.preloadDataSource.fields?.map((f: any) => ({
+          fieldName: f.columnAlias || f.columnName,
+          alias: f.columnAlias !== f.columnName ? f.columnAlias : undefined
+        })) || []
+      }]
+    }
+  } else if (nodeType === 'fl_task') {
+    // FL 任务：使用 inputProviders
+    dataProviderList = buildDataProviderList(data.inputProviders || [])
+  } else {
+    dataProviderList = buildDataProviderList(data.inputProviders || [])
+  }
+
+  // 判断是否为最终任务
   const hasOutputs = data.outputs && data.outputs.length > 0
+  const hasOutputNode = !!data.outputNodeId
   const hasDownstream = edges.some(e => {
-    const sourceIsOutput = data.outputs?.some((o: any) => o.outputNodeId === e.source)
+    const sourceIsOutput = data.outputs?.some((o: any) => o.outputNodeId === e.source) ||
+                           e.source === data.outputNodeId
     return sourceIsOutput
   })
-  const isFinalTask = hasOutputs && !hasDownstream
+  const isFinalTask = (hasOutputs || hasOutputNode) && !hasDownstream
+
+  // 构建 FL 任务特定的参数
+  let flTaskParams: Record<string, any> = {}
+  if (nodeType === 'fl_task') {
+    flTaskParams = {
+      flCategory: data.flCategory,
+      flMode: data.flMode,
+      taskName: data.taskName,
+      parameters: data.parameters,
+      // 推断任务的已部署模型信息
+      deployedModelId: data.deployedModelId,
+      deployedModelName: data.deployedModelName,
+      trainingParticipants: data.trainingParticipants
+    }
+  }
+
+  // 构建 PIR 任务特定的参数
+  let pirTaskParams: Record<string, any> = {}
+  if (nodeType === 'pir_task') {
+    pirTaskParams = {
+      realtimeDataSource: data.realtimeDataSource ? {
+        id: data.realtimeDataSource.id,
+        name: data.realtimeDataSource.name,
+        sourceType: data.realtimeDataSource.sourceType,
+        fields: data.realtimeDataSource.fields
+      } : undefined
+    }
+  }
 
   return {
     taskId: taskNode.id,
     computeType,
-    techPath: data.techPath === NodeTechPath.TEE ? ('TEE' as TechPath) : ('SOFTWARE_CRYPTO' as TechPath),
+    techPath,
     taskSrcIdList: taskSrcIdList.length > 0 ? taskSrcIdList : undefined,
-    dataProviderList: buildDataProviderList(data.inputProviders || []),
+    dataProviderList,
     joinConditionList: buildJoinConditions(data.joinConditions || []),
     modelProviderList: buildModelProviderList(data.models || []),
     expressionList: buildExpressionList(data.models || []),
     computeProviderList: buildComputeProviderList(data.computeProviders || []),
     resultConsumerList: buildResultConsumerList(data.outputs || []),
-    isFinalTask: isFinalTask || data.computeType === 'CONCAT'
+    isFinalTask: isFinalTask || data.computeType === 'CONCAT',
+    // PIR 和 FL 任务的扩展参数
+    ...pirTaskParams,
+    ...flTaskParams
   }
 }

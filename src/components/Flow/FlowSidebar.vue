@@ -176,105 +176,111 @@
     </div>
     </div><!-- /.sidebar-content -->
 
-    <!-- FL 训练子菜单 - 在 sidebar-content 外面，使用 fixed 定位 -->
-    <Transition name="slide">
-      <div
-        v-if="flTrainingExpanded"
-        class="fl-submenu fl-submenu-fixed"
-        :style="flTrainingSubmenuStyle"
-        @mouseenter="flTrainingExpanded = true"
-        @mouseleave="handleFLTrainingSubmenuLeave"
-      >
+    <!-- FL 训练子菜单 - 使用 Teleport 渲染到 body，确保 fixed 定位相对于视口 -->
+    <Teleport to="body">
+      <Transition name="slide">
         <div
-          v-for="category in FL_TRAINING_MENU.categories"
-          :key="category.category"
-          class="fl-category"
-          @mouseenter="activeFlTrainingCategory = category.category"
+          v-if="flTrainingExpanded"
+          class="fl-submenu fl-submenu-fixed"
+          :style="flTrainingSubmenuStyle"
+          @mouseenter="flTrainingExpanded = true"
+          @mouseleave="handleFLTrainingSubmenuLeave"
         >
-          <div class="fl-category-title">
-            <span class="category-icon">{{ category.icon }}</span>
-            {{ category.name }}
-            <span class="expand-arrow">▸</span>
-          </div>
+          <div
+            v-for="category in FL_TRAINING_MENU.categories"
+            :key="category.category"
+            class="fl-category"
+            @mouseenter="handleFLTrainingCategoryEnter($event, category.category)"
+          >
+            <div class="fl-category-title">
+              <span class="category-icon">{{ category.icon }}</span>
+              {{ category.name }}
+              <span class="expand-arrow">▸</span>
+            </div>
 
-          <!-- 三级菜单：具体任务 -->
-          <Transition name="slide">
-            <div
-              v-if="activeFlTrainingCategory === category.category"
-              class="fl-task-list fl-task-list-fixed"
-              :style="{ top: '0px' }"
-            >
+            <!-- 三级菜单：具体任务 -->
+            <Transition name="slide">
               <div
-                v-for="task in category.tasks"
-                :key="task.taskName"
-                class="palette-node fl-task-node"
-                draggable="true"
-                :style="{ '--fl-color': getFLCategoryColor(category.category) }"
-                @dragstart="onDragStartFLTask($event, task, category.category, FLMode.TRAINING)"
+                v-if="activeFlTrainingCategory === category.category"
+                class="fl-task-list fl-task-list-fixed"
+                :style="flTrainingTaskListStyle"
+                @mouseenter="flTrainingExpanded = true"
               >
-                <div class="palette-node-icon">{{ task.icon }}</div>
-                <div class="palette-node-content">
-                  <div class="palette-node-label">{{ task.name }}</div>
-                  <div v-if="task.description" class="palette-node-desc">
-                    {{ task.description }}
+                <div
+                  v-for="task in category.tasks"
+                  :key="task.taskName"
+                  class="palette-node fl-task-node"
+                  draggable="true"
+                  :style="{ '--fl-color': getFLCategoryColor(category.category) }"
+                  @dragstart="onDragStartFLTask($event, task, category.category, FLMode.TRAINING)"
+                >
+                  <div class="palette-node-icon">{{ task.icon }}</div>
+                  <div class="palette-node-content">
+                    <div class="palette-node-label">{{ task.name }}</div>
+                    <div v-if="task.description" class="palette-node-desc">
+                      {{ task.description }}
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          </Transition>
-        </div>
-      </div>
-    </Transition>
-
-    <!-- FL 推断子菜单 - 在 sidebar-content 外面，使用 fixed 定位 -->
-    <Transition name="slide">
-      <div
-        v-if="flInferenceExpanded"
-        class="fl-submenu fl-submenu-fixed"
-        :style="flInferenceSubmenuStyle"
-        @mouseenter="flInferenceExpanded = true"
-        @mouseleave="handleFLInferenceSubmenuLeave"
-      >
-        <div
-          v-for="category in FL_INFERENCE_MENU.categories"
-          :key="category.category"
-          class="fl-category"
-          @mouseenter="activeFlInferenceCategory = category.category"
-        >
-          <div class="fl-category-title">
-            <span class="category-icon">{{ category.icon }}</span>
-            {{ category.name }}
-            <span class="expand-arrow">▸</span>
+            </Transition>
           </div>
+        </div>
+      </Transition>
+    </Teleport>
 
-          <!-- 三级菜单：具体任务 -->
-          <Transition name="slide">
-            <div
-              v-if="activeFlInferenceCategory === category.category"
-              class="fl-task-list fl-task-list-fixed"
-              :style="{ top: '0px' }"
-            >
+    <!-- FL 推断子菜单 - 使用 Teleport 渲染到 body -->
+    <Teleport to="body">
+      <Transition name="slide">
+        <div
+          v-if="flInferenceExpanded"
+          class="fl-submenu fl-submenu-fixed"
+          :style="flInferenceSubmenuStyle"
+          @mouseenter="flInferenceExpanded = true"
+          @mouseleave="handleFLInferenceSubmenuLeave"
+        >
+          <div
+            v-for="category in FL_INFERENCE_MENU.categories"
+            :key="category.category"
+            class="fl-category"
+            @mouseenter="handleFLInferenceCategoryEnter($event, category.category)"
+          >
+            <div class="fl-category-title">
+              <span class="category-icon">{{ category.icon }}</span>
+              {{ category.name }}
+              <span class="expand-arrow">▸</span>
+            </div>
+
+            <!-- 三级菜单：具体任务 -->
+            <Transition name="slide">
               <div
-                v-for="task in category.tasks"
-                :key="task.taskName"
-                class="palette-node fl-task-node"
-                draggable="true"
-                :style="{ '--fl-color': getFLCategoryColor(category.category) }"
-                @dragstart="onDragStartFLTask($event, task, category.category, FLMode.INFERENCE)"
+                v-if="activeFlInferenceCategory === category.category"
+                class="fl-task-list fl-task-list-fixed"
+                :style="flInferenceTaskListStyle"
+                @mouseenter="flInferenceExpanded = true"
               >
-                <div class="palette-node-icon">{{ task.icon }}</div>
-                <div class="palette-node-content">
-                  <div class="palette-node-label">{{ task.name }}</div>
-                  <div v-if="task.description" class="palette-node-desc">
-                    {{ task.description }}
+                <div
+                  v-for="task in category.tasks"
+                  :key="task.taskName"
+                  class="palette-node fl-task-node"
+                  draggable="true"
+                  :style="{ '--fl-color': getFLCategoryColor(category.category) }"
+                  @dragstart="onDragStartFLTask($event, task, category.category, FLMode.INFERENCE)"
+                >
+                  <div class="palette-node-icon">{{ task.icon }}</div>
+                  <div class="palette-node-content">
+                    <div class="palette-node-label">{{ task.name }}</div>
+                    <div v-if="task.description" class="palette-node-desc">
+                      {{ task.description }}
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          </Transition>
+            </Transition>
+          </div>
         </div>
-      </div>
-    </Transition>
+      </Transition>
+    </Teleport>
   </div>
 </template>
 
@@ -300,6 +306,10 @@ const activeFlInferenceCategory = ref<FLTaskCategory | null>(null)
 const flTrainingSubmenuStyle = ref<{ top: string; left: string }>({ top: '0px', left: '0px' })
 const flInferenceSubmenuStyle = ref<{ top: string; left: string }>({ top: '0px', left: '0px' })
 
+// FL 三级菜单位置
+const flTrainingTaskListStyle = ref<{ top: string; left: string }>({ top: '0px', left: '0px' })
+const flInferenceTaskListStyle = ref<{ top: string; left: string }>({ top: '0px', left: '0px' })
+
 // Section 引用
 const sidebarRef = ref<HTMLElement | null>(null)
 const modelSectionRef = ref<HTMLElement | null>(null)
@@ -314,21 +324,21 @@ function updateFLTrainingSubmenuPosition() {
   if (!flTrainingSectionRef.value) return
   const rect = flTrainingSectionRef.value.getBoundingClientRect()
 
-  // 子菜单实际高度
-  const submenuHeight = 200
+  // 子菜单预估高度（实际可能不同）
+  const estimatedSubmenuHeight = 220
   const viewportHeight = window.innerHeight
+  const headerHeight = 60
 
-  // 计算子菜单的 top 位置
+  // 计算子菜单的 top 位置，与触发器顶部对齐
   let top = rect.top
 
-  // 如果子菜单底部超出视口，则向上对齐
-  if (top + submenuHeight > viewportHeight) {
-    // 让子菜单底部对齐视口底部
-    top = viewportHeight - submenuHeight
+  // 如果子菜单底部超出视口，则向上调整
+  if (top + estimatedSubmenuHeight > viewportHeight) {
+    top = viewportHeight - estimatedSubmenuHeight
   }
 
-  // 确保不超出顶部（留一点边距）
-  top = Math.max(60, top) // 60px 约等于 header 高度
+  // 确保不超出顶部
+  top = Math.max(headerHeight, top)
 
   flTrainingSubmenuStyle.value = {
     top: `${top}px`,
@@ -343,24 +353,57 @@ function updateFLInferenceSubmenuPosition() {
   if (!flInferenceSectionRef.value) return
   const rect = flInferenceSectionRef.value.getBoundingClientRect()
 
-  // 子菜单实际高度
-  const submenuHeight = 200
+  const estimatedSubmenuHeight = 220
   const viewportHeight = window.innerHeight
+  const headerHeight = 60
 
-  // 计算子菜单的 top 位置
   let top = rect.top
 
-  // 如果子菜单底部超出视口，则向上对齐
-  if (top + submenuHeight > viewportHeight) {
-    top = viewportHeight - submenuHeight
+  if (top + estimatedSubmenuHeight > viewportHeight) {
+    top = viewportHeight - estimatedSubmenuHeight
   }
 
-  // 确保不超出顶部
-  top = Math.max(60, top)
+  top = Math.max(headerHeight, top)
 
   flInferenceSubmenuStyle.value = {
     top: `${top}px`,
     left: `${rect.right}px`
+  }
+}
+
+/**
+ * 更新 FL 训练三级菜单位置
+ */
+function updateFLTrainingTaskListPosition(categoryElement: HTMLElement | null) {
+  if (!categoryElement) return
+
+  // 获取二级菜单的位置
+  const submenuRect = categoryElement.closest('.fl-submenu-fixed')?.getBoundingClientRect()
+  if (!submenuRect) return
+
+  // 获取当前类别元素的位置
+  const categoryRect = categoryElement.getBoundingClientRect()
+
+  flTrainingTaskListStyle.value = {
+    top: `${categoryRect.top}px`,
+    left: `${submenuRect.right}px`
+  }
+}
+
+/**
+ * 更新 FL 推断三级菜单位置
+ */
+function updateFLInferenceTaskListPosition(categoryElement: HTMLElement | null) {
+  if (!categoryElement) return
+
+  const submenuRect = categoryElement.closest('.fl-submenu-fixed')?.getBoundingClientRect()
+  if (!submenuRect) return
+
+  const categoryRect = categoryElement.getBoundingClientRect()
+
+  flInferenceTaskListStyle.value = {
+    top: `${categoryRect.top}px`,
+    left: `${submenuRect.right}px`
   }
 }
 
@@ -373,20 +416,38 @@ function handleFLTrainingEnter() {
 }
 
 /**
+ * 处理 FL 训练类别进入
+ */
+function handleFLTrainingCategoryEnter(event: MouseEvent, category: FLTaskCategory) {
+  activeFlTrainingCategory.value = category
+  // 使用 nextTick 确保 DOM 更新后再计算位置
+  nextTick(() => {
+    const target = event.currentTarget as HTMLElement
+    updateFLTrainingTaskListPosition(target)
+  })
+}
+
+/**
  * 处理 FL 训练菜单离开
  */
 function handleFLTrainingLeave() {
   // 延迟关闭，给用户时间移动到子菜单
   setTimeout(() => {
     if (!flTrainingExpanded.value) return
-    // 检查鼠标是否在子菜单上
-    const submenu = document.querySelector('.fl-submenu-fixed')
-    if (submenu && submenu.matches(':hover')) {
+    // 检查鼠标是否在任意子菜单上
+    const submenus = document.querySelectorAll('.fl-submenu-fixed, .fl-task-list-fixed')
+    let isHovering = false
+    submenus.forEach((submenu) => {
+      if (submenu.matches(':hover')) {
+        isHovering = true
+      }
+    })
+    if (isHovering) {
       return
     }
     flTrainingExpanded.value = false
     activeFlTrainingCategory.value = null
-  }, 100)
+  }, 300) // 增加到 300ms
 }
 
 /**
@@ -406,12 +467,23 @@ function handleFLInferenceEnter() {
 }
 
 /**
+ * 处理 FL 推断类别进入
+ */
+function handleFLInferenceCategoryEnter(event: MouseEvent, category: FLTaskCategory) {
+  activeFlInferenceCategory.value = category
+  nextTick(() => {
+    const target = event.currentTarget as HTMLElement
+    updateFLInferenceTaskListPosition(target)
+  })
+}
+
+/**
  * 处理 FL 推断菜单离开
  */
 function handleFLInferenceLeave() {
   setTimeout(() => {
     if (!flInferenceExpanded.value) return
-    const submenus = document.querySelectorAll('.fl-submenu-fixed')
+    const submenus = document.querySelectorAll('.fl-submenu-fixed, .fl-task-list-fixed')
     let isHovering = false
     submenus.forEach((submenu) => {
       if (submenu.matches(':hover')) {
@@ -422,7 +494,7 @@ function handleFLInferenceLeave() {
       flInferenceExpanded.value = false
       activeFlInferenceCategory.value = null
     }
-  }, 100)
+  }, 300) // 增加到 300ms
 }
 
 /**
@@ -980,6 +1052,175 @@ const onDragStartLocalTask = (event: DragEvent) => {
 }
 
 // 滑入动画
+.slide-enter-active,
+.slide-leave-active {
+  transition: all 0.2s ease-out;
+}
+
+.slide-enter-from,
+.slide-leave-to {
+  opacity: 0;
+  transform: translateX(-8px);
+}
+</style>
+
+<!-- 全局样式：用于 Teleport 到 body 的子菜单 -->
+<style lang="scss">
+@use '@/assets/styles/variables.scss' as *;
+
+// 使用 fixed 定位的子菜单（全局样式，因为使用了 Teleport）
+.fl-submenu-fixed {
+  position: fixed;
+  width: 200px;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  z-index: 1000;
+  padding: 8px 0;
+}
+
+.fl-submenu-fixed .fl-category {
+  position: relative;
+}
+
+.fl-submenu-fixed .fl-category .fl-category-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.fl-submenu-fixed .fl-category .fl-category-title .category-icon {
+  font-size: 16px;
+}
+
+.fl-submenu-fixed .fl-category .fl-category-title .expand-arrow {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--text-secondary);
+  transition: transform 0.2s ease;
+}
+
+.fl-submenu-fixed .fl-category .fl-category-title:hover {
+  background: var(--list-item-hover-bg);
+}
+
+.fl-submenu-fixed .fl-category:hover .expand-arrow {
+  transform: translateX(2px);
+}
+
+// 使用 fixed 定位的三级菜单
+.fl-task-list-fixed {
+  position: fixed;
+  left: auto;
+  width: 180px;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  z-index: 1001;
+  padding: 8px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.fl-task-list-fixed::-webkit-scrollbar {
+  width: 4px;
+}
+
+.fl-task-list-fixed::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 2px;
+}
+
+.fl-task-list-fixed .fl-task-node {
+  --fl-color: var(--datasource-blue);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  margin-bottom: 6px;
+  border-radius: var(--list-item-radius);
+  cursor: grab;
+  transition: var(--button-transition);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  background: var(--info-card-bg);
+  position: relative;
+  overflow: hidden;
+}
+
+.fl-task-list-fixed .fl-task-node:last-child {
+  margin-bottom: 0;
+}
+
+.fl-task-list-fixed .fl-task-node::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--fl-color);
+  transform: scaleY(0);
+  transition: transform var(--transition-base) var(--easing-smooth);
+}
+
+.fl-task-list-fixed .fl-task-node:hover {
+  background: var(--list-item-hover-bg);
+  border-color: var(--fl-color);
+  transform: translateX(4px);
+}
+
+.fl-task-list-fixed .fl-task-node:hover::before {
+  transform: scaleY(1);
+}
+
+.fl-task-list-fixed .fl-task-node:hover .palette-node-label {
+  color: var(--fl-color);
+}
+
+.fl-task-list-fixed .palette-node-icon {
+  font-size: 20px;
+  line-height: 1;
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.04);
+  border-radius: var(--button-sm-radius);
+  transition: var(--button-transition);
+}
+
+.fl-task-list-fixed .palette-node-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.fl-task-list-fixed .palette-node-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 3px;
+  transition: color var(--transition-base) var(--easing-smooth);
+}
+
+.fl-task-list-fixed .palette-node-desc {
+  font-size: 11px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+// 滑入动画（全局）
 .slide-enter-active,
 .slide-leave-active {
   transition: all 0.2s ease-out;
