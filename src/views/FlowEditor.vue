@@ -325,7 +325,8 @@ onUnmounted(() => {
 .editor-content {
   display: flex;
   flex: 1;
-  overflow: visible;
+  min-height: 0; // 关键：防止 flex 子项溢出
+  overflow: hidden;
   position: relative;
 }
 
