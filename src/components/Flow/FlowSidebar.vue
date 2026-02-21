@@ -313,8 +313,25 @@ const flInferenceSectionRef = ref<HTMLElement | null>(null)
 function updateFLTrainingSubmenuPosition() {
   if (!flTrainingSectionRef.value) return
   const rect = flTrainingSectionRef.value.getBoundingClientRect()
+
+  // 子菜单实际高度
+  const submenuHeight = 200
+  const viewportHeight = window.innerHeight
+
+  // 计算子菜单的 top 位置
+  let top = rect.top
+
+  // 如果子菜单底部超出视口，则向上对齐
+  if (top + submenuHeight > viewportHeight) {
+    // 让子菜单底部对齐视口底部
+    top = viewportHeight - submenuHeight
+  }
+
+  // 确保不超出顶部（留一点边距）
+  top = Math.max(60, top) // 60px 约等于 header 高度
+
   flTrainingSubmenuStyle.value = {
-    top: `${rect.top}px`,
+    top: `${top}px`,
     left: `${rect.right}px`
   }
 }
@@ -325,8 +342,24 @@ function updateFLTrainingSubmenuPosition() {
 function updateFLInferenceSubmenuPosition() {
   if (!flInferenceSectionRef.value) return
   const rect = flInferenceSectionRef.value.getBoundingClientRect()
+
+  // 子菜单实际高度
+  const submenuHeight = 200
+  const viewportHeight = window.innerHeight
+
+  // 计算子菜单的 top 位置
+  let top = rect.top
+
+  // 如果子菜单底部超出视口，则向上对齐
+  if (top + submenuHeight > viewportHeight) {
+    top = viewportHeight - submenuHeight
+  }
+
+  // 确保不超出顶部
+  top = Math.max(60, top)
+
   flInferenceSubmenuStyle.value = {
-    top: `${rect.top}px`,
+    top: `${top}px`,
     left: `${rect.right}px`
   }
 }
