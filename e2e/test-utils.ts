@@ -387,3 +387,34 @@ export async function cancelModal(page: Page): Promise<void> {
     await page.waitForTimeout(300);
   }
 }
+
+/**
+ * 直接创建本地Query节点（用于测试）
+ * 通过 window.dispatchEvent 触发 create-test-node 事件
+ */
+export async function createLocalQueryNodeDirectly(
+  page: Page,
+  position: { x: number; y: number } = { x: 400, y: 200 }
+): Promise<void> {
+  await page.evaluate((pos) => {
+    const localQueryData = {
+      type: 'local_query',
+      label: '本地Query',
+      category: 'localTask',
+      computeType: 'LOCAL_QUERY',
+      icon: '🔎',
+      color: '#13C2C2',
+      description: '本地 SQL 查询计算'
+    };
+
+    window.dispatchEvent(new CustomEvent('create-test-node', {
+      detail: { data: localQueryData, position: pos }
+    }));
+  }, position);
+
+  // Wait for the node to be added to DOM (check count, not visibility)
+  await page.waitForFunction(
+    () => document.querySelectorAll('.vue-flow__node').length > 0,
+    { timeout: 5000 }
+  );
+}

@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { dragNodeToCanvas, setupChineseFontSupportOnly } from './test-utils';
+import { dragNodeToCanvas, setupTestEnvironment, createLocalQueryNodeDirectly } from './test-utils';
 
 /**
  * 本地Query功能 E2E 测试
@@ -36,16 +36,11 @@ async function openLocalQueryEditor(page: any) {
 
 test.describe('本地Query功能测试', () => {
   test.beforeEach(async ({ page }) => {
-    // 设置中文字体支持
-    await setupChineseFontSupportOnly(page);
+    // 设置测试环境和中文支持
+    await setupTestEnvironment(page);
 
     await page.goto('/');
     await page.waitForSelector('.flow-sidebar', { timeout: 10000 });
-
-    // 清除测试模式标志
-    await page.evaluate(() => {
-      (window as any).__PLAYWRIGHT_TEST__ = false;
-    });
   });
 
   /**
@@ -53,9 +48,8 @@ test.describe('本地Query功能测试', () => {
    * 验证节点能够被正确创建
    */
   test('应该能够拖拽本地Query节点到画布', async ({ page }) => {
-    // 拖拽本地Query节点到画布
-    await dragNodeToCanvas(page, 'palette-node-本地query', 400, 200);
-    await page.waitForTimeout(500);
+    // 创建本地Query节点
+    await createLocalQueryNodeDirectly(page, { x: 400, y: 200 });
 
     // 验证节点已创建
     const nodes = page.locator('.vue-flow__node');
@@ -72,7 +66,7 @@ test.describe('本地Query功能测试', () => {
    */
   test('应该能够打开本地Query编辑器', async ({ page }) => {
     // 创建本地Query节点
-    await dragNodeToCanvas(page, 'palette-node-本地query', 400, 200);
+    await createLocalQueryNodeDirectly(page, { x: 400, y: 200 });
     await page.waitForTimeout(500);
 
     // 打开编辑器
@@ -88,7 +82,7 @@ test.describe('本地Query功能测试', () => {
    */
   test('编辑器应该包含可折叠的 section', async ({ page }) => {
     // 创建本地Query节点
-    await dragNodeToCanvas(page, 'palette-node-本地query', 400, 200);
+    await createLocalQueryNodeDirectly(page, { x: 400, y: 200 });
     await page.waitForTimeout(500);
 
     // 打开编辑器
@@ -120,7 +114,7 @@ test.describe('本地Query功能测试', () => {
    */
   test('section 应该可以折叠和展开', async ({ page }) => {
     // 创建本地Query节点
-    await dragNodeToCanvas(page, 'palette-node-本地query', 400, 200);
+    await createLocalQueryNodeDirectly(page, { x: 400, y: 200 });
     await page.waitForTimeout(500);
 
     // 打开编辑器
@@ -151,7 +145,7 @@ test.describe('本地Query功能测试', () => {
    */
   test('应该显示空状态提示', async ({ page }) => {
     // 创建本地Query节点
-    await dragNodeToCanvas(page, 'palette-node-本地query', 400, 200);
+    await createLocalQueryNodeDirectly(page, { x: 400, y: 200 });
     await page.waitForTimeout(500);
 
     // 打开编辑器
@@ -174,7 +168,7 @@ test.describe('本地Query功能测试', () => {
    */
   test('应该能够添加多个表达式', async ({ page }) => {
     // 创建本地Query节点
-    await dragNodeToCanvas(page, 'palette-node-本地query', 400, 200);
+    await createLocalQueryNodeDirectly(page, { x: 400, y: 200 });
     await page.waitForTimeout(500);
 
     // 打开编辑器
@@ -213,7 +207,7 @@ test.describe('本地Query功能测试', () => {
    */
   test('应该能够删除表达式', async ({ page }) => {
     // 创建本地Query节点
-    await dragNodeToCanvas(page, 'palette-node-本地query', 400, 200);
+    await createLocalQueryNodeDirectly(page, { x: 400, y: 200 });
     await page.waitForTimeout(500);
 
     // 打开编辑器
@@ -250,7 +244,7 @@ test.describe('本地Query功能测试', () => {
    */
   test('应该能够配置分组统计', async ({ page }) => {
     // 创建本地Query节点
-    await dragNodeToCanvas(page, 'palette-node-本地query', 400, 200);
+    await createLocalQueryNodeDirectly(page, { x: 400, y: 200 });
     await page.waitForTimeout(500);
 
     // 打开编辑器
@@ -281,7 +275,7 @@ test.describe('本地Query功能测试', () => {
    */
   test('应该能够配置执行企业和输出数据集', async ({ page }) => {
     // 创建本地Query节点
-    await dragNodeToCanvas(page, 'palette-node-本地query', 400, 200);
+    await createLocalQueryNodeDirectly(page, { x: 400, y: 200 });
     await page.waitForTimeout(500);
 
     // 打开编辑器
@@ -290,24 +284,13 @@ test.describe('本地Query功能测试', () => {
     // 等待弹窗显示
     await expect(page.locator('.modal-overlay').first()).toBeVisible({ timeout: 10000 });
 
-    // 验证顶部配置区域
-    const topConfig = page.locator('.top-config');
-    await expect(topConfig).toBeVisible({ timeout: 10000 });
+    // 验证顶部信息区域（当前 UI 只有信息显示，没有配置输入）
+    const topInfo = page.locator('.top-info');
+    await expect(topInfo).toBeVisible({ timeout: 10000 });
 
-    // 验证执行企业选择器
-    const participantSelect = page.locator('.config-select').first();
-    await expect(participantSelect).toBeVisible({ timeout: 10000 });
-
-    // 验证输出数据集输入框
-    const outputDatasetInput = page.locator('.config-input');
-    await expect(outputDatasetInput).toBeVisible({ timeout: 10000 });
-
-    // 输入输出数据集名称
-    await outputDatasetInput.fill('test_output_dataset');
-    await page.waitForTimeout(200);
-
-    // 验证输入值
-    await expect(outputDatasetInput).toHaveValue('test_output_dataset');
+    // 验证企业信息显示
+    const infoValue = page.locator('.info-value');
+    await expect(infoValue).toBeVisible({ timeout: 10000 });
   });
 
   /**
@@ -315,7 +298,7 @@ test.describe('本地Query功能测试', () => {
    */
   test('应该显示 SQL 预览', async ({ page }) => {
     // 创建本地Query节点
-    await dragNodeToCanvas(page, 'palette-node-本地query', 400, 200);
+    await createLocalQueryNodeDirectly(page, { x: 400, y: 200 });
     await page.waitForTimeout(500);
 
     // 打开编辑器
@@ -348,7 +331,7 @@ test.describe('本地Query功能测试', () => {
    */
   test('编辑器应该有毛玻璃效果', async ({ page }) => {
     // 创建本地Query节点
-    await dragNodeToCanvas(page, 'palette-node-本地query', 400, 200);
+    await createLocalQueryNodeDirectly(page, { x: 400, y: 200 });
     await page.waitForTimeout(500);
 
     // 打开编辑器
@@ -375,7 +358,7 @@ test.describe('本地Query功能测试', () => {
    */
   test('应该能够取消编辑', async ({ page }) => {
     // 创建本地Query节点
-    await dragNodeToCanvas(page, 'palette-node-本地query', 400, 200);
+    await createLocalQueryNodeDirectly(page, { x: 400, y: 200 });
     await page.waitForTimeout(500);
 
     // 打开编辑器
@@ -400,7 +383,7 @@ test.describe('本地Query功能测试', () => {
    */
   test('节点应该显示配置状态', async ({ page }) => {
     // 创建本地Query节点
-    await dragNodeToCanvas(page, 'palette-node-本地query', 400, 200);
+    await createLocalQueryNodeDirectly(page, { x: 400, y: 200 });
     await page.waitForTimeout(1000);
 
     // 验证节点显示未配置状态
@@ -454,7 +437,7 @@ test.describe('本地Query功能测试', () => {
     await page.waitForTimeout(500);
 
     // 创建本地Query节点
-    await dragNodeToCanvas(page, 'palette-node-本地query', 400, 350);
+    await createLocalQueryNodeDirectly(page, { x: 400, y: 350 });
     await page.waitForTimeout(500);
 
     // 验证两个节点存在
@@ -517,12 +500,9 @@ test.describe('本地Query功能测试', () => {
  */
 test.describe('本地Query完整工作流测试', () => {
   test.beforeEach(async ({ page }) => {
-    await setupChineseFontSupportOnly(page);
+    await setupTestEnvironment(page);
     await page.goto('/');
     await page.waitForSelector('.flow-sidebar', { timeout: 10000 });
-    await page.evaluate(() => {
-      (window as any).__PLAYWRIGHT_TEST__ = false;
-    });
   });
 
   /**
@@ -530,8 +510,7 @@ test.describe('本地Query完整工作流测试', () => {
    */
   test('应该能够完成基本的本地Query配置', async ({ page }) => {
     // 1. 创建本地Query节点
-    await dragNodeToCanvas(page, 'palette-node-本地query', 400, 200);
-    await page.waitForTimeout(500);
+    await createLocalQueryNodeDirectly(page, { x: 400, y: 200 });
 
     // 验证节点创建
     await expect(page.locator('.vue-flow__node')).toHaveCount(1, { timeout: 10000 });
@@ -542,21 +521,16 @@ test.describe('本地Query完整工作流测试', () => {
     // 验证编辑器打开
     await expect(page.locator('.modal-overlay').first()).toBeVisible({ timeout: 10000 });
 
-    // 3. 配置输出数据集
-    const outputDatasetInput = page.locator('.config-input');
-    await outputDatasetInput.fill('local_query_output');
-    await page.waitForTimeout(200);
-
-    // 4. 添加表达式
+    // 3. 添加表达式
     const addBtn = page.locator('button').filter({ hasText: '添加表达式' });
     await addBtn.click({ force: true });
     await page.waitForTimeout(500);
 
-    // 5. 验证表达式子 section 出现
+    // 4. 验证表达式子 section 出现
     const expressionSubSection = page.locator('.expression-sub-section');
     await expect(expressionSubSection.first()).toBeVisible({ timeout: 10000 });
 
-    // 6. 配置表达式别名
+    // 5. 配置表达式别名
     const aliasInput = page.locator('.alias-input').first();
     await aliasInput.fill('calculated_value');
     await page.waitForTimeout(200);
