@@ -462,6 +462,63 @@ async function loadEnterprises() {
 }
 
 // 组件挂载时加载企业列表
+/**
+ * 更新 PIR 节点的数据源信息
+ * 当连接到 PIR 节点的 preload-input 或 realtime-input 时调用
+ */
+function updatePIRNodeData(
+  sourceId: string,
+  targetId: string,
+  targetHandle: string
+) {
+  const sourceNode = nodes.value.find(n => n.id === sourceId)
+  const targetNode = nodes.value.find(n => n.id === targetId)
+
+  if (!sourceNode || !targetNode || targetNode.type !== 'pir_task') {
+    return
+  }
+
+  const sourceData = sourceNode.data as NodeData
+  const pirData = targetNode.data as import('@/types/nodes').PIRTaskNodeData
+
+  if (targetHandle === 'preload-input') {
+    // 更新预加载数据源
+    logger.info('[FlowCanvas] PIR connection: normal datasource -> preload-input')
+    if (sourceData.category === NodeCategory.DATA_SOURCE && sourceData.assetInfo) {
+      pirData.preloadDataSource = {
+        sourceNodeId: sourceId,
+        sourceType: 'dataSource',
+        participantId: sourceData.assetInfo.participantId,
+        dataset: sourceData.assetInfo.assetId,
+        fields: (sourceData.selectedFields || []).map(name => {
+          const field = sourceData.assetInfo!.dataInfo.fieldList.find(f => f.name === name)
+          return {
+            columnName: name,
+            columnAlias: name,
+            columnType: field?.dataType || 'STRING',
+            isJoinField: false
+          }
+        })
+      }
+    }
+  } else if (targetHandle === 'realtime-input') {
+    // 更新实时数据源
+    logger.info('[FlowCanvas] PIR connection: realtime datasource -> realtime-input')
+    if (sourceData.category === NodeCategory.DATA_SOURCE) {
+      const realtimeData = sourceData as import('@/types/nodes').RealtimeDataSourceNodeData
+      if (realtimeData.realtimeConfig) {
+        pirData.realtimeDataSource = {
+          id: sourceId,
+          name: sourceData.label || '实时数据源',
+          sourceType: realtimeData.realtimeConfig.mode === 'datasource' ? 'connection' : 'manual',
+          fields: realtimeData.realtimeConfig.fields,
+          sourceNodeId: realtimeData.realtimeConfig.sourceNodeId
+        }
+      }
+    }
+  }
+}
+
 onMounted(() => {
   loadEnterprises()
 
@@ -484,6 +541,10 @@ onMounted(() => {
     }
 
     addEdges([newEdge])
+
+    // 更新 PIR 节点数据
+    updatePIRNodeData(sourceId, targetId, targetHandle)
+
     logger.info('[FlowCanvas] Edge created via test API', { edgeId: newEdge.id })
   }
 })
@@ -495,6 +556,7 @@ onUnmounted(() => {
 /**
  * 获取可用的输入字段（来自所有输入数据源）
  * 按数据源分组返回，包含数据源节点信息
+ * 支持普通计算任务、本地查询任务和 PIR 任务
  */
 const availableInputFields = computed(() => {
   if (!pendingOutputTaskId.value) return []
@@ -502,7 +564,6 @@ const availableInputFields = computed(() => {
   const taskNode = nodes.value.find(n => n.id === pendingOutputTaskId.value)
   if (!taskNode) return []
 
-  const taskData = taskNode.data as ComputeTaskNodeData
   const fields: Array<{
     id: string
     name: string
@@ -514,7 +575,47 @@ const availableInputFields = computed(() => {
     dataset: string
   }> = []
 
-  // 从 inputProviders 提取字段
+  // 检查是否是 PIR 任务节点
+  if (taskNode.type === 'pir_task') {
+    const pirData = taskNode.data as import('@/types/nodes').PIRTaskNodeData
+
+    // 从预加载数据源提取字段
+    if (pirData.preloadDataSource) {
+      pirData.preloadDataSource.fields.forEach(field => {
+        fields.push({
+          id: `input-preload-${field.columnName}`,
+          name: field.columnName,
+          type: field.columnType,
+          source: `预加载数据源: ${pirData.preloadDataSource?.dataset || '未知'}`,
+          sourceNodeId: pirData.preloadDataSource?.sourceNodeId || '',
+          sourceType: 'dataSource',
+          participantId: pirData.preloadDataSource?.participantId || '',
+          dataset: pirData.preloadDataSource?.dataset || ''
+        })
+      })
+    }
+
+    // 从实时数据源提取字段
+    if (pirData.realtimeDataSource?.fields) {
+      pirData.realtimeDataSource.fields.forEach(field => {
+        fields.push({
+          id: `input-realtime-${field.name}`,
+          name: field.name,
+          type: field.dataType,
+          source: `实时数据源: ${pirData.realtimeDataSource?.name || '未知'}`,
+          sourceNodeId: pirData.realtimeDataSource?.sourceNodeId || '',
+          sourceType: 'dataSource',
+          participantId: '',
+          dataset: pirData.realtimeDataSource?.name || ''
+        })
+      })
+    }
+
+    return fields
+  }
+
+  // 普通计算任务：从 inputProviders 提取字段
+  const taskData = taskNode.data as ComputeTaskNodeData
   taskData.inputProviders?.forEach((provider) => {
     provider.fields.forEach(field => {
       fields.push({
@@ -538,6 +639,7 @@ const availableInputFields = computed(() => {
  * 从计算模型的配置中提取输出字段
  * - 表达式模型：只有一个默认的浮点型输出字段 "result"
  * - 其他模型：从模型详情接口获取 returnParameters
+ * 支持普通计算任务和 PIR 任务
  */
 const availableModelFields = computed(() => {
   if (!pendingOutputTaskId.value) return []
@@ -545,7 +647,6 @@ const availableModelFields = computed(() => {
   const taskNode = nodes.value.find(n => n.id === pendingOutputTaskId.value)
   if (!taskNode) return []
 
-  const taskData = taskNode.data as ComputeTaskNodeData
   const fields: Array<{
     id: string
     name: string
@@ -556,8 +657,18 @@ const availableModelFields = computed(() => {
     participantId: string
   }> = []
 
+  // 获取模型配置（支持普通计算任务和 PIR 任务）
+  let models: any[] = []
+  if (taskNode.type === 'pir_task') {
+    const pirData = taskNode.data as import('@/types/nodes').PIRTaskNodeData
+    models = pirData.models || []
+  } else {
+    const taskData = taskNode.data as ComputeTaskNodeData
+    models = taskData.models || []
+  }
+
   // 遍历所有模型配置
-  taskData.models?.forEach(async (model) => {
+  models.forEach((model) => {
     if (model.type === 'expression') {
       // 表达式模型：只有一个默认输出字段，类型是浮点型
       fields.push({
@@ -786,6 +897,18 @@ const onConnect = (connection: Connection) => {
   const sourceData = sourceNode.data as NodeData
   const targetData = targetNode.data as ComputeTaskNodeData
 
+  // 调试日志：显示连接尝试的详细信息
+  logger.info('[FlowCanvas] onConnect called', {
+    sourceId: connection.source,
+    targetId: connection.target,
+    sourceType: sourceNode.type,
+    targetType: targetNode.type,
+    sourceCategory: sourceData.category,
+    targetCategory: targetData.category,
+    sourceSourceType: (sourceData as any).sourceType,
+    targetTaskType: (targetData as any).taskType
+  })
+
   // 根据源节点类型和目标节点类型自动设置正确的 targetHandle
   let correctedTargetHandle = connection.targetHandle
   if (targetData.category === NodeCategory.COMPUTE_TASK) {
@@ -822,6 +945,46 @@ const onConnect = (connection: Connection) => {
   const correctedConnection: Connection = {
     ...connection,
     targetHandle: correctedTargetHandle
+  }
+
+  // 检查是否连接到 PIR 任务节点（优先处理，避免被通用计算任务逻辑拦截）
+  logger.info('[FlowCanvas] Checking PIR task connection', {
+    targetNodeType: targetNode.type,
+    isPirTask: targetNode.type === 'pir_task'
+  })
+
+  if (targetNode.type === 'pir_task') {
+    logger.info('[FlowCanvas] PIR task detected, creating connection directly')
+    // 处理 PIR 任务节点连接
+    // 直接创建连接，PIR 任务不需要字段选择对话框
+    const newEdge = createUniqueEdge({
+      source: correctedConnection.source,
+      target: correctedConnection.target,
+      sourceHandle: correctedConnection.sourceHandle || 'output',
+      targetHandle: correctedConnection.targetHandle || 'preload-input'
+    }, edges.value, sourceData.category)
+
+    // 如果连接到 realtime-input，使用特殊样式
+    if (correctedConnection.targetHandle === 'realtime-input') {
+      newEdge.animated = true
+      newEdge.style = { stroke: '#13c2c2', strokeWidth: 2 }
+    }
+
+    addEdge(newEdge)
+
+    // 更新 PIR 节点数据
+    updatePIRNodeData(
+      correctedConnection.source,
+      correctedConnection.target,
+      correctedConnection.targetHandle || 'preload-input'
+    )
+
+    logger.info('[FlowCanvas] Created PIR task connection', {
+      source: correctedConnection.source,
+      target: correctedConnection.target,
+      targetHandle: correctedConnection.targetHandle
+    })
+    return
   }
 
   // 检查是否连接到计算任务节点或本地任务节点
@@ -895,28 +1058,6 @@ const onConnect = (connection: Connection) => {
     // 打开字段选择对话框
     showFieldSelectorDialog.value = true
     logger.info('[FlowCanvas] Opening field selector dialog for connection')
-  } else if (targetNode.type === 'pir_task') {
-    // 处理 PIR 任务节点连接
-    // 直接创建连接，PIR 任务不需要字段选择对话框
-    const newEdge = createUniqueEdge({
-      source: correctedConnection.source,
-      target: correctedConnection.target,
-      sourceHandle: correctedConnection.sourceHandle || 'output',
-      targetHandle: correctedConnection.targetHandle || 'preload-input'
-    }, edges.value, sourceData.category)
-
-    // 如果连接到 realtime-input，使用特殊样式
-    if (correctedConnection.targetHandle === 'realtime-input') {
-      newEdge.animated = true
-      newEdge.style = { stroke: '#13c2c2', strokeWidth: 2 }
-    }
-
-    addEdge(newEdge)
-    logger.info('[FlowCanvas] Created PIR task connection', {
-      source: correctedConnection.source,
-      target: correctedConnection.target,
-      targetHandle: correctedConnection.targetHandle
-    })
   } else {
     // 直接创建连接（非计算任务节点）
     const newEdge = createUniqueEdge({
@@ -1883,7 +2024,8 @@ function handleAutoLayout() {
  */
 function handleAddOutput(event: Event) {
   const customEvent = event as CustomEvent
-  const { nodeId } = customEvent.detail
+  // 支持 nodeId 和 taskId 两种参数名（PIR节点使用taskId）
+  const nodeId = customEvent.detail.nodeId || customEvent.detail.taskId
 
   const taskNode = nodes.value.find(n => n.id === nodeId)
   if (!taskNode) {
@@ -1891,10 +2033,36 @@ function handleAddOutput(event: Event) {
     return
   }
 
+  // 检查是否是 PIR 任务节点
+  const isPIRTask = taskNode.type === 'pir_task'
+  if (isPIRTask) {
+    // PIR 任务节点：直接打开输出配置，不需要检查 inputProviders
+    const pirData = taskNode.data as import('@/types/nodes').PIRTaskNodeData
+
+    // 检查是否已配置数据源
+    if (!pirData.preloadDataSource && !pirData.realtimeDataSource) {
+      logger.warn('[FlowCanvas] Cannot add output for PIR: no data source configured')
+      return
+    }
+
+    pendingOutputTaskId.value = nodeId
+    pendingOutputConfig.value = undefined
+    pendingOutputSourceType.value = 'pir_task'
+    pendingOutputFixedEnterprise.value = undefined
+    pendingOutputLocalQueryData.value = undefined
+
+    showOutputConfigDialog.value = true
+    logger.info('[FlowCanvas] Opening output config dialog for PIR task', { taskId: nodeId })
+    return
+  }
+
   const taskData = taskNode.data as ComputeTaskNodeData | LocalQueryNodeData
 
-  // 检查是否已配置输入数据
-  if (!taskData.inputProviders || taskData.inputProviders.length === 0) {
+  // 检查是否是 local_query 节点
+  const isLocalQuery = taskNode.type === 'local_query'
+
+  // 检查是否已配置输入数据（非PIR任务且非本地查询）
+  if (!isLocalQuery && (!taskData.inputProviders || taskData.inputProviders.length === 0)) {
     logger.warn('[FlowCanvas] Cannot add output: no input providers configured')
     // TODO: 显示提示信息
     return
@@ -1904,8 +2072,6 @@ function handleAddOutput(event: Event) {
   pendingOutputTaskId.value = nodeId
   pendingOutputConfig.value = undefined
 
-  // 检查是否是 local_query 节点，设置固定企业信息
-  const isLocalQuery = taskNode.type === 'local_query'
   if (isLocalQuery) {
     const localQueryData = taskData as LocalQueryNodeData
     pendingOutputFixedEnterprise.value = {
@@ -1933,7 +2099,8 @@ function handleAddOutput(event: Event) {
  */
 function handleAddModel(event: Event) {
   const customEvent = event as CustomEvent
-  const { nodeId } = customEvent.detail
+  // 支持 nodeId 和 taskId 两种参数名（PIR节点使用taskId）
+  const nodeId = customEvent.detail.nodeId || customEvent.detail.taskId
 
   const taskNode = nodes.value.find(n => n.id === nodeId)
   if (!taskNode) {
@@ -2463,6 +2630,7 @@ function handleTypeSelectorCancel() {
 /**
  * 处理输出配置确认
  * 支持新建和编辑两种模式
+ * 支持普通计算任务、本地查询任务和 PIR 任务
  */
 function handleOutputConfigConfirmed(config: {
   participantId: string
@@ -2473,7 +2641,8 @@ function handleOutputConfigConfirmed(config: {
     taskId: pendingOutputTaskId.value,
     isEditMode: !!editingOutputNodeId.value,
     participantId: config.participantId,
-    fieldCount: config.fields.length
+    fieldCount: config.fields.length,
+    sourceType: pendingOutputSourceType.value
   })
 
   if (!pendingOutputTaskId.value) {
@@ -2487,7 +2656,8 @@ function handleOutputConfigConfirmed(config: {
     return
   }
 
-  const taskData = taskNode.data as ComputeTaskNodeData
+  // 检查是否是 PIR 任务
+  const isPIRTask = taskNode.type === 'pir_task'
 
   // 根据 participantId 查找企业名称
   const enterprise = availableEnterprises.value.find(e => e.id === config.participantId)
@@ -2512,12 +2682,29 @@ function handleOutputConfigConfirmed(config: {
     } as OutputDataNodeData
 
     // 更新父任务的 outputs 配置
-    if (taskData.outputs) {
-      const outputConfig = taskData.outputs.find(o => o.outputNodeId === editingOutputNodeId.value)
-      if (outputConfig) {
-        outputConfig.participantId = config.participantId
-        outputConfig.dataset = config.dataset
-        outputConfig.outputFields = config.fields
+    if (isPIRTask) {
+      const pirData = taskNode.data as import('@/types/nodes').PIRTaskNodeData
+      if (pirData.outputs) {
+        const outputConfig = pirData.outputs.find(o => o.outputNodeId === editingOutputNodeId.value)
+        if (outputConfig) {
+          outputConfig.name = config.dataset
+          outputConfig.fields = config.fields.map(f => ({
+            source: f.source,
+            columnName: f.columnName,
+            columnAlias: f.columnAlias,
+            columnType: f.columnType
+          }))
+        }
+      }
+    } else {
+      const taskData = taskNode.data as ComputeTaskNodeData
+      if (taskData.outputs) {
+        const outputConfig = taskData.outputs.find(o => o.outputNodeId === editingOutputNodeId.value)
+        if (outputConfig) {
+          outputConfig.participantId = config.participantId
+          outputConfig.dataset = config.dataset
+          outputConfig.outputFields = config.fields
+        }
       }
     }
 
@@ -2533,6 +2720,9 @@ function handleOutputConfigConfirmed(config: {
       y: taskNode.position.y + 150
     }
 
+    // PIR 输出节点使用流式样式
+    const isStreamOutput = isPIRTask
+
     const outputNode: Node = {
       id: outputNodeId,
       type: 'outputData',
@@ -2540,45 +2730,69 @@ function handleOutputConfigConfirmed(config: {
       data: {
         label: config.dataset,
         category: NodeCategory.OUTPUT_DATA,
-        color: '#52C41A',
+        color: isStreamOutput ? '#FA8C16' : '#52C41A',  // 流式输出使用橙色
         icon: 'download',
-        description: `输出到 ${config.participantId}`,
+        description: isStreamOutput ? `流式输出到 ${config.participantId}` : `输出到 ${config.participantId}`,
         parentTaskId: pendingOutputTaskId.value,
         participantId: config.participantId,
         entityName: entityName,
         dataset: config.dataset,
-        fields: config.fields
+        fields: config.fields,
+        isStreamOutput  // 标记为流式输出
       } as any
     }
 
     addNode(outputNode)
 
     // 创建从计算任务到输出节点的连接
+    const taskCategory = isPIRTask ? NodeCategory.COMPUTE_TASK : (taskNode.data as any).category
     const outputEdge = createUniqueEdge({
       source: pendingOutputTaskId.value,
       target: outputNodeId,
       sourceHandle: 'output',
       targetHandle: 'input'
-    }, edges.value, taskData.category)
+    }, edges.value, taskCategory)
     edges.value.push(outputEdge)
 
-    // 更新计算任务的 outputs 数组
-    if (!taskData.outputs) {
-      taskData.outputs = []
-    }
+    // 更新任务的 outputs 数组
+    if (isPIRTask) {
+      const pirData = taskNode.data as import('@/types/nodes').PIRTaskNodeData
+      if (!pirData.outputs) {
+        pirData.outputs = []
+      }
 
-    taskData.outputs.push({
-      id: `output_config_${Date.now()}`,
-      participantId: config.participantId,
-      dataset: config.dataset,
-      outputFields: config.fields,
-      outputNodeId: outputNodeId
-    })
+      pirData.outputs.push({
+        id: `pir_output_${Date.now()}`,
+        name: config.dataset,
+        type: 'stream',
+        fields: config.fields.map(f => ({
+          source: f.source,
+          columnName: f.columnName,
+          columnAlias: f.columnAlias,
+          columnType: f.columnType
+        })),
+        outputNodeId: outputNodeId
+      })
+    } else {
+      const taskData = taskNode.data as ComputeTaskNodeData
+      if (!taskData.outputs) {
+        taskData.outputs = []
+      }
+
+      taskData.outputs.push({
+        id: `output_config_${Date.now()}`,
+        participantId: config.participantId,
+        dataset: config.dataset,
+        outputFields: config.fields,
+        outputNodeId: outputNodeId
+      })
+    }
 
     logger.info('[FlowCanvas] Output node created and linked', {
       outputNodeId,
       parentTaskId: pendingOutputTaskId.value,
-      edgeId: outputEdge.id
+      edgeId: outputEdge.id,
+      isStreamOutput
     })
   }
 

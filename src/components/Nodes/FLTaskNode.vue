@@ -234,6 +234,7 @@ const hasOutput = computed(() => {
 .fl-task-node:hover .node-handle,
 .fl-task-node.is-selected .node-handle {
   opacity: 1;
+  visibility: visible;
 }
 
 .node-handle:hover {

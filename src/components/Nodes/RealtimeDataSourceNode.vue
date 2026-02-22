@@ -73,7 +73,7 @@
       id="output"
       type="source"
       :position="Position.Bottom"
-      :style="{ left: '50%' }"
+      :style="{ left: '50%', visibility: isOutputVisible || isHovered ? 'visible' : 'hidden', opacity: isOutputVisible || isHovered ? 1 : 0 }"
       :class="['output-handle', { 'is-visible': isOutputVisible || isHovered }]"
     />
   </div>
@@ -407,11 +407,13 @@ const selected = computed(() => props.selected)
   transition: opacity 0.2s;
 
   &.is-visible {
-    opacity: 1;
+    opacity: 1 !important;
+    visibility: visible !important;
   }
 }
 
 .realtime-datasource-node:hover .output-handle {
-  opacity: 1;
+  opacity: 1 !important;
+  visibility: visible !important;
 }
 </style>

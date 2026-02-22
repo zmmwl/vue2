@@ -199,6 +199,59 @@
           </div>
         </CollapsibleSection>
 
+        <!-- 计算模型列表 -->
+        <CollapsibleSection title="计算模型" :count="pirModelsCount">
+          <div v-if="pirModelsCount === 0" class="empty-inputs">
+            <div class="empty-icon">🧮</div>
+            <p>暂未添加计算模型</p>
+            <p class="empty-hint">点击节点左侧 + 按钮添加模型</p>
+          </div>
+          <div v-else class="models-list">
+            <div
+              v-for="(model, index) in pirModels"
+              :key="model.id"
+              class="model-card"
+            >
+              <div class="model-header">
+                <span class="model-icon">{{ model.type === 'expression' ? '📝' : '📦' }}</span>
+                <span class="model-name">{{ model.name || `模型 ${index + 1}` }}</span>
+                <span class="model-type-badge">{{ model.type === 'expression' ? '表达式' : 'CodeBin' }}</span>
+              </div>
+              <button class="config-btn" @click="handleConfigPIRModel(model)">
+                ⚙️ 配置
+              </button>
+            </div>
+          </div>
+        </CollapsibleSection>
+
+        <!-- 输出列表（流式类型） -->
+        <CollapsibleSection title="输出配置" :count="pirOutputsCount">
+          <div v-if="pirOutputsCount === 0" class="empty-inputs">
+            <div class="empty-icon">📤</div>
+            <p>暂未配置输出</p>
+            <p class="empty-hint">点击节点底部 + 按钮添加流式输出</p>
+          </div>
+          <div v-else class="outputs-list">
+            <div
+              v-for="(output, index) in pirOutputs"
+              :key="output.id"
+              class="output-card stream-output"
+            >
+              <div class="output-header">
+                <span class="output-icon">📤</span>
+                <span class="output-name">{{ output.name || `输出 ${index + 1}` }}</span>
+                <span class="stream-badge">流式</span>
+              </div>
+              <div v-if="output.fields?.length" class="output-fields">
+                <span class="fields-count">{{ output.fields.length }} 个字段</span>
+              </div>
+              <button class="config-btn" @click="handleConfigPIROutput(output, index)">
+                ⚙️ 配置
+              </button>
+            </div>
+          </div>
+        </CollapsibleSection>
+
         <div class="info-section">
           <button class="config-params-btn full-width-btn" @click="handleConfigPIRTask">
             ⚙️ 重新配置任务
@@ -1014,6 +1067,22 @@ const pirTaskData = computed((): PIRTaskNodeData | null => {
   return props.selectedNode?.data as PIRTaskNodeData
 })
 
+// PIR 任务的模型列表
+const pirModels = computed(() => {
+  return pirTaskData.value?.models || []
+})
+
+// PIR 任务的模型数量
+const pirModelsCount = computed(() => pirModels.value.length)
+
+// PIR 任务的输出列表
+const pirOutputs = computed(() => {
+  return pirTaskData.value?.outputs || []
+})
+
+// PIR 任务的输出数量
+const pirOutputsCount = computed(() => pirOutputs.value.length)
+
 // FL 任务节点数据
 const flTaskData = computed((): FLTaskNodeData | null => {
   if (!isFLTaskNode.value) return null
@@ -1491,6 +1560,41 @@ function handleConfigPIRTask() {
   })
 
   emit('config-pir-task', props.selectedNode.id)
+}
+
+/**
+ * 处理 PIR 任务模型配置
+ */
+function handleConfigPIRModel(model: any) {
+  if (!props.selectedNode) return
+
+  logger.info('[FlowDetailPanel] PIR model config clicked', {
+    modelId: model.id,
+    taskId: props.selectedNode.id
+  })
+
+  emit('configParams', {
+    modelId: model.id,
+    modelConfig: model,
+    taskId: props.selectedNode.id
+  })
+}
+
+/**
+ * 处理 PIR 任务输出配置
+ */
+function handleConfigPIROutput(_output: any, index: number) {
+  if (!props.selectedNode) return
+
+  logger.info('[FlowDetailPanel] PIR output config clicked', {
+    outputIndex: index,
+    taskId: props.selectedNode.id
+  })
+
+  emit('configOutput', {
+    outputIndex: index,
+    taskId: props.selectedNode.id
+  })
 }
 
 /**

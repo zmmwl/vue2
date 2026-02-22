@@ -2,14 +2,17 @@
   <div
     class="pir-task-node"
     :class="{ 'is-selected': selected, 'is-configured': isConfigured }"
+    :data-testid="`node-pir-task`"
+    @mouseenter="isHovered = true"
+    @mouseleave="isHovered = false"
   >
     <!-- 预加载数据源输入 Handle -->
     <Handle
       id="preload-input"
       type="target"
       :position="Position.Top"
-      :style="{ left: '30%' }"
-      class="node-handle preload-handle"
+      :style="{ left: '30%', visibility: isPreloadInputVisible || isHovered ? 'visible' : 'hidden', opacity: isPreloadInputVisible || isHovered ? 1 : 0 }"
+      :class="['node-handle', 'preload-handle', { 'is-visible': isPreloadInputVisible }]"
     />
 
     <!-- 实时数据源输入 Handle -->
@@ -17,8 +20,17 @@
       id="realtime-input"
       type="target"
       :position="Position.Top"
-      :style="{ left: '70%' }"
-      class="node-handle realtime-handle"
+      :style="{ left: '70%', visibility: isRealtimeInputVisible || isHovered ? 'visible' : 'hidden', opacity: isRealtimeInputVisible || isHovered ? 1 : 0 }"
+      :class="['node-handle', 'realtime-handle', { 'is-visible': isRealtimeInputVisible }]"
+    />
+
+    <!-- 左侧输入连接点（模型节点） -->
+    <Handle
+      id="input"
+      type="target"
+      :position="Position.Left"
+      :style="{ visibility: isModelInputVisible || isHovered ? 'visible' : 'hidden', opacity: isModelInputVisible || isHovered ? 1 : 0 }"
+      :class="['node-handle', 'input-handle', { 'is-visible': isModelInputVisible }]"
     />
 
     <div class="node-card">
@@ -52,26 +64,70 @@
             {{ realtimeDataSourceLabel }}
           </span>
         </div>
+
+        <!-- 模型数量 -->
+        <div v-if="modelsCount > 0" class="data-source-row">
+          <span class="source-label">
+            <span class="label-icon">🧮</span>
+            模型
+          </span>
+          <span class="source-status is-configured">
+            {{ modelsCount }} 个
+          </span>
+        </div>
+
+        <!-- 输出数量 -->
+        <div v-if="outputsCount > 0" class="data-source-row">
+          <span class="source-label">
+            <span class="label-icon">📤</span>
+            输出
+          </span>
+          <span class="source-status is-configured">
+            {{ outputsCount }} 个 (流式)
+          </span>
+        </div>
       </div>
     </div>
+
+    <!-- 左侧"添加模型"按钮 -->
+    <button
+      class="add-model-btn"
+      @click="handleAddModel"
+      @mousedown.stop
+      title="添加模型"
+    >
+      <span>+</span>
+    </button>
+
+    <!-- 添加输出按钮 -->
+    <button class="add-output-btn" @click="handleAddOutput" @mousedown.stop title="添加输出 (流式)">
+      <span>+</span>
+    </button>
 
     <!-- 输出 Handle (实时数据源样式) -->
     <Handle
       id="output"
       type="source"
       :position="Position.Bottom"
-      class="node-handle output-handle"
+      :style="{ visibility: isOutputVisible || isHovered ? 'visible' : 'hidden', opacity: isOutputVisible || isHovered ? 1 : 0 }"
+      :class="['node-handle', 'output-handle', { 'is-visible': isOutputVisible }]"
     />
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 import { Handle, Position } from '@vue-flow/core'
 import type { NodeProps } from '@vue-flow/core'
 import type { PIRTaskNodeData, NodeData } from '@/types/nodes'
+import { useVueFlow } from '@vue-flow/core'
 
 const props = defineProps<NodeProps<NodeData>>()
+
+const { edges } = useVueFlow()
+
+// 悬停状态
+const isHovered = ref(false)
 
 // 获取 PIR 任务数据
 const pirData = computed(() => props.data as unknown as PIRTaskNodeData)
@@ -89,6 +145,16 @@ const hasPreloadDataSource = computed(() => {
 // 是否有实时数据源
 const hasRealtimeDataSource = computed(() => {
   return !!pirData.value.realtimeDataSource?.fields?.length
+})
+
+// 模型数量
+const modelsCount = computed(() => {
+  return pirData.value.models?.length || 0
+})
+
+// 输出数量
+const outputsCount = computed(() => {
+  return pirData.value.outputs?.length || 0
 })
 
 // 预加载数据源标签
@@ -109,6 +175,50 @@ const realtimeDataSourceLabel = computed(() => {
   }
   return '未配置'
 })
+
+// Handle 可见性
+const isPreloadInputVisible = computed(() => {
+  return hasPreloadDataSource.value || edges.value.some(e => e.target === props.id && e.targetHandle === 'preload-input')
+})
+
+const isRealtimeInputVisible = computed(() => {
+  return hasRealtimeDataSource.value || edges.value.some(e => e.target === props.id && e.targetHandle === 'realtime-input')
+})
+
+const isModelInputVisible = computed(() => {
+  return edges.value.some(e => e.target === props.id && e.targetHandle === 'input')
+})
+
+const isOutputVisible = computed(() => {
+  return outputsCount.value > 0 || edges.value.some(e => e.source === props.id)
+})
+
+/**
+ * 处理添加模型按钮点击
+ */
+function handleAddModel() {
+  // 派发自定义事件，通知父组件打开模型选择器
+  const event = new CustomEvent('add-model', {
+    detail: {
+      taskId: props.id
+    }
+  })
+  document.dispatchEvent(event)
+}
+
+/**
+ * 处理添加输出按钮点击
+ */
+function handleAddOutput() {
+  // 派发自定义事件，通知父组件打开输出配置
+  const event = new CustomEvent('add-output', {
+    detail: {
+      taskId: props.id,
+      outputType: 'stream'  // PIR 输出固定为流式类型
+    }
+  })
+  document.dispatchEvent(event)
+}
 </script>
 
 <style scoped lang="scss">
@@ -122,10 +232,16 @@ const realtimeDataSourceLabel = computed(() => {
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-card-sm);
   transition: var(--button-transition);
+  position: relative;
 
   &:hover {
     box-shadow: var(--shadow-card-hover);
     transform: translateY(-2px);
+
+    .add-model-btn,
+    .add-output-btn {
+      opacity: 1;
+    }
   }
 
   &.is-selected {
@@ -216,6 +332,64 @@ const realtimeDataSourceLabel = computed(() => {
   }
 }
 
+// 添加模型按钮
+.add-model-btn {
+  position: absolute;
+  left: -12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid var(--color-primary);
+  background: white;
+  color: var(--color-primary);
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: all 0.2s;
+  z-index: 10;
+
+  &:hover {
+    background: var(--color-primary);
+    color: white;
+    transform: translateY(-50%) scale(1.1);
+  }
+}
+
+// 添加输出按钮
+.add-output-btn {
+  position: absolute;
+  bottom: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid var(--realtime-datasource-color);
+  background: white;
+  color: var(--realtime-datasource-color);
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: all 0.2s;
+  z-index: 10;
+
+  &:hover {
+    background: var(--realtime-datasource-color);
+    color: white;
+    transform: translateX(-50%) scale(1.1);
+  }
+}
+
 // Handle 样式
 .node-handle {
   width: 12px;
@@ -232,17 +406,23 @@ const realtimeDataSourceLabel = computed(() => {
 
 .realtime-handle {
   background: var(--realtime-datasource-color);
-  border-style: var(--realtime-datasource-border-style);
+  border-style: dashed;
+}
+
+.input-handle {
+  background: #9333EA;
 }
 
 .output-handle {
   background: var(--realtime-datasource-color);
-  border-style: var(--realtime-datasource-border-style);
+  border-style: dashed;
 }
 
-.pir-task-node:hover .node-handle,
-.pir-task-node.is-selected .node-handle {
-  opacity: 1;
+.pir-task-node:hover :deep(.node-handle),
+.pir-task-node.is-selected :deep(.node-handle),
+:deep(.node-handle.is-visible) {
+  opacity: 1 !important;
+  visibility: visible !important;
 }
 
 .node-handle:hover {

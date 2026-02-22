@@ -221,10 +221,12 @@ function handleClearHighlight() {
 
     &.is-visible {
       opacity: 1;
+      visibility: visible;
     }
 
     &:hover {
       opacity: 1;
+      visibility: visible;
       background-color: #1890ff;
       transform: translateX(-50%) scale(1.1);
     }
@@ -244,10 +246,12 @@ function handleClearHighlight() {
 
     &.is-visible {
       opacity: 1;
+      visibility: visible;
     }
 
     &:hover {
       opacity: 1;
+      visibility: visible;
       background-color: #9254de;
       transform: translateY(-50%) scale(1.1);
     }
@@ -266,10 +270,12 @@ function handleClearHighlight() {
 
     &.is-visible {
       opacity: 1;
+      visibility: visible;
     }
 
     &:hover {
       opacity: 1;
+      visibility: visible;
       background-color: #1890ff;
       transform: translateX(-50%) scale(1.2);
     }
@@ -289,10 +295,12 @@ function handleClearHighlight() {
 
     &.is-visible {
       opacity: 1;
+      visibility: visible;
     }
 
     &:hover {
       opacity: 1;
+      visibility: visible;
       background-color: #1890ff;
       transform: translateY(-50%) scale(1.1);
     }
@@ -305,6 +313,7 @@ function handleClearHighlight() {
     .output-handle,
     .compute-input-handle {
       opacity: 1;
+      visibility: visible;
     }
   }
 

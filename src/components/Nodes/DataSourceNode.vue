@@ -175,6 +175,7 @@ const isOutputVisible = computed(() => {
 
     &.is-visible {
       opacity: 1;
+      visibility: visible;
     }
 
     &:hover {
@@ -188,6 +189,7 @@ const isOutputVisible = computed(() => {
   &:hover {
     .output-handle {
       opacity: 1;
+      visibility: visible;
     }
   }
 

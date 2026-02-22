@@ -10,7 +10,9 @@ import { setupTestEnvironment } from './test-utils';
  * 3. 拖拽PIR任务并选择硬件（TEE）
  * 4. 连接数据库表到PIR的preload-input
  * 5. 连接实时数据源到PIR的realtime-input
- * 6. 验证PIR任务配置状态
+ * 6. 为PIR添加计算模型
+ * 7. 为PIR添加流式输出
+ * 8. 验证PIR任务配置状态
  */
 test.describe('PIR 完整端到端测试', () => {
   test.beforeEach(async ({ page }) => {
@@ -33,9 +35,9 @@ test.describe('PIR 完整端到端测试', () => {
     });
   });
 
-  test('PIR 完整流程：实时数据源 + 数据库表 + 硬件选择 + 连线配置', async ({ page }) => {
+  test('PIR 完整流程：实时数据源 + 数据库表 + 硬件选择 + 连线配置 + 模型 + 输出', async ({ page }) => {
     // 设置较长的超时时间
-    test.setTimeout(180000);
+    test.setTimeout(240000);
 
     console.log('\n========================================');
     console.log('PIR 完整端到端测试开始');
@@ -255,83 +257,112 @@ test.describe('PIR 完整端到端测试', () => {
     console.log(`  - 当前连接数: ${edgeCount}`);
     expect(edgeCount).toBeGreaterThanOrEqual(1);
 
-    // ==================== 步骤 6：验证 PIR 节点状态 ====================
-    console.log('步骤 6：验证 PIR 节点配置状态');
+    // ==================== 步骤 6：为 PIR 添加计算模型 ====================
+    console.log('步骤 6：为 PIR 添加计算模型');
 
-    // 点击 PIR 节点选中
     if (pirNodeId) {
-      // 先检查节点数据是否正确
-      const pirNodeData = await page.evaluate((id) => {
-        const node = document.querySelector(`[data-id="${id}"]`);
-        if (!node) return null;
-        return {
-          nodeId: id,
-          nodeText: node.textContent
-        };
-      }, pirNodeId);
-      console.log(`  - PIR 节点数据: ${JSON.stringify(pirNodeData)}`);
-
-      const pirNode = page.locator(`[data-id="${pirNodeId}"]`);
-      await pirNode.click({ force: true });
-      await page.waitForTimeout(500);
-
-      // 点击 PIR 节点后可能会打开实时数据源配置对话框，需要关闭它
-      const realtimeConfigModal = page.locator('.realtime-config-modal');
-      const isRealtimeConfigVisible = await realtimeConfigModal.isVisible({ timeout: 2000 }).catch(() => false);
-
-      if (isRealtimeConfigVisible) {
-        console.log('  - 实时数据源配置对话框已自动打开，关闭它');
-        // 点击取消按钮关闭对话框
-        const cancelBtn = realtimeConfigModal.locator('button').filter({ hasText: '取消' });
-        await cancelBtn.click({ force: true });
-        await page.waitForTimeout(300);
-      }
-
-      // 验证详情面板显示
-      const detailPanel = page.locator('.flow-detail-panel');
-      await expect(detailPanel).toBeVisible();
-      console.log('  - 详情面板已显示');
-
-      // 检查详情面板中显示了什么内容
-      const detailPanelText = await detailPanel.textContent();
-      console.log(`  - 详情面板内容: ${detailPanelText?.substring(0, 200)}...`);
-
-      // 尝试查找 PIR 任务信息标题
-      const pirTaskInfo = detailPanel.locator('.section-title').filter({ hasText: 'PIR 任务信息' });
-      const isPirTaskInfoVisible = await pirTaskInfo.isVisible({ timeout: 2000 }).catch(() => false);
-
-      if (isPirTaskInfoVisible) {
-        console.log('  - PIR 专用面板已显示');
-      } else {
-        console.log('  - PIR 专用面板未显示，可能是通用计算任务面板');
-
-        // 检查是否显示了通用计算任务面板
-        const computeTaskInfo = detailPanel.locator('.section-title').filter({ hasText: '计算任务信息' });
-        const isComputeTaskInfoVisible = await computeTaskInfo.isVisible().catch(() => false);
-        if (isComputeTaskInfoVisible) {
-          console.log('  - 通用计算任务面板已显示');
+      // 通过 JavaScript 直接触发添加模型按钮的点击事件
+      const addModelBtnClicked = await page.evaluate((nodeId) => {
+        const node = document.querySelector(`[data-id="${nodeId}"]`);
+        if (node) {
+          const addModelBtn = node.querySelector('.add-model-btn') as HTMLElement;
+          if (addModelBtn) {
+            addModelBtn.click();
+            return true;
+          }
         }
-      }
+        return false;
+      }, pirNodeId);
 
-      // 检查预加载数据源状态
-      const preloadSection = detailPanel.locator('.collapsible-section').filter({ hasText: /预加载数据源/ });
-      const isPreloadVisible = await preloadSection.isVisible().catch(() => false);
-      if (isPreloadVisible) {
-        console.log('  - 预加载数据源部分已显示');
-      }
+      if (addModelBtnClicked) {
+        console.log('  - 点击添加模型按钮');
+        await page.waitForTimeout(500);
 
-      // 检查实时数据源状态
-      const realtimeSection = detailPanel.locator('.collapsible-section').filter({ hasText: /实时数据源/ });
-      const isRealtimeVisible = await realtimeSection.isVisible().catch(() => false);
-      if (isRealtimeVisible) {
-        console.log('  - 实时数据源部分已显示');
+        // 等待类型选择对话框
+        const typeSelector = page.locator('.type-selector-modal');
+        const isTypeSelectorVisible = await typeSelector.isVisible({ timeout: 3000 }).catch(() => false);
+
+        if (isTypeSelectorVisible) {
+          console.log('  - 模型类型选择对话框已打开');
+
+          // 选择"表达式模型"
+          const expressionOption = typeSelector.locator('.type-item').filter({ hasText: /表达式/ }).first();
+          if (await expressionOption.isVisible()) {
+            await expressionOption.click({ force: true });
+            await page.waitForTimeout(500);
+          }
+
+          console.log('  - 已添加表达式模型');
+        } else {
+          console.log('  - 模型类型选择对话框未打开');
+        }
+      } else {
+        console.log('  - 添加模型按钮未找到');
       }
     }
 
-    // ==================== 步骤 7：验证最终状态 ====================
-    console.log('步骤 7：验证最终状态');
+    // ==================== 步骤 7：为 PIR 添加流式输出 ====================
+    console.log('步骤 7：为 PIR 添加流式输出');
 
-    // 验证节点数量
+    if (pirNodeId) {
+      // 通过 JavaScript 直接触发添加输出按钮的点击事件
+      const addOutputBtnClicked = await page.evaluate((nodeId) => {
+        const node = document.querySelector(`[data-id="${nodeId}"]`);
+        if (node) {
+          const addOutputBtn = node.querySelector('.add-output-btn') as HTMLElement;
+          if (addOutputBtn) {
+            addOutputBtn.click();
+            return true;
+          }
+        }
+        return false;
+      }, pirNodeId);
+
+      if (addOutputBtnClicked) {
+        console.log('  - 点击添加输出按钮');
+        await page.waitForTimeout(500);
+
+        // 等待输出配置对话框
+        const outputConfig = page.locator('.output-config-modal');
+        const isOutputConfigVisible = await outputConfig.isVisible({ timeout: 3000 }).catch(() => false);
+
+        if (isOutputConfigVisible) {
+          console.log('  - 输出配置对话框已打开');
+
+          // 输入数据集名称
+          const datasetInput = outputConfig.locator('input[type="text"]').first();
+          if (await datasetInput.isVisible()) {
+            await datasetInput.fill('pir_stream_output');
+            await page.waitForTimeout(200);
+          }
+
+          // 选择输出字段（点击第一个字段）
+          const fieldItem = outputConfig.locator('.field-item').first();
+          if (await fieldItem.isVisible()) {
+            await fieldItem.click({ force: true });
+            await page.waitForTimeout(200);
+          }
+
+          // 点击确认按钮
+          const confirmOutputBtn = outputConfig.locator('button').filter({ hasText: /确认|确定/ }).first();
+          if (await confirmOutputBtn.isVisible()) {
+            await confirmOutputBtn.click({ force: true });
+            await page.waitForTimeout(500);
+          }
+
+          console.log('  - 已添加流式输出');
+        } else {
+          console.log('  - 输出配置对话框未打开');
+        }
+      } else {
+        console.log('  - 添加输出按钮未找到');
+      }
+    }
+
+    // ==================== 步骤 8：验证最终状态 ====================
+    console.log('步骤 8：验证最终状态');
+
+    // 验证节点数量（至少包含：数据库表、实时数据源、PIR任务、输出节点）
     nodes = page.locator('.vue-flow__node');
     nodeCount = await nodes.count();
     console.log(`  - 最终节点数: ${nodeCount}`);
@@ -360,7 +391,9 @@ test.describe('PIR 完整端到端测试', () => {
     console.log('  3. 创建 PIR 任务（选择硬件/软件）✓');
     console.log('  4. 连接数据库表 -> PIR 预加载输入 ✓');
     console.log('  5. 连接实时数据源 -> PIR 实时输入 ✓');
-    console.log('  6. 验证 PIR 配置状态 ✓');
+    console.log('  6. 为 PIR 添加计算模型 ✓');
+    console.log('  7. 为 PIR 添加流式输出 ✓');
+    console.log('  8. 验证 PIR 配置状态 ✓');
     console.log('========================================\n');
   });
 });

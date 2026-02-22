@@ -554,6 +554,16 @@ export interface RealtimeDataSourceInfo {
   sourceNodeId?: string         // 连线来源节点ID（连线导入时存在）
 }
 
+/** PIR输出配置（流式类型） */
+export interface PIROutputConfig {
+  id: string                      // 输出唯一ID
+  name: string                    // 输出名称
+  type: 'stream'                  // PIR输出固定为流式类型
+  fields: OutputField[]           // 输出字段列表
+  description?: string            // 描述
+  outputNodeId?: string           // 关联的输出节点ID
+}
+
 /** PIR任务节点数据 */
 export interface PIRTaskNodeData extends NodeData {
   category: NodeCategory.COMPUTE_TASK
@@ -564,6 +574,12 @@ export interface PIRTaskNodeData extends NodeData {
 
   // 实时数据源（来自连线或手工配置）
   realtimeDataSource?: RealtimeDataSourceInfo
+
+  // 计算模型配置列表（类似MPC任务）
+  models?: ComputeModelConfig[]
+
+  // 输出配置列表（PIR输出为流式类型）
+  outputs?: PIROutputConfig[]
 
   // 输出数据节点ID（PIR输出以实时数据源样式展示）
   outputNodeId?: string
