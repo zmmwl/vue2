@@ -464,12 +464,13 @@ async function loadEnterprises() {
 // 组件挂载时加载企业列表
 /**
  * 更新 PIR 节点的数据源信息
- * 当连接到 PIR 节点的 preload-input 或 realtime-input 时调用
+ * 当连接到 PIR 节点的 data-input 时调用
+ * PIR 任务只能接入两个数据源：一个实时数据源 + 一个普通数据源
  */
 function updatePIRNodeData(
   sourceId: string,
   targetId: string,
-  targetHandle: string
+  _targetHandle: string
 ) {
   const sourceNode = nodes.value.find(n => n.id === sourceId)
   const targetNode = nodes.value.find(n => n.id === targetId)
@@ -481,9 +482,28 @@ function updatePIRNodeData(
   const sourceData = sourceNode.data as NodeData
   const pirData = targetNode.data as import('@/types/nodes').PIRTaskNodeData
 
-  if (targetHandle === 'preload-input') {
+  // 根据源节点类型判断是实时数据源还是普通数据源
+  const sourceDataSource = sourceData as any
+  const isRealtimeSource = sourceDataSource.sourceType === DataSourceType.REALTIME
+
+  if (isRealtimeSource) {
+    // 更新实时数据源
+    logger.info('[FlowCanvas] PIR connection: realtime datasource -> data-input')
+    if (sourceData.category === NodeCategory.DATA_SOURCE) {
+      const realtimeData = sourceData as import('@/types/nodes').RealtimeDataSourceNodeData
+      if (realtimeData.realtimeConfig) {
+        pirData.realtimeDataSource = {
+          id: sourceId,
+          name: sourceData.label || '实时数据源',
+          sourceType: realtimeData.realtimeConfig.mode === 'datasource' ? 'connection' : 'manual',
+          fields: realtimeData.realtimeConfig.fields,
+          sourceNodeId: realtimeData.realtimeConfig.sourceNodeId
+        }
+      }
+    }
+  } else {
     // 更新预加载数据源
-    logger.info('[FlowCanvas] PIR connection: normal datasource -> preload-input')
+    logger.info('[FlowCanvas] PIR connection: normal datasource -> data-input')
     if (sourceData.category === NodeCategory.DATA_SOURCE && sourceData.assetInfo) {
       pirData.preloadDataSource = {
         sourceNodeId: sourceId,
@@ -501,22 +521,41 @@ function updatePIRNodeData(
         })
       }
     }
-  } else if (targetHandle === 'realtime-input') {
-    // 更新实时数据源
-    logger.info('[FlowCanvas] PIR connection: realtime datasource -> realtime-input')
-    if (sourceData.category === NodeCategory.DATA_SOURCE) {
-      const realtimeData = sourceData as import('@/types/nodes').RealtimeDataSourceNodeData
-      if (realtimeData.realtimeConfig) {
-        pirData.realtimeDataSource = {
-          id: sourceId,
-          name: sourceData.label || '实时数据源',
-          sourceType: realtimeData.realtimeConfig.mode === 'datasource' ? 'connection' : 'manual',
-          fields: realtimeData.realtimeConfig.fields,
-          sourceNodeId: realtimeData.realtimeConfig.sourceNodeId
-        }
-      }
-    }
   }
+}
+
+/**
+ * 验证 PIR 任务的数据源连接
+ * 规则：只能接入两个数据源，且必须是一个实时数据源 + 一个普通数据源
+ */
+function validatePIRDataSourceConnection(
+  sourceId: string,
+  targetId: string
+): { valid: boolean; errorMessage?: string } {
+  const sourceNode = nodes.value.find(n => n.id === sourceId)
+  const targetNode = nodes.value.find(n => n.id === targetId)
+
+  if (!sourceNode || !targetNode) {
+    return { valid: false, errorMessage: '节点不存在' }
+  }
+
+  const sourceData = sourceNode.data as NodeData
+  const pirData = targetNode.data as import('@/types/nodes').PIRTaskNodeData
+
+  // 判断源节点类型
+  const sourceDataSource = sourceData as any
+  const isRealtimeSource = sourceDataSource.sourceType === DataSourceType.REALTIME
+
+  // 检查是否已有相同类型的数据源
+  if (isRealtimeSource && pirData.realtimeDataSource) {
+    return { valid: false, errorMessage: 'PIR 任务只能连接一个实时数据源' }
+  }
+
+  if (!isRealtimeSource && pirData.preloadDataSource) {
+    return { valid: false, errorMessage: 'PIR 任务只能连接一个预加载数据源' }
+  }
+
+  return { valid: true }
 }
 
 onMounted(() => {
@@ -531,6 +570,16 @@ onMounted(() => {
   ) => {
     logger.info('[FlowCanvas] __createEdge called', { sourceId, sourceHandle, targetId, targetHandle })
 
+    // 检查目标节点是否是 PIR 任务，如果是则验证连接
+    const targetNode = nodes.value.find(n => n.id === targetId)
+    if (targetNode?.type === 'pir_task' && targetHandle === 'data-input') {
+      const validation = validatePIRDataSourceConnection(sourceId, targetId)
+      if (!validation.valid) {
+        logger.warn('[FlowCanvas] PIR connection validation failed:', validation.errorMessage)
+        return // 不创建无效连接
+      }
+    }
+
     const newEdge = {
       id: `edge_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       source: sourceId,
@@ -542,8 +591,10 @@ onMounted(() => {
 
     addEdges([newEdge])
 
-    // 更新 PIR 节点数据
-    updatePIRNodeData(sourceId, targetId, targetHandle)
+    // 更新 PIR 节点数据（如果目标是 PIR 任务）
+    if (targetNode?.type === 'pir_task') {
+      updatePIRNodeData(sourceId, targetId, targetHandle)
+    }
 
     logger.info('[FlowCanvas] Edge created via test API', { edgeId: newEdge.id })
   }
@@ -822,26 +873,11 @@ const isValidConnection = (
     return false
   }
 
-  // 规则 2: 连接到 PIR 任务节点时，根据源节点类型自动修正 targetHandle
+  // 规则 2: 连接到 PIR 任务节点时，统一使用 data-input handle
   if (targetNode.type === 'pir_task' || (targetData as ComputeTaskNodeData).taskType === ComputeTaskType.PIR) {
-    let correctHandle: string
-    const sourceDataSource = sourceData as any
-
-    // 如果源节点是实时数据源类型，连接到 realtime-input
-    if (sourceDataSource.sourceType === DataSourceType.REALTIME) {
-      correctHandle = 'realtime-input'
-      logger.info('[FlowCanvas] PIR connection: realtime datasource -> realtime-input')
-    } else if (sourceData.category === NodeCategory.OUTPUT_DATA) {
-      // 输出数据节点，根据上下文判断
-      correctHandle = connection.targetHandle === 'preload-input' ? 'preload-input' : 'realtime-input'
-    } else {
-      // 普通数据源连接到 preload-input
-      correctHandle = 'preload-input'
-      logger.info('[FlowCanvas] PIR connection: normal datasource -> preload-input')
-    }
-
-    // 直接修改 connection 对象的 targetHandle
-    ;(connection as any).targetHandle = correctHandle
+    // PIR 任务现在使用统一的 data-input handle（和 MPC 任务一样）
+    ;(connection as any).targetHandle = 'data-input'
+    logger.info('[FlowCanvas] PIR connection: datasource -> data-input')
   }
   // 规则 3: 连接到其他计算任务节点或本地任务节点时，根据源节点类型自动修正 targetHandle
   else if (targetData.category === NodeCategory.COMPUTE_TASK || targetData.category === NodeCategory.LOCAL_TASK) {
@@ -879,9 +915,7 @@ const isValidConnection = (
  * 所有连接都使用固定的 handle ID：
  * - 数据源/任务节点的输出: "output"
  * - 任务节点的输入: 根据源节点类型自动选择
- *   - 数据源节点 → "data-input" (顶部)
- *   - 实时数据源节点 → "realtime-input" (PIR 节点专用)
- *   - 普通数据源节点 → "preload-input" (PIR 节点专用)
+ *   - 数据源节点 → "data-input" (顶部) - 包括 PIR 任务
  *   - 模型节点 → "input" (左侧)
  *   - 算力节点 → "compute-input" (右侧)
  */
@@ -912,26 +946,9 @@ const onConnect = (connection: Connection) => {
   // 根据源节点类型和目标节点类型自动设置正确的 targetHandle
   let correctedTargetHandle = connection.targetHandle
   if (targetData.category === NodeCategory.COMPUTE_TASK) {
-    // 检查目标是否是 PIR 任务节点
-    const isPIRTask = targetData.taskType === ComputeTaskType.PIR
-
     if (sourceData.category === NodeCategory.DATA_SOURCE || sourceData.category === NodeCategory.OUTPUT_DATA) {
-      if (isPIRTask) {
-        // PIR 任务节点有两个输入 handle
-        const sourceDataSource = sourceData as any
-        if (sourceDataSource.sourceType === DataSourceType.REALTIME) {
-          // 实时数据源连接到 realtime-input
-          correctedTargetHandle = 'realtime-input'
-          logger.info('[FlowCanvas] Connecting realtime datasource to PIR realtime-input')
-        } else {
-          // 普通数据源连接到 preload-input
-          correctedTargetHandle = 'preload-input'
-          logger.info('[FlowCanvas] Connecting normal datasource to PIR preload-input')
-        }
-      } else {
-        // 其他计算任务节点使用 data-input
-        correctedTargetHandle = 'data-input'
-      }
+      // 所有计算任务（包括 PIR）都使用 data-input
+      correctedTargetHandle = 'data-input'
     } else if (sourceData.category === NodeCategory.MODEL) {
       // 模型节点连接到计算任务的左侧 input handle
       correctedTargetHandle = 'input'
@@ -948,27 +965,25 @@ const onConnect = (connection: Connection) => {
   }
 
   // 检查是否连接到 PIR 任务节点（优先处理，避免被通用计算任务逻辑拦截）
-  logger.info('[FlowCanvas] Checking PIR task connection', {
-    targetNodeType: targetNode.type,
-    isPirTask: targetNode.type === 'pir_task'
-  })
+  if (targetNode.type === 'pir_task' && correctedTargetHandle === 'data-input') {
+    logger.info('[FlowCanvas] PIR task detected, validating connection')
 
-  if (targetNode.type === 'pir_task') {
-    logger.info('[FlowCanvas] PIR task detected, creating connection directly')
+    // 验证 PIR 连接：只能接入两个数据源（一个实时 + 一个普通）
+    const validation = validatePIRDataSourceConnection(correctedConnection.source, correctedConnection.target)
+    if (!validation.valid) {
+      showError(validation.errorMessage || '连接验证失败')
+      logger.warn('[FlowCanvas] PIR connection validation failed:', validation.errorMessage)
+      return
+    }
+
     // 处理 PIR 任务节点连接
     // 直接创建连接，PIR 任务不需要字段选择对话框
     const newEdge = createUniqueEdge({
       source: correctedConnection.source,
       target: correctedConnection.target,
       sourceHandle: correctedConnection.sourceHandle || 'output',
-      targetHandle: correctedConnection.targetHandle || 'preload-input'
+      targetHandle: 'data-input'
     }, edges.value, sourceData.category)
-
-    // 如果连接到 realtime-input，使用特殊样式
-    if (correctedConnection.targetHandle === 'realtime-input') {
-      newEdge.animated = true
-      newEdge.style = { stroke: '#13c2c2', strokeWidth: 2 }
-    }
 
     addEdge(newEdge)
 
@@ -976,13 +991,13 @@ const onConnect = (connection: Connection) => {
     updatePIRNodeData(
       correctedConnection.source,
       correctedConnection.target,
-      correctedConnection.targetHandle || 'preload-input'
+      'data-input'
     )
 
     logger.info('[FlowCanvas] Created PIR task connection', {
       source: correctedConnection.source,
       target: correctedConnection.target,
-      targetHandle: correctedConnection.targetHandle
+      targetHandle: 'data-input'
     })
     return
   }

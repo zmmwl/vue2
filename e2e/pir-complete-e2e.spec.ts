@@ -197,8 +197,8 @@ test.describe('PIR 完整端到端测试', () => {
     console.log(`  - 当前节点数: ${nodeCount}`);
     expect(nodeCount).toBeGreaterThanOrEqual(3);
 
-    // ==================== 步骤 4：连接数据库表到 PIR 的预加载输入 ====================
-    console.log('步骤 4：连接数据库表到 PIR 的预加载数据源输入');
+    // ==================== 步骤 4：连接数据库表到 PIR 的数据输入 ====================
+    console.log('步骤 4：连接数据库表到 PIR 的数据输入');
 
     // 获取所有节点
     nodes = page.locator('.vue-flow__node');
@@ -226,26 +226,26 @@ test.describe('PIR 完整端到端测试', () => {
     console.log(`  - 实时数据源节点 ID: ${realtimeNodeId}`);
     console.log(`  - PIR 节点 ID: ${pirNodeId}`);
 
-    // 使用 __createEdge API 连接数据库表 -> PIR (preload-input)
+    // 使用 __createEdge API 连接数据库表 -> PIR (data-input)
     if (dbNodeId && pirNodeId) {
-      console.log(`  - 连接数据库表 -> PIR 预加载输入`);
+      console.log(`  - 连接数据库表 -> PIR 数据输入`);
       await page.evaluate(({ sourceId, targetId }) => {
         if ((window as any).__createEdge) {
-          (window as any).__createEdge(sourceId, 'output', targetId, 'preload-input');
+          (window as any).__createEdge(sourceId, 'output', targetId, 'data-input');
         }
       }, { sourceId: dbNodeId, targetId: pirNodeId });
       await page.waitForTimeout(500);
     }
 
-    // ==================== 步骤 5：连接实时数据源到 PIR 的实时输入 ====================
-    console.log('步骤 5：连接实时数据源到 PIR 的实时数据源输入');
+    // ==================== 步骤 5：连接实时数据源到 PIR 的数据输入 ====================
+    console.log('步骤 5：连接实时数据源到 PIR 的数据输入');
 
-    // 使用 __createEdge API 连接实时数据源 -> PIR (realtime-input)
+    // 使用 __createEdge API 连接实时数据源 -> PIR (data-input)
     if (realtimeNodeId && pirNodeId) {
-      console.log(`  - 连接实时数据源 -> PIR 实时输入`);
+      console.log(`  - 连接实时数据源 -> PIR 数据输入`);
       await page.evaluate(({ sourceId, targetId }) => {
         if ((window as any).__createEdge) {
-          (window as any).__createEdge(sourceId, 'output', targetId, 'realtime-input');
+          (window as any).__createEdge(sourceId, 'output', targetId, 'data-input');
         }
       }, { sourceId: realtimeNodeId, targetId: pirNodeId });
       await page.waitForTimeout(500);
@@ -255,7 +255,7 @@ test.describe('PIR 完整端到端测试', () => {
     let edges = page.locator('.vue-flow__edge');
     let edgeCount = await edges.count();
     console.log(`  - 当前连接数: ${edgeCount}`);
-    expect(edgeCount).toBeGreaterThanOrEqual(1);
+    expect(edgeCount).toBeGreaterThanOrEqual(2);
 
     // ==================== 步骤 6：为 PIR 添加计算模型 ====================
     console.log('步骤 6：为 PIR 添加计算模型');
@@ -389,8 +389,8 @@ test.describe('PIR 完整端到端测试', () => {
     console.log('  1. 创建数据库表数据源 ✓');
     console.log('  2. 创建实时数据源（手工录入字段）✓');
     console.log('  3. 创建 PIR 任务（选择硬件/软件）✓');
-    console.log('  4. 连接数据库表 -> PIR 预加载输入 ✓');
-    console.log('  5. 连接实时数据源 -> PIR 实时输入 ✓');
+    console.log('  4. 连接数据库表 -> PIR 数据输入 ✓');
+    console.log('  5. 连接实时数据源 -> PIR 数据输入 ✓');
     console.log('  6. 为 PIR 添加计算模型 ✓');
     console.log('  7. 为 PIR 添加流式输出 ✓');
     console.log('  8. 验证 PIR 配置状态 ✓');

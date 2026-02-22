@@ -1,90 +1,48 @@
 <template>
   <div
     class="pir-task-node"
-    :class="{ 'is-selected': selected, 'is-configured': isConfigured }"
+    :class="{ selected, 'is-configured': isConfigured }"
     :data-testid="`node-pir-task`"
     @mouseenter="isHovered = true"
     @mouseleave="isHovered = false"
   >
-    <!-- 预加载数据源输入 Handle -->
+    <!-- 顶部数据源输入连接点（和 MPC 一样）-->
     <Handle
-      id="preload-input"
+      id="data-input"
       type="target"
       :position="Position.Top"
-      :style="{ left: '30%', visibility: isPreloadInputVisible || isHovered ? 'visible' : 'hidden', opacity: isPreloadInputVisible || isHovered ? 1 : 0 }"
-      :class="['node-handle', 'preload-handle', { 'is-visible': isPreloadInputVisible }]"
+      :style="{ left: '50%', visibility: isDataInputVisible || isHovered ? 'visible' : 'hidden', opacity: isDataInputVisible || isHovered ? 1 : 0 }"
+      :class="['data-input-handle', { 'is-visible': isDataInputVisible }]"
     />
 
-    <!-- 实时数据源输入 Handle -->
-    <Handle
-      id="realtime-input"
-      type="target"
-      :position="Position.Top"
-      :style="{ left: '70%', visibility: isRealtimeInputVisible || isHovered ? 'visible' : 'hidden', opacity: isRealtimeInputVisible || isHovered ? 1 : 0 }"
-      :class="['node-handle', 'realtime-handle', { 'is-visible': isRealtimeInputVisible }]"
-    />
-
-    <!-- 左侧输入连接点（模型节点） -->
+    <!-- 左侧输入连接点（模型节点）-->
     <Handle
       id="input"
       type="target"
       :position="Position.Left"
-      :style="{ visibility: isModelInputVisible || isHovered ? 'visible' : 'hidden', opacity: isModelInputVisible || isHovered ? 1 : 0 }"
-      :class="['node-handle', 'input-handle', { 'is-visible': isModelInputVisible }]"
+      :style="{ visibility: isInputVisible || isHovered ? 'visible' : 'hidden', opacity: isInputVisible || isHovered ? 1 : 0 }"
+      :class="['input-handle', { 'is-visible': isInputVisible }]"
     />
 
     <div class="node-card">
-      <!-- 节点头部 -->
-      <div class="node-header">
-        <span class="node-icon">{{ data.icon || '🔍' }}</span>
-        <span class="node-label">{{ data.label }}</span>
-        <span class="task-type-badge">PIR</span>
+      <div class="node-icon-wrapper">
+        <div class="node-icon">{{ data.icon || '🔍' }}</div>
       </div>
-
-      <!-- 节点内容 -->
-      <div class="node-content">
-        <!-- 预加载数据源状态 -->
-        <div class="data-source-row">
-          <span class="source-label">
-            <span class="label-icon">📦</span>
-            预加载
-          </span>
-          <span class="source-status" :class="{ 'is-configured': hasPreloadDataSource }">
-            {{ preloadDataSourceLabel }}
-          </span>
+      <div class="node-info">
+        <div class="node-title">{{ data.label }}</div>
+        <div class="node-description">PIR 隐私信息检索</div>
+        <!-- 显示技术路径信息 -->
+        <div v-if="techPathLabel" class="node-meta">
+          {{ techPathLabel }}
         </div>
-
-        <!-- 实时数据源状态 -->
-        <div class="data-source-row">
-          <span class="source-label">
-            <span class="label-icon">⚡</span>
-            实时
-          </span>
-          <span class="source-status" :class="{ 'is-configured': hasRealtimeDataSource }">
-            {{ realtimeDataSourceLabel }}
-          </span>
+        <!-- 显示输入数据源信息 -->
+        <div v-if="inputDataSourcesCount > 0" class="node-meta">
+          输入: {{ inputDataSourcesCount }} 个数据源
+          <span v-if="hasRealtimeDataSource" class="realtime-badge">⚡实时</span>
         </div>
-
-        <!-- 模型数量 -->
-        <div v-if="modelsCount > 0" class="data-source-row">
-          <span class="source-label">
-            <span class="label-icon">🧮</span>
-            模型
-          </span>
-          <span class="source-status is-configured">
-            {{ modelsCount }} 个
-          </span>
-        </div>
-
-        <!-- 输出数量 -->
-        <div v-if="outputsCount > 0" class="data-source-row">
-          <span class="source-label">
-            <span class="label-icon">📤</span>
-            输出
-          </span>
-          <span class="source-status is-configured">
-            {{ outputsCount }} 个 (流式)
-          </span>
+        <!-- 显示输出数量 -->
+        <div v-if="outputsCount > 0" class="node-meta">
+          输出: {{ outputsCount }} 个
         </div>
       </div>
     </div>
@@ -93,6 +51,8 @@
     <button
       class="add-model-btn"
       @click="handleAddModel"
+      @mouseenter="handleHighlightModels"
+      @mouseleave="handleClearHighlight"
       @mousedown.stop
       title="添加模型"
     >
@@ -100,17 +60,38 @@
     </button>
 
     <!-- 添加输出按钮 -->
-    <button class="add-output-btn" @click="handleAddOutput" @mousedown.stop title="添加输出 (流式)">
+    <button class="add-output-btn" @click="handleAddOutput" @mousedown.stop title="添加输出">
       <span>+</span>
     </button>
 
-    <!-- 输出 Handle (实时数据源样式) -->
+    <!-- 右侧"添加算力"按钮 -->
+    <button
+      class="add-compute-btn"
+      @click="handleAddCompute"
+      @mouseenter="handleHighlightComputes"
+      @mouseleave="handleClearHighlight"
+      @mousedown.stop
+      title="添加算力"
+    >
+      <span>+</span>
+    </button>
+
+    <!-- 右侧算力输入连接点（算力节点）-->
+    <Handle
+      id="compute-input"
+      type="target"
+      :position="Position.Right"
+      :style="{ visibility: isComputeInputVisible || isHovered ? 'visible' : 'hidden', opacity: isComputeInputVisible || isHovered ? 1 : 0 }"
+      :class="['compute-input-handle', { 'is-visible': isComputeInputVisible }]"
+    />
+
+    <!-- 底部输出连接点 -->
     <Handle
       id="output"
       type="source"
       :position="Position.Bottom"
-      :style="{ visibility: isOutputVisible || isHovered ? 'visible' : 'hidden', opacity: isOutputVisible || isHovered ? 1 : 0 }"
-      :class="['node-handle', 'output-handle', { 'is-visible': isOutputVisible }]"
+      :style="{ left: '50%', visibility: isOutputVisible || isHovered ? 'visible' : 'hidden', opacity: isOutputVisible || isHovered ? 1 : 0 }"
+      :class="['output-handle', { 'is-visible': isOutputVisible }]"
     />
   </div>
 </template>
@@ -121,6 +102,7 @@ import { Handle, Position } from '@vue-flow/core'
 import type { NodeProps } from '@vue-flow/core'
 import type { PIRTaskNodeData, NodeData } from '@/types/nodes'
 import { useVueFlow } from '@vue-flow/core'
+import { TechPath } from '@/types/nodes'
 
 const props = defineProps<NodeProps<NodeData>>()
 
@@ -137,19 +119,22 @@ const isConfigured = computed(() => {
   return !!(pirData.value.preloadDataSource || pirData.value.realtimeDataSource)
 })
 
-// 是否有预加载数据源
-const hasPreloadDataSource = computed(() => {
-  return !!pirData.value.preloadDataSource
-})
-
 // 是否有实时数据源
 const hasRealtimeDataSource = computed(() => {
   return !!pirData.value.realtimeDataSource?.fields?.length
 })
 
-// 模型数量
-const modelsCount = computed(() => {
-  return pirData.value.models?.length || 0
+// 是否有预加载数据源
+const hasPreloadDataSource = computed(() => {
+  return !!pirData.value.preloadDataSource
+})
+
+// 输入数据源总数
+const inputDataSourcesCount = computed(() => {
+  let count = 0
+  if (hasPreloadDataSource.value) count++
+  if (hasRealtimeDataSource.value) count++
+  return count
 })
 
 // 输出数量
@@ -157,36 +142,28 @@ const outputsCount = computed(() => {
   return pirData.value.outputs?.length || 0
 })
 
-// 预加载数据源标签
-const preloadDataSourceLabel = computed(() => {
-  if (hasPreloadDataSource.value) {
-    const ds = pirData.value.preloadDataSource
-    return ds?.dataset || '已配置'
+// 技术路径标签
+const techPathLabel = computed(() => {
+  if (pirData.value.techPath === TechPath.TEE) {
+    return '硬件 TEE'
+  } else if (pirData.value.techPath === TechPath.SOFTWARE) {
+    return '软件密码学'
   }
-  return '未配置'
-})
-
-// 实时数据源标签
-const realtimeDataSourceLabel = computed(() => {
-  if (hasRealtimeDataSource.value) {
-    const rs = pirData.value.realtimeDataSource
-    const fieldCount = rs?.fields?.length || 0
-    return `${fieldCount} 字段`
-  }
-  return '未配置'
+  return ''
 })
 
 // Handle 可见性
-const isPreloadInputVisible = computed(() => {
-  return hasPreloadDataSource.value || edges.value.some(e => e.target === props.id && e.targetHandle === 'preload-input')
+const isDataInputVisible = computed(() => {
+  return hasPreloadDataSource.value || hasRealtimeDataSource.value ||
+    edges.value.some(e => e.target === props.id && e.targetHandle === 'data-input')
 })
 
-const isRealtimeInputVisible = computed(() => {
-  return hasRealtimeDataSource.value || edges.value.some(e => e.target === props.id && e.targetHandle === 'realtime-input')
-})
-
-const isModelInputVisible = computed(() => {
+const isInputVisible = computed(() => {
   return edges.value.some(e => e.target === props.id && e.targetHandle === 'input')
+})
+
+const isComputeInputVisible = computed(() => {
+  return edges.value.some(e => e.target === props.id && e.targetHandle === 'compute-input')
 })
 
 const isOutputVisible = computed(() => {
@@ -197,11 +174,9 @@ const isOutputVisible = computed(() => {
  * 处理添加模型按钮点击
  */
 function handleAddModel() {
-  // 派发自定义事件，通知父组件打开模型选择器
   const event = new CustomEvent('add-model', {
-    detail: {
-      taskId: props.id
-    }
+    detail: { nodeId: props.id },
+    bubbles: true
   })
   document.dispatchEvent(event)
 }
@@ -210,13 +185,48 @@ function handleAddModel() {
  * 处理添加输出按钮点击
  */
 function handleAddOutput() {
-  // 派发自定义事件，通知父组件打开输出配置
   const event = new CustomEvent('add-output', {
     detail: {
-      taskId: props.id,
+      nodeId: props.id,
       outputType: 'stream'  // PIR 输出固定为流式类型
-    }
+    },
+    bubbles: true
   })
+  document.dispatchEvent(event)
+}
+
+/**
+ * 处理添加算力按钮点击
+ */
+function handleAddCompute() {
+  const event = new CustomEvent('add-compute', {
+    detail: { nodeId: props.id },
+    bubbles: true
+  })
+  document.dispatchEvent(event)
+}
+
+/**
+ * 高亮左侧面板的模型节点
+ */
+function handleHighlightModels() {
+  const event = new CustomEvent('highlight-models', { bubbles: true })
+  document.dispatchEvent(event)
+}
+
+/**
+ * 高亮左侧面板的算力节点
+ */
+function handleHighlightComputes() {
+  const event = new CustomEvent('highlight-computes', { bubbles: true })
+  document.dispatchEvent(event)
+}
+
+/**
+ * 清除高亮
+ */
+function handleClearHighlight() {
+  const event = new CustomEvent('clear-highlight', { bubbles: true })
   document.dispatchEvent(event)
 }
 </script>
@@ -239,97 +249,97 @@ function handleAddOutput() {
     transform: translateY(-2px);
 
     .add-model-btn,
-    .add-output-btn {
+    .add-output-btn,
+    .add-compute-btn {
       opacity: 1;
+    }
+
+    // 鼠标悬停节点时显示所有 handle
+    .data-input-handle,
+    .input-handle,
+    .output-handle,
+    .compute-input-handle {
+      opacity: 1;
+      visibility: visible !important;
     }
   }
 
-  &.is-selected {
+  &.selected {
     border-color: var(--color-primary);
     box-shadow: var(--shadow-selected);
   }
 
   &.is-configured {
-    .node-header {
+    .node-icon-wrapper {
       background: linear-gradient(135deg, var(--datasource-blue), #38BDF8);
     }
   }
 }
 
 .node-card {
-  overflow: hidden;
-  border-radius: inherit;
+  display: flex;
+  align-items: flex-start;
+  padding: 12px;
+  background-color: #ffffff;
+  gap: 12px;
 }
 
-.node-header {
+.node-icon-wrapper {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, var(--datasource-blue), #38BDF8);
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 12px;
-  background: linear-gradient(135deg, var(--datasource-blue), #38BDF8);
-  color: white;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
 .node-icon {
-  font-size: 16px;
+  font-size: 20px;
 }
 
-.node-label {
+.node-info {
   flex: 1;
-  font-size: 13px;
+  min-width: 0;
+}
+
+.node-title {
+  font-size: 14px;
   font-weight: 600;
+  color: #333;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.task-type-badge {
-  padding: 2px 6px;
-  background: rgba(255, 255, 255, 0.2);
+.node-description {
+  font-size: 12px;
+  color: #666;
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.node-meta {
+  font-size: 11px;
+  color: #888;
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.realtime-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 6px;
+  background: rgba(250, 140, 22, 0.15);
+  color: #FA8C16;
   border-radius: 4px;
   font-size: 10px;
   font-weight: 500;
-}
-
-.node-content {
-  padding: 10px 12px;
-  background: rgba(255, 255, 255, 0.95);
-}
-
-.data-source-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 6px 0;
-
-  &:not(:last-child) {
-    border-bottom: 1px solid rgba(0, 0, 0, 0.04);
-  }
-}
-
-.source-label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  color: var(--text-secondary);
-
-  .label-icon {
-    font-size: 14px;
-  }
-}
-
-.source-status {
-  font-size: 11px;
-  padding: 2px 8px;
-  background: rgba(0, 0, 0, 0.04);
-  border-radius: 4px;
-  color: var(--text-secondary);
-
-  &.is-configured {
-    background: rgba(82, 196, 26, 0.1);
-    color: #52C41A;
-  }
 }
 
 // 添加模型按钮
@@ -341,9 +351,9 @@ function handleAddOutput() {
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  border: 2px solid var(--color-primary);
+  border: 2px solid #9333EA;
   background: white;
-  color: var(--color-primary);
+  color: #9333EA;
   font-size: 16px;
   font-weight: bold;
   cursor: pointer;
@@ -355,7 +365,7 @@ function handleAddOutput() {
   z-index: 10;
 
   &:hover {
-    background: var(--color-primary);
+    background: #9333EA;
     color: white;
     transform: translateY(-50%) scale(1.1);
   }
@@ -370,9 +380,9 @@ function handleAddOutput() {
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  border: 2px solid var(--realtime-datasource-color);
+  border: 2px solid #999;
   background: white;
-  color: var(--realtime-datasource-color);
+  color: #999;
   font-size: 16px;
   font-weight: bold;
   cursor: pointer;
@@ -384,48 +394,131 @@ function handleAddOutput() {
   z-index: 10;
 
   &:hover {
-    background: var(--realtime-datasource-color);
+    background: #999;
     color: white;
     transform: translateX(-50%) scale(1.1);
   }
 }
 
+// 添加算力按钮
+.add-compute-btn {
+  position: absolute;
+  right: -12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid #FA8C16;
+  background: white;
+  color: #FA8C16;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: all 0.2s;
+  z-index: 10;
+
+  &:hover {
+    background: #FA8C16;
+    color: white;
+    transform: translateY(-50%) scale(1.1);
+  }
+}
+
 // Handle 样式
-.node-handle {
+.data-input-handle {
   width: 12px;
   height: 12px;
-  border: 2px solid white;
+  background: #1890ff;
+  border: 2px solid #ffffff;
   border-radius: 50%;
-  transition: all 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  transform: translateX(-50%);
   opacity: 0;
-}
+  transition: opacity 0.2s ease;
 
-.preload-handle {
-  background: var(--datasource-blue);
-}
+  &.is-visible {
+    opacity: 1;
+    visibility: visible !important;
+  }
 
-.realtime-handle {
-  background: var(--realtime-datasource-color);
-  border-style: dashed;
+  &:hover {
+    opacity: 1;
+    background-color: #1890ff;
+    transform: translateX(-50%) scale(1.2);
+  }
 }
 
 .input-handle {
-  background: #9333EA;
+  width: 8px;
+  height: 24px;
+  background: #722ED1;
+  border: 2px solid #ffffff;
+  border-radius: 2px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  transform: translateY(-50%);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+
+  &.is-visible {
+    opacity: 1;
+    visibility: visible !important;
+  }
+
+  &:hover {
+    opacity: 1;
+    background-color: #9254de;
+    transform: translateY(-50%) scale(1.1);
+  }
 }
 
 .output-handle {
-  background: var(--realtime-datasource-color);
-  border-style: dashed;
+  width: 12px;
+  height: 12px;
+  background: #999;
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  transform: translateX(-50%);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+
+  &.is-visible {
+    opacity: 1;
+    visibility: visible !important;
+  }
+
+  &:hover {
+    opacity: 1;
+    background-color: #1890ff;
+    transform: translateX(-50%) scale(1.2);
+  }
 }
 
-.pir-task-node:hover :deep(.node-handle),
-.pir-task-node.is-selected :deep(.node-handle),
-:deep(.node-handle.is-visible) {
-  opacity: 1 !important;
-  visibility: visible !important;
-}
+.compute-input-handle {
+  width: 8px;
+  height: 24px;
+  background: #FA8C16;
+  border: 2px solid #ffffff;
+  border-radius: 2px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  transform: translateY(-50%);
+  opacity: 0;
+  transition: opacity 0.2s ease;
 
-.node-handle:hover {
-  transform: scale(1.3);
+  &.is-visible {
+    opacity: 1;
+    visibility: visible !important;
+  }
+
+  &:hover {
+    opacity: 1;
+    background-color: #1890ff;
+    transform: translateY(-50%) scale(1.1);
+  }
 }
 </style>

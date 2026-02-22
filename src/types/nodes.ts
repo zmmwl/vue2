@@ -569,6 +569,9 @@ export interface PIRTaskNodeData extends NodeData {
   category: NodeCategory.COMPUTE_TASK
   taskType: ComputeTaskType.PIR
 
+  // 技术路径（硬件TEE或软件密码学）
+  techPath?: TechPath
+
   // 预加载数据源（来自数据资产）
   preloadDataSource?: InputProvider
 
@@ -580,6 +583,10 @@ export interface PIRTaskNodeData extends NodeData {
 
   // 输出配置列表（PIR输出为流式类型）
   outputs?: PIROutputConfig[]
+
+  // 算力资源配置
+  computeResourceId?: string
+  computeResourceName?: string
 
   // 输出数据节点ID（PIR输出以实时数据源样式展示）
   outputNodeId?: string
