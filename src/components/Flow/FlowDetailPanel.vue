@@ -153,46 +153,40 @@
           </div>
         </div>
 
-        <!-- 预加载数据源 -->
-        <CollapsibleSection title="预加载数据源" :count="pirTaskData?.preloadDataSource ? 1 : 0">
-          <div v-if="!pirTaskData?.preloadDataSource" class="empty-inputs">
-            <div class="empty-icon">📦</div>
-            <p>暂未配置预加载数据源</p>
-            <p class="empty-hint">从数据源节点拖拽连线到此任务</p>
+        <!-- 输入数据源（和 MPC 一样的显示方式）-->
+        <CollapsibleSection title="输入数据源" :count="pirInputProvidersCount">
+          <div v-if="pirInputProvidersCount === 0" class="empty-inputs">
+            <div class="empty-icon">📊</div>
+            <p>暂未配置输入数据源</p>
+            <p class="empty-hint">PIR 任务需要连接两个数据源：一个普通数据源 + 一个实时数据源</p>
           </div>
-          <div v-else class="provider-card">
-            <div class="provider-header">
-              <span class="provider-index">📦</span>
-              <span class="provider-name">{{ pirTaskData.preloadDataSource.dataset || '已配置' }}</span>
-            </div>
-          </div>
-        </CollapsibleSection>
-
-        <!-- 实时数据源 -->
-        <CollapsibleSection title="实时数据源" :count="pirTaskData?.realtimeDataSource ? 1 : 0">
-          <div v-if="!pirTaskData?.realtimeDataSource" class="empty-inputs">
-            <div class="empty-icon">⚡</div>
-            <p>暂未配置实时数据源</p>
-            <p class="empty-hint">点击节点配置实时数据源，或从上游 PIR 输出连线</p>
-          </div>
-          <div v-else class="provider-card realtime-source">
-            <div class="provider-header">
-              <span class="provider-index">⚡</span>
-              <span class="provider-name">{{ pirTaskData.realtimeDataSource.name || '实时数据源' }}</span>
-              <span class="realtime-badge">实时</span>
-            </div>
-            <div class="provider-fields" v-if="pirTaskData.realtimeDataSource.fields?.length">
-              <div class="fields-header">
-                <span>字段 ({{ pirTaskData.realtimeDataSource.fields.length }})</span>
+          <div v-else class="providers-list">
+            <div
+              v-for="(provider, index) in pirInputProviders"
+              :key="provider.sourceNodeId"
+              class="provider-card"
+              :class="{ 'realtime-source': provider.isRealtime }"
+            >
+              <div class="provider-header">
+                <span class="provider-index">{{ index + 1 }}</span>
+                <span class="provider-name">{{ provider.dataset || '数据源' }}</span>
+                <span v-if="provider.isRealtime" class="realtime-badge">⚡ 实时</span>
               </div>
-              <div class="fields-list">
-                <div
-                  v-for="field in pirTaskData.realtimeDataSource.fields"
-                  :key="field.name"
-                  class="field-chip"
-                >
-                  <span class="field-alias">{{ field.name }}</span>
-                  <span class="field-type-badge">{{ field.dataType }}</span>
+              <div class="provider-fields" v-if="provider.fields?.length">
+                <div class="fields-header">
+                  <span>字段 ({{ provider.fields.length }})</span>
+                  <button class="config-btn small" @click="handleConfigPIRInputProvider(provider, index)">⚙️</button>
+                </div>
+                <div class="fields-list">
+                  <div
+                    v-for="field in provider.fields"
+                    :key="field.columnName"
+                    class="field-chip"
+                  >
+                    <span class="field-alias">{{ field.columnAlias || field.columnName }}</span>
+                    <span class="field-type-badge">{{ field.columnType }}</span>
+                    <span v-if="field.isJoinField" class="join-badge">JOIN</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1083,6 +1077,14 @@ const pirOutputs = computed(() => {
 // PIR 任务的输出数量
 const pirOutputsCount = computed(() => pirOutputs.value.length)
 
+// PIR 任务的输入数据源列表（使用 inputProviders）
+const pirInputProviders = computed(() => {
+  return pirTaskData.value?.inputProviders || []
+})
+
+// PIR 任务的输入数据源数量
+const pirInputProvidersCount = computed(() => pirInputProviders.value.length)
+
 // FL 任务节点数据
 const flTaskData = computed((): FLTaskNodeData | null => {
   if (!isFLTaskNode.value) return null
@@ -1560,6 +1562,26 @@ function handleConfigPIRTask() {
   })
 
   emit('config-pir-task', props.selectedNode.id)
+}
+
+/**
+ * 处理 PIR 任务输入数据源配置
+ */
+function handleConfigPIRInputProvider(provider: any, index: number) {
+  if (!props.selectedNode) return
+
+  logger.info('[FlowDetailPanel] PIR input provider config clicked', {
+    providerIndex: index,
+    sourceNodeId: provider.sourceNodeId,
+    taskId: props.selectedNode.id
+  })
+
+  // 触发输入数据源配置事件（和 MPC 任务一样）
+  emit('configInputProvider', {
+    taskId: props.selectedNode.id,
+    sourceNodeId: provider.sourceNodeId,
+    fields: provider.fields || []
+  })
 }
 
 /**

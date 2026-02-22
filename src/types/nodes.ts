@@ -295,6 +295,7 @@ export interface InputProvider {
   dataset: string
   fields: FieldMapping[]
   joinFields?: string[]     // 作为join条件的字段名
+  isRealtime?: boolean      // 是否是实时数据源（PIR任务使用）
 }
 
 /** Join操作数 */
@@ -572,10 +573,16 @@ export interface PIRTaskNodeData extends NodeData {
   // 技术路径（硬件TEE或软件密码学）
   techPath?: TechPath
 
-  // 预加载数据源（来自数据资产）
+  // 输入数据源（和 MPC 一样的配置方式）
+  inputProviders?: InputProvider[]
+
+  // Join条件（和 MPC 一样）
+  joinConditions?: JoinCondition[]
+
+  // 预加载数据源（来自数据资产，兼容旧逻辑）
   preloadDataSource?: InputProvider
 
-  // 实时数据源（来自连线或手工配置）
+  // 实时数据源（来自连线或手工配置，兼容旧逻辑）
   realtimeDataSource?: RealtimeDataSourceInfo
 
   // 计算模型配置列表（类似MPC任务）
