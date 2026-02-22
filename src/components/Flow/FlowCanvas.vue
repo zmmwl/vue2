@@ -483,7 +483,7 @@ function updatePIRNodeData(
   const pirData = targetNode.data as import('@/types/nodes').PIRTaskNodeData
 
   // 判断源节点是否是实时数据源（使用多种方式判断）
-  const isRealtimeSource = sourceNode.type === 'realtime_data_source' ||
+  const isRealtimeSource = sourceNode.type === 'realtime_datasource' ||
     (sourceData as any).dataSourceType === 'realtime' ||
     (sourceData as any).sourceType === DataSourceType.REALTIME
 
@@ -544,7 +544,7 @@ function validatePIRDataSourceConnection(
   const pirData = targetNode.data as import('@/types/nodes').PIRTaskNodeData
 
   // 判断源节点是否是实时数据源
-  const isRealtimeSource = sourceNode.type === 'realtime_data_source' ||
+  const isRealtimeSource = sourceNode.type === 'realtime_datasource' ||
     (sourceData as any).dataSourceType === 'realtime' ||
     (sourceData as any).sourceType === DataSourceType.REALTIME
 
@@ -1034,7 +1034,7 @@ const onConnect = (connection: Connection) => {
         description: field.description,
         isPrimaryKey: field.isPrimaryKey || false
       }))
-    } else if (sourceNode.type === 'realtime_data_source' || (sourceData as any).realtimeConfig) {
+    } else if (sourceNode.type === 'realtime_datasource' || (sourceData as any).realtimeConfig) {
       // 实时数据源节点
       const realtimeData = sourceData as import('@/types/nodes').RealtimeDataSourceNodeData
       const realtimeConfig = realtimeData.realtimeConfig
@@ -1901,8 +1901,9 @@ function handleFieldSelected(selection: {
     }
 
     // 判断是否是实时数据源
-    const isRealtimeSource = sourceNode?.type === 'realtime_data_source' ||
-      (sourceData as any)?.dataSourceType === 'realtime'
+    const isRealtimeSource = sourceNode?.type === 'realtime_datasource' ||
+      (sourceData as any)?.dataSourceType === 'realtime' ||
+      (sourceData as any)?.sourceType === DataSourceType.REALTIME
 
     // 添加新的输入提供者
     const newInputProvider = {

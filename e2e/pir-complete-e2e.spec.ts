@@ -5,11 +5,11 @@ import { setupTestEnvironment } from './test-utils';
  * PIR 完整端到端测试
  *
  * 测试流程：
- * 1. 拖拽数据库表数据源
- * 2. 拖拽实时数据源（手工录入字段）
+ * 1. 拖拽数据库表数据源（作为普通数据源）
+ * 2. 拖拽实时数据源（手工录入字段 - 模拟从现有数据源选择的场景）
  * 3. 拖拽PIR任务并选择硬件（TEE）
- * 4. 连接数据库表到PIR的data-input（需要字段选择对话框）
- * 5. 连接实时数据源到PIR的data-input（需要字段选择对话框）
+ * 4. 连接实时数据源到PIR的data-input（先连接实时数据源）
+ * 5. 连接数据库表到PIR的data-input（再连接普通数据源）- 验证不应该报错
  * 6. 验证点击PIR任务时不会打开实时数据源配置弹窗
  * 7. 为PIR添加计算模型
  * 8. 为PIR添加流式输出
@@ -36,7 +36,7 @@ test.describe('PIR 完整端到端测试', () => {
     });
   });
 
-  test('PIR 完整流程：实时数据源 + 数据库表 + 硬件选择 + 连线配置（字段选择）+ 模型 + 输出', async ({ page }) => {
+  test('PIR 完整流程：实时数据源 + 普通数据源 + 连线验证 + 模型 + 输出', async ({ page }) => {
     // 设置较长的超时时间
     test.setTimeout(240000);
 
@@ -47,8 +47,8 @@ test.describe('PIR 完整端到端测试', () => {
     const canvas = page.locator('.flow-canvas');
     const canvasBounds = await canvas.boundingBox();
 
-    // ==================== 步骤 1：创建数据库表数据源 ====================
-    console.log('步骤 1：创建数据库表数据源');
+    // ==================== 步骤 1：创建数据库表数据源（普通数据源）====================
+    console.log('步骤 1：创建数据库表数据源（普通数据源）');
 
     const dataSourceSection = page.locator('.sidebar-section').filter({ hasText: /^数据源/ });
     await dataSourceSection.waitFor({ state: 'visible' });
@@ -79,7 +79,7 @@ test.describe('PIR 完整端到端测试', () => {
     console.log(`  - 当前节点数: ${nodeCount}`);
     expect(nodeCount).toBeGreaterThanOrEqual(1);
 
-    // ==================== 步骤 2：创建实时数据源（手工录入）====================
+    // ==================== 步骤 2：创建实时数据源（手工录入字段）====================
     console.log('步骤 2：创建实时数据源（手工录入字段）');
 
     const realtimeTemplate = dataSourceSection.locator('.palette-node').filter({ hasText: '实时数据源' });
@@ -105,7 +105,7 @@ test.describe('PIR 完整端到端测试', () => {
     await expect(realtimeConfigDialog).toBeVisible({ timeout: 5000 });
     console.log('  - 实时数据源配置对话框已打开');
 
-    // 选择"手工录入"模式
+    // 选择"手工录入"模式（这是默认，但确保选择正确）
     const manualRadio = realtimeConfigDialog.locator('input[type="radio"][value="manual"]');
     await manualRadio.click({ force: true });
     await page.waitForTimeout(300);
@@ -198,8 +198,8 @@ test.describe('PIR 完整端到端测试', () => {
     console.log(`  - 当前节点数: ${nodeCount}`);
     expect(nodeCount).toBeGreaterThanOrEqual(3);
 
-    // ==================== 步骤 4：连接数据库表到 PIR 的数据输入（需要字段选择对话框）====================
-    console.log('步骤 4：连接数据库表到 PIR 的数据输入（需要字段选择对话框）');
+    // ==================== 步骤 4：获取节点 ID ====================
+    console.log('步骤 4：获取节点 ID');
 
     // 获取所有节点
     nodes = page.locator('.vue-flow__node');
@@ -227,69 +227,12 @@ test.describe('PIR 完整端到端测试', () => {
     console.log(`  - 实时数据源节点 ID: ${realtimeNodeId}`);
     console.log(`  - PIR 节点 ID: ${pirNodeId}`);
 
-    // 使用 __connectWithFieldSelector API 连接数据库表 -> PIR (data-input)
-    // 这个 API 会触发字段选择对话框
-    if (dbNodeId && pirNodeId) {
-      console.log(`  - 连接数据库表 -> PIR 数据输入（等待字段选择对话框）`);
-
-      const connectResult = await page.evaluate(({ sourceId, targetId }) => {
-        // 触发连接事件，让 FlowCanvas 处理字段选择对话框
-        if ((window as any).__connectWithFieldSelector) {
-          return (window as any).__connectWithFieldSelector(sourceId, 'output', targetId, 'data-input');
-        }
-        // 如果没有这个 API，返回 false 表示需要使用旧方法
-        return false;
-      }, { sourceId: dbNodeId, targetId: pirNodeId });
-
-      await page.waitForTimeout(500);
-
-      // 等待字段选择对话框
-      const fieldSelectorDialog = page.locator('.field-selector-dialog');
-      const isFieldSelectorVisible = await fieldSelectorDialog.isVisible({ timeout: 3000 }).catch(() => false);
-
-      if (isFieldSelectorVisible) {
-        console.log('  - 字段选择对话框已打开');
-
-        // 选择所有字段（点击全选按钮或选择第一个字段）
-        const selectAllBtn = fieldSelectorDialog.locator('button').filter({ hasText: /全选/ });
-        if (await selectAllBtn.isVisible()) {
-          await selectAllBtn.click({ force: true });
-          await page.waitForTimeout(200);
-        } else {
-          // 如果没有全选按钮，选择第一个字段
-          const fieldCheckbox = fieldSelectorDialog.locator('.field-item input[type="checkbox"]').first();
-          if (await fieldCheckbox.isVisible()) {
-            await fieldCheckbox.check({ force: true });
-            await page.waitForTimeout(200);
-          }
-        }
-
-        // 点击确认按钮
-        const confirmFieldBtn = fieldSelectorDialog.locator('button').filter({ hasText: /确认|确定/ }).first();
-        if (await confirmFieldBtn.isVisible()) {
-          await confirmFieldBtn.click({ force: true });
-          await page.waitForTimeout(500);
-        }
-
-        console.log('  - 已选择字段并确认连接');
-      } else {
-        console.log('  - 字段选择对话框未打开，使用旧的连接方式');
-        // 使用旧的 API 创建连接
-        await page.evaluate(({ sourceId, targetId }) => {
-          if ((window as any).__createEdge) {
-            (window as any).__createEdge(sourceId, 'output', targetId, 'data-input');
-          }
-        }, { sourceId: dbNodeId, targetId: pirNodeId });
-        await page.waitForTimeout(500);
-      }
-    }
-
-    // ==================== 步骤 5：连接实时数据源到 PIR 的数据输入（需要字段选择对话框）====================
-    console.log('步骤 5：连接实时数据源到 PIR 的数据输入（需要字段选择对话框）');
+    // ==================== 步骤 5：连接实时数据源到 PIR 的数据输入（先连接实时数据源）====================
+    console.log('步骤 5：连接实时数据源到 PIR 的数据输入（先连接实时数据源）');
 
     // 使用 __connectWithFieldSelector API 连接实时数据源 -> PIR (data-input)
     if (realtimeNodeId && pirNodeId) {
-      console.log(`  - 连接实时数据源 -> PIR 数据输入（等待字段选择对话框）`);
+      console.log(`  - 连接实时数据源 -> PIR 数据输入`);
 
       await page.evaluate(({ sourceId, targetId }) => {
         if ((window as any).__connectWithFieldSelector) {
@@ -312,12 +255,6 @@ test.describe('PIR 完整端到端测试', () => {
         if (await selectAllBtn.isVisible()) {
           await selectAllBtn.click({ force: true });
           await page.waitForTimeout(200);
-        } else {
-          const fieldCheckbox = fieldSelectorDialog.locator('.field-item input[type="checkbox"]').first();
-          if (await fieldCheckbox.isVisible()) {
-            await fieldCheckbox.check({ force: true });
-            await page.waitForTimeout(200);
-          }
         }
 
         // 点击确认按钮
@@ -339,14 +276,70 @@ test.describe('PIR 完整端到端测试', () => {
       }
     }
 
-    // 验证连接
+    // 验证连接数
     let edges = page.locator('.vue-flow__edge');
     let edgeCount = await edges.count();
     console.log(`  - 当前连接数: ${edgeCount}`);
+    expect(edgeCount).toBeGreaterThanOrEqual(1);
+
+    // ==================== 步骤 6：连接数据库表到 PIR 的数据输入（再连接普通数据源）====================
+    console.log('步骤 6：连接数据库表到 PIR 的数据输入（再连接普通数据源）');
+    console.log('  - 这是关键测试：PIR 已有一个实时数据源，再连接普通数据源应该成功');
+
+    // 使用 __connectWithFieldSelector API 连接数据库表 -> PIR (data-input)
+    if (dbNodeId && pirNodeId) {
+      console.log(`  - 连接数据库表 -> PIR 数据输入`);
+
+      await page.evaluate(({ sourceId, targetId }) => {
+        if ((window as any).__connectWithFieldSelector) {
+          return (window as any).__connectWithFieldSelector(sourceId, 'output', targetId, 'data-input');
+        }
+        return false;
+      }, { sourceId: dbNodeId, targetId: pirNodeId });
+
+      await page.waitForTimeout(500);
+
+      // 等待字段选择对话框
+      const fieldSelectorDialog = page.locator('.field-selector-dialog');
+      const isFieldSelectorVisible = await fieldSelectorDialog.isVisible({ timeout: 3000 }).catch(() => false);
+
+      if (isFieldSelectorVisible) {
+        console.log('  - 字段选择对话框已打开');
+
+        // 选择所有字段
+        const selectAllBtn = fieldSelectorDialog.locator('button').filter({ hasText: /全选/ });
+        if (await selectAllBtn.isVisible()) {
+          await selectAllBtn.click({ force: true });
+          await page.waitForTimeout(200);
+        }
+
+        // 点击确认按钮
+        const confirmFieldBtn = fieldSelectorDialog.locator('button').filter({ hasText: /确认|确定/ }).first();
+        if (await confirmFieldBtn.isVisible()) {
+          await confirmFieldBtn.click({ force: true });
+          await page.waitForTimeout(500);
+        }
+
+        console.log('  - 已选择字段并确认连接');
+      } else {
+        console.log('  - 字段选择对话框未打开，使用旧的连接方式');
+        await page.evaluate(({ sourceId, targetId }) => {
+          if ((window as any).__createEdge) {
+            (window as any).__createEdge(sourceId, 'output', targetId, 'data-input');
+          }
+        }, { sourceId: dbNodeId, targetId: pirNodeId });
+        await page.waitForTimeout(500);
+      }
+    }
+
+    // 验证连接数（应该是2个）
+    edges = page.locator('.vue-flow__edge');
+    edgeCount = await edges.count();
+    console.log(`  - 当前连接数: ${edgeCount}`);
     expect(edgeCount).toBeGreaterThanOrEqual(2);
 
-    // ==================== 步骤 6：验证点击 PIR 任务时不会打开实时数据源配置弹窗 ====================
-    console.log('步骤 6：验证点击 PIR 任务时不会打开实时数据源配置弹窗');
+    // ==================== 步骤 7：验证点击 PIR 任务时不会打开实时数据源配置弹窗 ====================
+    console.log('步骤 7：验证点击 PIR 任务时不会打开实时数据源配置弹窗');
 
     if (pirNodeId) {
       // 点击 PIR 任务节点
@@ -384,8 +377,8 @@ test.describe('PIR 完整端到端测试', () => {
       }
     }
 
-    // ==================== 步骤 7：为 PIR 添加计算模型 ====================
-    console.log('步骤 7：为 PIR 添加计算模型');
+    // ==================== 步骤 8：为 PIR 添加计算模型 ====================
+    console.log('步骤 8：为 PIR 添加计算模型');
 
     if (pirNodeId) {
       // 通过 JavaScript 直接触发添加模型按钮的点击事件
@@ -428,8 +421,8 @@ test.describe('PIR 完整端到端测试', () => {
       }
     }
 
-    // ==================== 步骤 8：为 PIR 添加流式输出 ====================
-    console.log('步骤 8：为 PIR 添加流式输出');
+    // ==================== 步骤 9：为 PIR 添加流式输出 ====================
+    console.log('步骤 9：为 PIR 添加流式输出');
 
     if (pirNodeId) {
       // 通过 JavaScript 直接触发添加输出按钮的点击事件
@@ -486,8 +479,8 @@ test.describe('PIR 完整端到端测试', () => {
       }
     }
 
-    // ==================== 步骤 9：验证最终状态 ====================
-    console.log('步骤 9：验证最终状态');
+    // ==================== 步骤 10：验证最终状态 ====================
+    console.log('步骤 10：验证最终状态');
 
     // 验证节点数量（至少包含：数据库表、实时数据源、PIR任务、输出节点）
     nodes = page.locator('.vue-flow__node');
@@ -513,15 +506,16 @@ test.describe('PIR 完整端到端测试', () => {
     console.log('PIR 完整端到端测试完成！');
     console.log('');
     console.log('测试流程:');
-    console.log('  1. 创建数据库表数据源 ✓');
+    console.log('  1. 创建数据库表数据源（普通数据源）✓');
     console.log('  2. 创建实时数据源（手工录入字段）✓');
     console.log('  3. 创建 PIR 任务（选择硬件/软件）✓');
-    console.log('  4. 连接数据库表 -> PIR 数据输入（字段选择）✓');
-    console.log('  5. 连接实时数据源 -> PIR 数据输入（字段选择）✓');
-    console.log('  6. 验证点击 PIR 任务不弹窗 ✓');
-    console.log('  7. 为 PIR 添加计算模型 ✓');
-    console.log('  8. 为 PIR 添加流式输出 ✓');
-    console.log('  9. 验证 PIR 配置状态 ✓');
+    console.log('  4. 获取节点 ID ✓');
+    console.log('  5. 连接实时数据源 -> PIR 数据输入 ✓');
+    console.log('  6. 连接数据库表 -> PIR 数据输入（关键测试）✓');
+    console.log('  7. 验证点击 PIR 任务不弹窗 ✓');
+    console.log('  8. 为 PIR 添加计算模型 ✓');
+    console.log('  9. 为 PIR 添加流式输出 ✓');
+    console.log('  10. 验证 PIR 配置状态 ✓');
     console.log('========================================\n');
   });
 });
