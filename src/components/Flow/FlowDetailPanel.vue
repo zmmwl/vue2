@@ -137,7 +137,130 @@
         </div>
       </div>
 
-      <!-- 计算任务节点 -->
+      <!-- PIR 任务节点 - 必须在 isComputeTaskNode 之前 -->
+      <div v-else-if="isPIRTaskNode" class="detail-info">
+        <div class="info-section">
+          <h4 class="section-title">PIR 任务信息</h4>
+          <div class="info-grid">
+            <div class="info-item">
+              <span class="info-label">任务名称</span>
+              <span class="info-value">{{ pirTaskData?.label || 'PIR 任务' }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">任务类型</span>
+              <span class="info-value">隐私信息检索 (PIR)</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 预加载数据源 -->
+        <CollapsibleSection title="预加载数据源" :count="pirTaskData?.preloadDataSource ? 1 : 0">
+          <div v-if="!pirTaskData?.preloadDataSource" class="empty-inputs">
+            <div class="empty-icon">📦</div>
+            <p>暂未配置预加载数据源</p>
+            <p class="empty-hint">从数据源节点拖拽连线到此任务</p>
+          </div>
+          <div v-else class="provider-card">
+            <div class="provider-header">
+              <span class="provider-index">📦</span>
+              <span class="provider-name">{{ pirTaskData.preloadDataSource.dataset || '已配置' }}</span>
+            </div>
+          </div>
+        </CollapsibleSection>
+
+        <!-- 实时数据源 -->
+        <CollapsibleSection title="实时数据源" :count="pirTaskData?.realtimeDataSource ? 1 : 0">
+          <div v-if="!pirTaskData?.realtimeDataSource" class="empty-inputs">
+            <div class="empty-icon">⚡</div>
+            <p>暂未配置实时数据源</p>
+            <p class="empty-hint">点击节点配置实时数据源，或从上游 PIR 输出连线</p>
+          </div>
+          <div v-else class="provider-card realtime-source">
+            <div class="provider-header">
+              <span class="provider-index">⚡</span>
+              <span class="provider-name">{{ pirTaskData.realtimeDataSource.name || '实时数据源' }}</span>
+              <span class="realtime-badge">实时</span>
+            </div>
+            <div class="provider-fields" v-if="pirTaskData.realtimeDataSource.fields?.length">
+              <div class="fields-header">
+                <span>字段 ({{ pirTaskData.realtimeDataSource.fields.length }})</span>
+              </div>
+              <div class="fields-list">
+                <div
+                  v-for="field in pirTaskData.realtimeDataSource.fields"
+                  :key="field.name"
+                  class="field-chip"
+                >
+                  <span class="field-alias">{{ field.name }}</span>
+                  <span class="field-type-badge">{{ field.dataType }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </CollapsibleSection>
+
+        <div class="info-section">
+          <button class="config-params-btn full-width-btn" @click="handleConfigPIRTask">
+            ⚙️ 重新配置任务
+          </button>
+        </div>
+      </div>
+
+      <!-- FL 任务节点 - 必须在 isComputeTaskNode 之前 -->
+      <div v-else-if="isFLTaskNode" class="detail-info">
+        <div class="info-section">
+          <h4 class="section-title">联邦学习任务信息</h4>
+          <div class="info-grid">
+            <div class="info-item">
+              <span class="info-label">任务名称</span>
+              <span class="info-value">{{ flTaskData?.taskDisplayName || flTaskData?.taskName || 'FL 任务' }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">任务类别</span>
+              <span class="info-value">{{ flCategoryLabel }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">模式</span>
+              <span class="info-value">{{ flModeLabel }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 输入数据源 -->
+        <CollapsibleSection title="输入数据源" :count="flTaskData?.inputProviders?.length || 0">
+          <div v-if="!flTaskData?.inputProviders?.length" class="empty-inputs">
+            <div class="empty-icon">📊</div>
+            <p>暂无输入数据源</p>
+          </div>
+          <div v-else>
+            <div v-for="(provider, index) in flTaskData.inputProviders" :key="index" class="provider-card">
+              <div class="provider-header">
+                <span class="provider-index">{{ index + 1 }}</span>
+                <span class="provider-name">{{ provider.dataset || '数据源' }}</span>
+              </div>
+            </div>
+          </div>
+        </CollapsibleSection>
+
+        <!-- 任务参数配置 -->
+        <div class="info-section" v-if="flTaskData?.parameters">
+          <h4 class="section-title">参数配置</h4>
+          <div class="params-summary">
+            <div v-for="(value, key) in flTaskData.parameters" :key="key" class="param-item">
+              <span class="param-key">{{ key }}</span>
+              <span class="param-value">{{ value }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="info-section">
+          <button class="config-params-btn full-width-btn" @click="handleConfigFLTask">
+            ⚙️ 重新配置任务
+          </button>
+        </div>
+      </div>
+
+      <!-- 计算任务节点 (通用) -->
       <div v-else-if="isComputeTaskNode" class="detail-info">
         <!-- 任务基本信息 -->
         <div class="info-section">
@@ -570,134 +693,6 @@
         </CollapsibleSection>
       </div>
 
-      <!-- PIR 任务节点 -->
-      <div v-else-if="isPIRTaskNode" class="detail-info">
-        <div class="info-section">
-          <h4 class="section-title">PIR 任务信息</h4>
-          <div class="info-grid">
-            <div class="info-item">
-              <span class="info-label">任务名称</span>
-              <span class="info-value">{{ pirTaskData?.label || 'PIR 任务' }}</span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">任务类型</span>
-              <span class="info-value">隐私信息检索 (PIR)</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- 预加载数据源 -->
-        <CollapsibleSection title="预加载数据源" :count="pirTaskData?.preloadDataSource ? 1 : 0">
-          <div v-if="!pirTaskData?.preloadDataSource" class="empty-inputs">
-            <div class="empty-icon">📦</div>
-            <p>暂未配置预加载数据源</p>
-            <p class="empty-hint">从数据源节点拖拽连线到此任务</p>
-          </div>
-          <div v-else class="provider-card">
-            <div class="provider-header">
-              <span class="provider-index">📦</span>
-              <span class="provider-name">{{ pirTaskData.preloadDataSource.dataset || '已配置' }}</span>
-            </div>
-          </div>
-        </CollapsibleSection>
-
-        <!-- 实时数据源 -->
-        <CollapsibleSection title="实时数据源" :count="pirTaskData?.realtimeDataSource ? 1 : 0">
-          <div v-if="!pirTaskData?.realtimeDataSource" class="empty-inputs">
-            <div class="empty-icon">⚡</div>
-            <p>暂未配置实时数据源</p>
-            <p class="empty-hint">点击节点配置实时数据源，或从上游 PIR 输出连线</p>
-          </div>
-          <div v-else class="provider-card realtime-source">
-            <div class="provider-header">
-              <span class="provider-index">⚡</span>
-              <span class="provider-name">{{ pirTaskData.realtimeDataSource.name || '实时数据源' }}</span>
-              <span class="realtime-badge">实时</span>
-            </div>
-            <div class="provider-fields" v-if="pirTaskData.realtimeDataSource.fields?.length">
-              <div class="fields-header">
-                <span>字段 ({{ pirTaskData.realtimeDataSource.fields.length }})</span>
-              </div>
-              <div class="fields-list">
-                <div
-                  v-for="field in pirTaskData.realtimeDataSource.fields"
-                  :key="field.name"
-                  class="field-chip"
-                >
-                  <span class="field-alias">{{ field.name }}</span>
-                  <span class="field-type-badge">{{ field.dataType }}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </CollapsibleSection>
-
-        <div class="info-section">
-          <button class="config-params-btn full-width-btn" @click="handleConfigPIRTask">
-            ⚙️ 重新配置任务
-          </button>
-        </div>
-      </div>
-
-      <!-- FL 任务节点 -->
-      <div v-else-if="isFLTaskNode" class="detail-info">
-        <div class="info-section">
-          <h4 class="section-title">联邦学习任务信息</h4>
-          <div class="info-grid">
-            <div class="info-item">
-              <span class="info-label">任务名称</span>
-              <span class="info-value">{{ flTaskData?.taskDisplayName || flTaskData?.taskName || 'FL 任务' }}</span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">任务类别</span>
-              <span class="info-value">{{ flCategoryLabel }}</span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">任务模式</span>
-              <span class="info-value">{{ flTaskData?.flMode === 'training' ? '训练' : '推断' }}</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- 已部署模型（仅推断模式） -->
-        <CollapsibleSection v-if="flTaskData?.flMode === 'inference'" title="已部署模型" :count="flTaskData?.deployedModelId ? 1 : 0">
-          <div v-if="!flTaskData?.deployedModelId" class="empty-inputs">
-            <div class="empty-icon">🔗</div>
-            <p>暂未选择已部署模型</p>
-            <p class="empty-hint">点击节点选择已部署的模型</p>
-          </div>
-          <div v-else class="model-card">
-            <div class="model-header">
-              <span class="model-icon">🤖</span>
-              <span class="model-type">{{ flTaskData.deployedModelName || '已部署模型' }}</span>
-            </div>
-            <div class="model-params">
-              <span class="params-count">参与方: {{ flTaskData.trainingParticipants?.length || 0 }} 个</span>
-            </div>
-          </div>
-        </CollapsibleSection>
-
-        <!-- 参数配置 -->
-        <CollapsibleSection title="参数配置" :count="flParamsCount">
-          <div v-if="flParamsCount === 0" class="empty-inputs">
-            <div class="empty-icon">⚙️</div>
-            <p>暂无参数配置</p>
-          </div>
-          <div v-else class="params-list">
-            <div v-for="(value, key) in flTaskData?.parameters" :key="key" class="param-item">
-              <span class="param-name">{{ key }}</span>
-              <span class="param-value">{{ value }}</span>
-            </div>
-          </div>
-        </CollapsibleSection>
-
-        <div class="info-section">
-          <button class="config-params-btn full-width-btn" @click="handleConfigFLTask">
-            ⚙️ 重新配置任务
-          </button>
-        </div>
-      </div>
-
       <!-- 模型节点 -->
       <div v-else-if="isModelNode" class="detail-info">
         <!-- 模型基本信息 -->
@@ -966,8 +961,8 @@ interface Emits {
   (e: 'configModelNode', data: { nodeId: string; modelType: string }): void  // 配置模型节点
   (e: 'editOutput', nodeId: string): void  // 编辑输出数据节点
   (e: 'configInputProvider', data: { taskId: string; sourceNodeId: string; fields: any[] }): void  // 配置输入数据源
-  (e: 'configPIRTask', nodeId: string): void  // 配置 PIR 任务
-  (e: 'configFLTask', nodeId: string): void  // 配置 FL 任务
+  (e: 'config-pir-task', nodeId: string): void  // 配置 PIR 任务
+  (e: 'config-fl-task', nodeId: string): void  // 配置 FL 任务
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -1038,10 +1033,10 @@ const flCategoryLabel = computed(() => {
   return categoryMap[category || ''] || ''
 })
 
-// FL 任务参数数量
-const flParamsCount = computed(() => {
-  if (!flTaskData.value?.parameters) return 0
-  return Object.keys(flTaskData.value.parameters).length
+// FL 模式标签
+const flModeLabel = computed(() => {
+  if (!flTaskData.value) return ''
+  return flTaskData.value.flMode === 'training' ? '训练' : '推断'
 })
 
 // 判断数据源节点是否已配置
@@ -1495,7 +1490,7 @@ function handleConfigPIRTask() {
     nodeId: props.selectedNode.id
   })
 
-  emit('configPIRTask', props.selectedNode.id)
+  emit('config-pir-task', props.selectedNode.id)
 }
 
 /**
@@ -1508,7 +1503,7 @@ function handleConfigFLTask() {
     nodeId: props.selectedNode.id
   })
 
-  emit('configFLTask', props.selectedNode.id)
+  emit('config-fl-task', props.selectedNode.id)
 }
 
 /**

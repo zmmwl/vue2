@@ -437,9 +437,12 @@ export async function createFLTaskNodeDirectly(
     mode: FLMode;
     icon?: string;
     position?: { x: number; y: number };
+    // 可选：已部署模型信息（用于推断任务）
+    deployedModelId?: string;
+    deployedModelName?: string;
   }
 ): Promise<void> {
-  const { taskName, taskDisplayName, category, mode, icon = '🎓', position = { x: 400, y: 200 } } = options;
+  const { taskName, taskDisplayName, category, mode, icon = '🎓', position = { x: 400, y: 200 }, deployedModelId, deployedModelName } = options;
 
   await page.evaluate((opts) => {
     const categoryColors: Record<string, string> = {
@@ -450,6 +453,7 @@ export async function createFLTaskNodeDirectly(
       inference: '#FA8C16'
     };
 
+    // FL 任务节点数据 - 使用 flTask 对象格式
     const flTaskData = {
       type: 'fl_task',
       label: opts.taskDisplayName,
@@ -457,18 +461,23 @@ export async function createFLTaskNodeDirectly(
       taskType: 'federated_learning',
       icon: opts.icon,
       color: categoryColors[opts.category] || '#1890FF',
+      description: '',
+      // FL 任务特有属性 - 使用 flTask 对象
       flTask: {
         taskName: opts.taskName,
         taskDisplayName: opts.taskDisplayName,
         category: opts.category,
         mode: opts.mode
-      }
+      },
+      // 可选的已部署模型信息
+      ...(opts.deployedModelId && { deployedModelId: opts.deployedModelId }),
+      ...(opts.deployedModelName && { deployedModelName: opts.deployedModelName })
     };
 
     window.dispatchEvent(new CustomEvent('create-test-node', {
       detail: { data: flTaskData, position: opts.position }
     }));
-  }, { taskName, taskDisplayName, category, mode, icon, position });
+  }, { taskName, taskDisplayName, category, mode, icon, position, deployedModelId, deployedModelName });
 
   // Wait for the node to be added to DOM
   await page.waitForFunction(
@@ -553,4 +562,258 @@ export async function hoverAndExpandFLCategory(page: Page, categoryName: string)
   // 等待任务列表出现
   const taskList = page.locator('.fl-task-list');
   await taskList.first().waitFor({ state: 'visible', timeout: 5000 }).catch(() => {});
+}
+
+// ========== PIR 测试辅助函数 ==========
+
+/**
+ * 直接创建 PIR 任务节点（用于测试）
+ */
+export async function createPIRNodeDirectly(
+  page: Page,
+  position: { x: number; y: number } = { x: 400, y: 200 }
+): Promise<void> {
+  await page.evaluate((pos) => {
+    const pirData = {
+      type: 'pir_task',
+      label: '隐匿查询',
+      category: 'compute_task',
+      taskType: 'pir',
+      icon: '🔍',
+      color: '#0EA5E9',
+      description: '隐匿查询(PIR)任务'
+    };
+
+    window.dispatchEvent(new CustomEvent('create-test-node', {
+      detail: { data: pirData, position: pos }
+    }));
+  }, position);
+
+  // Wait for the node to be added to DOM
+  await page.waitForFunction(
+    () => document.querySelectorAll('.vue-flow__node').length > 0,
+    { timeout: 5000 }
+  );
+}
+
+/**
+ * 创建数据源节点（用于测试）
+ */
+export async function createDataSourceNodeDirectly(
+  page: Page,
+  position: { x: number; y: number } = { x: 200, y: 200 }
+): Promise<void> {
+  await page.evaluate((pos) => {
+    const dataSourceData = {
+      type: 'data_source',
+      label: 'MySQL数据源',
+      category: 'data_source',
+      sourceType: 'mysql',
+      icon: '🗄️',
+      color: '#52C41A',
+      description: 'MySQL数据库'
+    };
+
+    window.dispatchEvent(new CustomEvent('create-test-node', {
+      detail: { data: dataSourceData, position: pos }
+    }));
+  }, position);
+
+  await page.waitForFunction(
+    () => document.querySelectorAll('.vue-flow__node').length > 0,
+    { timeout: 5000 }
+  );
+}
+
+/**
+ * 连接两个节点
+ */
+export async function connectNodes(
+  page: Page,
+  sourceNodeId: string,
+  targetNodeId: string,
+  sourceHandle: string = 'output',
+  targetHandle: string = 'input'
+): Promise<void> {
+  await page.evaluate(({ sourceId, targetId, sourceH, targetH }) => {
+    window.dispatchEvent(new CustomEvent('create-test-connection', {
+      detail: {
+        source: sourceId,
+        target: targetId,
+        sourceHandle: sourceH,
+        targetHandle: targetH
+      }
+    }));
+  }, { sourceId: sourceNodeId, targetId: targetNodeId, sourceH: sourceHandle, targetH: targetHandle });
+
+  await page.waitForTimeout(200);
+}
+
+// ========== FL 任务参数配置辅助函数 ==========
+
+/**
+ * 打开 FL 任务配置弹窗
+ * 通过选中节点 -> 点击详情面板中的配置按钮
+ */
+export async function openFLTaskConfig(page: Page): Promise<void> {
+  const node = page.locator('.vue-flow__node').first();
+
+  // 点击节点选中
+  await node.click({ force: true });
+  await page.waitForTimeout(300);
+
+  // 等待详情面板出现
+  const detailPanel = page.locator('.flow-detail-panel');
+  await detailPanel.waitFor({ state: 'visible', timeout: 5000 });
+
+  // FL 任务使用"重新配置任务"按钮，其他节点使用"配置参数"按钮
+  const configBtn = detailPanel.locator('button').filter({
+    hasText: /重新配置任务|配置参数|⚙️/
+  }).first();
+
+  // 等待按钮可见
+  await configBtn.waitFor({ state: 'visible', timeout: 5000 });
+  await configBtn.click();
+  await page.waitForTimeout(300);
+
+  // 等待配置弹窗出现
+  const modal = page.locator('.fl-config-modal');
+  await modal.waitFor({ state: 'visible', timeout: 5000 });
+}
+
+/**
+ * FL 参数中英文映射
+ */
+const PARAM_DISPLAY_NAMES: Record<string, string> = {
+  // 预处理任务
+  missingValueStrategy: '缺失值处理策略',
+  fillConstant: '填充常数值',
+  outlierMethod: '异常值处理',
+  outlierThreshold: '异常值阈值',
+  dateFormat: '日期目标格式',
+  encodingMethod: '类别编码方式',
+  idFormat: 'ID格式',
+  // 特征工程任务
+  hashAlgorithm: '哈希算法',
+  saltEnabled: '启用加盐',
+  saltValue: '盐值',
+  selectionMethod: '选择方法',
+  topK: '保留特征数',
+  threshold: '阈值筛选',
+  crossFeatures: '交叉特征对',
+  crossMethod: '交叉方式',
+  normalizeMethod: '归一化方法',
+  useGlobalStat: '使用全局统计量',
+  // 横向模型任务
+  learningRate: '学习率',
+  iterations: '迭代次数',
+  batchSize: '批次大小',
+  regularization: '正则化',
+  regParam: '正则化系数',
+  numTrees: '树的数量',
+  maxDepth: '最大深度',
+  minChildWeight: '最小子节点权重',
+  subsample: '采样比例',
+  layers: '网络层配置',
+  optimizer: '优化器',
+  epochs: '训练轮数',
+  dModel: '模型维度',
+  numHeads: '注意力头数',
+  numLayers: '编码器层数',
+  dFF: '前馈网络维度',
+  // 纵向模型任务
+  encryptionMethod: '加密方式',
+  secureMethod: '安全方法',
+  minSampleSplit: '分裂最小样本数',
+  factorDim: '隐向量维度',
+  splitPoint: '网络分割点',
+  gradientCompression: '梯度压缩'
+};
+
+/**
+ * 配置 FL 任务参数
+ * @param page Playwright Page
+ * @param params 参数键值对
+ */
+export async function configureFLTaskParams(
+  page: Page,
+  params: Record<string, string | number | boolean>
+): Promise<void> {
+  const modal = page.locator('.fl-config-modal');
+
+  for (const [name, value] of Object.entries(params)) {
+    // 获取中文显示名称
+    const displayName = PARAM_DISPLAY_NAMES[name] || name;
+
+    // 找到参数输入区域 - 使用中文显示名称
+    const paramSection = modal.locator('.parameter-input').filter({ hasText: displayName });
+
+    await page.waitForTimeout(100);
+
+    if (typeof value === 'boolean') {
+      // Boolean 类型 - 点击开关
+      const switchEl = paramSection.locator('.param-switch');
+      const checkbox = switchEl.locator('input[type="checkbox"]');
+      const isChecked = await checkbox.isChecked({ timeout: 3000 }).catch(() => false);
+
+      if (value !== isChecked) {
+        await checkbox.click();
+      }
+    } else if (typeof value === 'number') {
+      // Number 类型
+      const input = paramSection.locator('input[type="number"]');
+      await input.fill(String(value), { timeout: 3000 });
+    } else {
+      // 尝试找到 select 或 text input
+      const selectEl = paramSection.locator('select.param-select');
+      const isSelect = await selectEl.isVisible({ timeout: 2000 }).catch(() => false);
+
+      if (isSelect) {
+        await selectEl.selectOption(String(value), { timeout: 3000 });
+      } else {
+        const input = paramSection.locator('input[type="text"]');
+        const isTextVisible = await input.isVisible({ timeout: 2000 }).catch(() => false);
+        if (isTextVisible) {
+          await input.fill(String(value), { timeout: 3000 });
+        }
+      }
+    }
+
+    await page.waitForTimeout(50);
+  }
+}
+
+/**
+ * 选择已部署模型（用于推断任务）
+ */
+export async function selectDeployedModel(page: Page, modelId: string): Promise<void> {
+  const modal = page.locator('.fl-config-modal');
+
+  // 点击提示区域打开模型选择器
+  const hint = modal.locator('.model-selector-hint');
+  if (await hint.isVisible()) {
+    await hint.click();
+  } else {
+    // 如果已有选择的模型，点击更换按钮
+    const changeBtn = modal.locator('.change-model-btn');
+    if (await changeBtn.isVisible()) {
+      await changeBtn.click();
+    }
+  }
+
+  // 等待模型选择器出现
+  const modelSelector = page.locator('.deployed-model-selector');
+  await modelSelector.waitFor({ state: 'visible', timeout: 5000 });
+
+  // 选择指定的模型
+  const modelItem = modelSelector.locator('.model-item').filter({ hasText: modelId });
+  if (await modelItem.isVisible()) {
+    await modelItem.click();
+  } else {
+    // 如果没有精确匹配，选择第一个可见的模型
+    const firstModel = modelSelector.locator('.model-item').first();
+    await firstModel.click();
+  }
+
+  await page.waitForTimeout(200);
 }

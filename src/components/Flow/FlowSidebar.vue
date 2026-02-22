@@ -223,7 +223,7 @@
           @mouseenter="handleTaskCardEnter"
           @mouseleave="handleTaskCardLeave"
         >
-          <div class="task-card-header" :style="{ backgroundColor: getFLCategoryColor(currentHoveredCategoryInfo?.category || '') }">
+          <div class="task-card-header" :style="{ backgroundColor: currentHoveredCategoryInfo?.category ? getFLCategoryColor(currentHoveredCategoryInfo.category) : '#52C41A' }">
             <span class="header-icon">{{ currentHoveredCategoryInfo?.icon }}</span>
             <span class="header-title">{{ currentHoveredCategoryInfo?.name }}</span>
             <span class="header-badge">{{ activeFLMode === FLMode.TRAINING ? '训练' : '推断' }}</span>
@@ -256,7 +256,7 @@ import type { NodeTemplate } from '@/types/nodes'
 import { ComputeTaskType, NodeCategory } from '@/types/nodes'
 import { FL_TRAINING_MENU, FL_INFERENCE_MENU, getFLCategoryColor } from '@/utils/fl-task-templates'
 import { FLTaskCategory, FLMode } from '@/types/fl-tasks'
-import type { FLTaskMenuItem, FLTaskCategoryMenu } from '@/types/fl-tasks'
+import type { FLTaskMenuItem } from '@/types/fl-tasks'
 
 // 高亮状态
 const highlightType = ref<'models' | 'computes' | null>(null)
@@ -374,13 +374,15 @@ function handleFLCardLeave() {
 
 /**
  * 切换 FL 卡片展开状态
+ * 点击时始终展开（不关闭），因为关闭由 handleFLCardLeave 处理
  */
 function toggleFLCard() {
-  // 先计算位置，再展开（这样元素出现时就有正确的位置）
+  // 点击时始终展开子菜单（而不是切换）
+  // 关闭由 handleFLCardLeave 处理
   if (!flCardExpanded.value) {
     updateFLCardSubmenuPosition()
   }
-  flCardExpanded.value = !flCardExpanded.value
+  flCardExpanded.value = true
 }
 
 /**

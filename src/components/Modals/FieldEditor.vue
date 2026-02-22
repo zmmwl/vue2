@@ -76,16 +76,20 @@ const modelValue = defineModel<RealtimeFieldInfo[]>({ default: () => [] })
 // 添加字段
 const addField = () => {
   if (modelValue.value.length >= 50) return
-  modelValue.value.push({
-    name: '',
-    dataType: 'STRING',
-    description: ''
-  })
+  // 使用展开运算符确保响应式更新
+  modelValue.value = [
+    ...modelValue.value,
+    {
+      name: '',
+      dataType: 'STRING' as const,
+      description: ''
+    }
+  ]
 }
 
 // 删除字段
 const removeField = (index: number) => {
-  modelValue.value.splice(index, 1)
+  modelValue.value = modelValue.value.filter((_, i) => i !== index)
 }
 
 // 验证字段名称

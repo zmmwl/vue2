@@ -20,6 +20,15 @@ export const DATA_SOURCE_TEMPLATES: NodeTemplate[] = [
     icon: '📄',
     color: '#52C41A',
     description: '逗号分隔值文件'
+  },
+  {
+    type: 'realtime_datasource',
+    label: '实时数据源',
+    category: NodeCategory.DATA_SOURCE,
+    sourceType: DataSourceType.REALTIME,
+    icon: '⚡',
+    color: '#FA8C16',
+    description: '流式数据输入源'
   }
 ]
 
@@ -35,7 +44,7 @@ export const COMPUTE_TASK_TEMPLATES: NodeTemplate[] = [
     description: '隐私集合求交'
   },
   {
-    type: 'compute_task',
+    type: 'pir_task',
     label: 'PIR 查询',
     category: NodeCategory.COMPUTE_TASK,
     taskType: ComputeTaskType.PIR,

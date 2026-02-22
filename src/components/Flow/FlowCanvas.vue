@@ -186,6 +186,14 @@
       @confirm="handleFLTaskConfigConfirm"
     />
 
+    <!-- 实时数据源节点配置弹窗 -->
+    <RealtimeDataSourceNodeConfig
+      v-model="showRealtimeDataSourceNodeDialog"
+      :initial-data="pendingRealtimeNodeData"
+      @confirm="handleRealtimeDataSourceNodeConfirm"
+      @select-datasource="handleRealtimeSelectDatasource"
+    />
+
     <!-- 错误提示 Toast -->
     <Transition name="toast">
       <div v-if="showErrorToast" class="error-toast">
@@ -205,7 +213,7 @@ import { Controls } from '@vue-flow/controls'
 import { MiniMap } from '@vue-flow/minimap'
 import type { Node, Connection, EdgeChange, NodeChange, GraphNode } from '@vue-flow/core'
 import type { DroppedNodeData } from '@/types/graph'
-import { NodeCategory, ComputeTaskType, TechPath, ResourceTypePriority, ModelType } from '@/types/nodes'
+import { NodeCategory, ComputeTaskType, TechPath, ResourceTypePriority, ModelType, DataSourceType } from '@/types/nodes'
 import type { NodeData, AssetInfo, FieldInfo, FieldMapping, ComputeTaskNodeData, OutputDataNodeData, OutputField, ComputeModelConfig, ModelParameter, AvailableFieldOption, LocalQueryNodeData, ExpressionConfig, GroupByConfig as GroupByConfigType } from '@/types/nodes'
 import { LocalTaskType } from '@/types/nodes'
 import DataSourceNode from '@/components/Nodes/DataSourceNode.vue'
@@ -217,6 +225,7 @@ import LocalTaskNode from '@/components/Nodes/LocalTaskNode.vue'
 import LocalQueryNode from '@/components/Nodes/LocalQueryNode.vue'
 import FLTaskNode from '@/components/Nodes/FLTaskNode.vue'
 import PIRTaskNode from '@/components/Nodes/PIRTaskNode.vue'
+import RealtimeDataSourceNode from '@/components/Nodes/RealtimeDataSourceNode.vue'
 import FlowEdge from '@/components/Edges/FlowEdge.vue'
 import AssetSelectorDialog from '@/components/Dialogs/AssetSelectorDialog.vue'
 import TechPathSelector from '@/components/Modals/TechPathSelector.vue'
@@ -234,6 +243,7 @@ import GroupByConfig from '@/components/Modals/GroupByConfig.vue'
 import TypeSelector from '@/components/Modals/TypeSelector.vue'
 import LocalQueryEditor from '@/components/Modals/LocalQueryEditor.vue'
 import RealtimeDataSourceConfig from '@/components/Modals/RealtimeDataSourceConfig.vue'
+import RealtimeDataSourceNodeConfig from '@/components/Modals/RealtimeDataSourceNodeConfig.vue'
 import FLTaskConfig from '@/components/Modals/FLTaskConfig.vue'
 import { MODEL_TEMPLATES, RESOURCE_TEMPLATES } from '@/utils/node-templates'
 import { createUniqueEdge } from '@/utils/edge-utils'
@@ -261,7 +271,7 @@ const emit = defineEmits<Emits>()
 const { nodes, edges, addNode, addEdge, setNodes, setEdges } = useGraphState()
 
 // 获取坐标投影函数（将屏幕坐标转换为画布坐标）
-const { project, fitView } = useVueFlow()
+const { project, fitView, addEdges } = useVueFlow()
 
 // 注册自定义节点类型
 const nodeTypes = {
@@ -273,7 +283,8 @@ const nodeTypes = {
   localTask: markRaw(LocalTaskNode),
   local_query: markRaw(LocalQueryNode),
   fl_task: markRaw(FLTaskNode),
-  pir_task: markRaw(PIRTaskNode)
+  pir_task: markRaw(PIRTaskNode),
+  realtime_datasource: markRaw(RealtimeDataSourceNode)
 }
 
 // 注册自定义连接线类型
@@ -408,6 +419,19 @@ const showFLTaskConfigDialog = ref(false)
 const pendingFLTaskNodeId = ref<string>('')
 const pendingFLTaskData = ref<import('@/types/nodes').FLTaskNodeData | undefined>(undefined)
 
+// 实时数据源节点配置弹窗状态
+const showRealtimeDataSourceNodeDialog = ref(false)
+const pendingRealtimeNodeData = ref<{
+  mode: 'datasource' | 'manual'
+  fields: import('@/types/nodes').RealtimeFieldInfo[]
+  sourceNodeId?: string
+  sourceNodeName?: string
+} | undefined>(undefined)
+const pendingRealtimeNodeId = ref<string>('')
+
+// 标记是否是从实时数据源节点触发的数据源选择
+const isRealtimeDatasourceSelection = ref(false)
+
 /**
  * 可用的企业选项（按优先级排序）
  */
@@ -440,6 +464,32 @@ async function loadEnterprises() {
 // 组件挂载时加载企业列表
 onMounted(() => {
   loadEnterprises()
+
+  // 暴露测试用的全局方法
+  ;(window as any).__createEdge = (
+    sourceId: string,
+    sourceHandle: string,
+    targetId: string,
+    targetHandle: string
+  ) => {
+    logger.info('[FlowCanvas] __createEdge called', { sourceId, sourceHandle, targetId, targetHandle })
+
+    const newEdge = {
+      id: `edge_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      source: sourceId,
+      sourceHandle,
+      target: targetId,
+      targetHandle,
+      type: 'default'
+    }
+
+    addEdges([newEdge])
+    logger.info('[FlowCanvas] Edge created via test API', { edgeId: newEdge.id })
+  }
+})
+
+onUnmounted(() => {
+  delete (window as any).__createEdge
 })
 
 /**
@@ -662,24 +712,28 @@ const isValidConnection = (
   }
 
   // 规则 2: 连接到 PIR 任务节点时，根据源节点类型自动修正 targetHandle
-  if (targetNode.type === 'pir_task') {
+  if (targetNode.type === 'pir_task' || (targetData as ComputeTaskNodeData).taskType === ComputeTaskType.PIR) {
     let correctHandle: string
-    // 如果源节点是 PIR 输出（实时数据源），连接到 realtime-input
-    if ((sourceData as any).isPIROutput || sourceData.category === NodeCategory.OUTPUT_DATA) {
+    const sourceDataSource = sourceData as any
+
+    // 如果源节点是实时数据源类型，连接到 realtime-input
+    if (sourceDataSource.sourceType === DataSourceType.REALTIME) {
+      correctHandle = 'realtime-input'
+      logger.info('[FlowCanvas] PIR connection: realtime datasource -> realtime-input')
+    } else if (sourceData.category === NodeCategory.OUTPUT_DATA) {
+      // 输出数据节点，根据上下文判断
       correctHandle = connection.targetHandle === 'preload-input' ? 'preload-input' : 'realtime-input'
     } else {
       // 普通数据源连接到 preload-input
       correctHandle = 'preload-input'
+      logger.info('[FlowCanvas] PIR connection: normal datasource -> preload-input')
     }
 
     // 直接修改 connection 对象的 targetHandle
-    if (connection.targetHandle && connection.targetHandle !== correctHandle) {
-      ;(connection as any).targetHandle = correctHandle
-    }
+    ;(connection as any).targetHandle = correctHandle
   }
-
-  // 规则 3: 连接到计算任务节点或本地任务节点时，根据源节点类型自动修正 targetHandle
-  if (targetData.category === NodeCategory.COMPUTE_TASK || targetData.category === NodeCategory.LOCAL_TASK) {
+  // 规则 3: 连接到其他计算任务节点或本地任务节点时，根据源节点类型自动修正 targetHandle
+  else if (targetData.category === NodeCategory.COMPUTE_TASK || targetData.category === NodeCategory.LOCAL_TASK) {
     // 根据源节点类型确定正确的 targetHandle
     let correctHandle: string
     if (sourceData.category === NodeCategory.DATA_SOURCE || sourceData.category === NodeCategory.OUTPUT_DATA) {
@@ -715,6 +769,8 @@ const isValidConnection = (
  * - 数据源/任务节点的输出: "output"
  * - 任务节点的输入: 根据源节点类型自动选择
  *   - 数据源节点 → "data-input" (顶部)
+ *   - 实时数据源节点 → "realtime-input" (PIR 节点专用)
+ *   - 普通数据源节点 → "preload-input" (PIR 节点专用)
  *   - 模型节点 → "input" (左侧)
  *   - 算力节点 → "compute-input" (右侧)
  */
@@ -730,12 +786,29 @@ const onConnect = (connection: Connection) => {
   const sourceData = sourceNode.data as NodeData
   const targetData = targetNode.data as ComputeTaskNodeData
 
-  // 根据源节点类型自动设置正确的 targetHandle
+  // 根据源节点类型和目标节点类型自动设置正确的 targetHandle
   let correctedTargetHandle = connection.targetHandle
   if (targetData.category === NodeCategory.COMPUTE_TASK) {
+    // 检查目标是否是 PIR 任务节点
+    const isPIRTask = targetData.taskType === ComputeTaskType.PIR
+
     if (sourceData.category === NodeCategory.DATA_SOURCE || sourceData.category === NodeCategory.OUTPUT_DATA) {
-      // 数据源/输出节点连接到计算任务的顶部 data-input handle
-      correctedTargetHandle = 'data-input'
+      if (isPIRTask) {
+        // PIR 任务节点有两个输入 handle
+        const sourceDataSource = sourceData as any
+        if (sourceDataSource.sourceType === DataSourceType.REALTIME) {
+          // 实时数据源连接到 realtime-input
+          correctedTargetHandle = 'realtime-input'
+          logger.info('[FlowCanvas] Connecting realtime datasource to PIR realtime-input')
+        } else {
+          // 普通数据源连接到 preload-input
+          correctedTargetHandle = 'preload-input'
+          logger.info('[FlowCanvas] Connecting normal datasource to PIR preload-input')
+        }
+      } else {
+        // 其他计算任务节点使用 data-input
+        correctedTargetHandle = 'data-input'
+      }
     } else if (sourceData.category === NodeCategory.MODEL) {
       // 模型节点连接到计算任务的左侧 input handle
       correctedTargetHandle = 'input'
@@ -1160,47 +1233,56 @@ const onDrop = (event: DragEvent) => {
 
     // 处理不同类型的节点
     if (data.category === NodeCategory.DATA_SOURCE) {
-      // 检查是否在测试模式（只检查明确设置的标志）
-      const isTestMode = !!(window as any).__PLAYWRIGHT_TEST__
-
-      if (isTestMode) {
-        // 测试模式：直接使用模拟资产数据创建节点
-        logger.info('[FlowCanvas] Test mode detected, creating node with mock asset data')
-        const mockAssetInfo: AssetInfo = {
-          assetId: 'test_asset_' + Date.now(),
-          assetNumber: 'TEST_' + Date.now(),
-          assetName: data.label || '测试数据资产',
-          holderCompany: '测试企业',
-          participantId: 'test_enterprise_001',
-          entityName: '测试企业实体',
-          intro: data.description || '用于测试的数据资产',
-          dataInfo: {
-            databaseName: 'test_db',
-            tableName: 'test_table',
-            fieldList: [
-              { name: 'id', dataType: 'STRING', description: 'ID字段', dataLength: 10 },
-              { name: 'name', dataType: 'STRING', description: '名称字段', dataLength: 20 },
-              { name: 'value', dataType: 'INT', description: '数值字段', dataLength: 4 }
-            ]
-          }
-        }
-
-        const mockFields: FieldInfo[] = mockAssetInfo.dataInfo.fieldList.map(f => ({
-          name: f.name,
-          dataType: f.dataType,
-          description: f.description
-        }))
-
-        // 直接调用 handleAssetSelected 创建节点
-        handleAssetSelected({
-          assetInfo: mockAssetInfo,
-          selectedFields: mockFields
-        })
+      // 检查是否是实时数据源类型
+      if (data.sourceType === DataSourceType.REALTIME) {
+        // 实时数据源节点：弹出配置对话框
+        pendingRealtimeNodeId.value = `realtime_node_${Date.now()}`
+        pendingRealtimeNodeData.value = undefined
+        showRealtimeDataSourceNodeDialog.value = true
+        logger.info('[FlowCanvas] Opening realtime datasource config dialog')
       } else {
-        // 数据源节点：使用统一资源选择器
-        showUnifiedSelector.value = true
-        selectorResourceType.value = 'data'
-        logger.info('[FlowCanvas] Opening unified resource selector for data source')
+        // 检查是否在测试模式（只检查明确设置的标志）
+        const isTestMode = !!(window as any).__PLAYWRIGHT_TEST__
+
+        if (isTestMode) {
+          // 测试模式：直接使用模拟资产数据创建节点
+          logger.info('[FlowCanvas] Test mode detected, creating node with mock asset data')
+          const mockAssetInfo: AssetInfo = {
+            assetId: 'test_asset_' + Date.now(),
+            assetNumber: 'TEST_' + Date.now(),
+            assetName: data.label || '测试数据资产',
+            holderCompany: '测试企业',
+            participantId: 'test_enterprise_001',
+            entityName: '测试企业实体',
+            intro: data.description || '用于测试的数据资产',
+            dataInfo: {
+              databaseName: 'test_db',
+              tableName: 'test_table',
+              fieldList: [
+                { name: 'id', dataType: 'STRING', description: 'ID字段', dataLength: 10 },
+                { name: 'name', dataType: 'STRING', description: '名称字段', dataLength: 20 },
+                { name: 'value', dataType: 'INT', description: '数值字段', dataLength: 4 }
+              ]
+            }
+          }
+
+          const mockFields: FieldInfo[] = mockAssetInfo.dataInfo.fieldList.map(f => ({
+            name: f.name,
+            dataType: f.dataType,
+            description: f.description
+          }))
+
+          // 直接调用 handleAssetSelected 创建节点
+          handleAssetSelected({
+            assetInfo: mockAssetInfo,
+            selectedFields: mockFields
+          })
+        } else {
+          // 数据源节点：使用统一资源选择器
+          showUnifiedSelector.value = true
+          selectorResourceType.value = 'data'
+          logger.info('[FlowCanvas] Opening unified resource selector for data source')
+        }
       }
     } else if (data.category === NodeCategory.COMPUTE_TASK) {
       // 计算任务节点：需要技术路径选择
@@ -2159,6 +2241,141 @@ function handleFLTaskConfigConfirm(data: Partial<import('@/types/nodes').FLTaskN
   showFLTaskConfigDialog.value = false
   pendingFLTaskNodeId.value = ''
   pendingFLTaskData.value = undefined
+}
+
+/**
+ * 处理实时数据源节点配置确认
+ */
+function handleRealtimeDataSourceNodeConfirm(data: {
+  mode: 'datasource' | 'manual'
+  fields: import('@/types/nodes').RealtimeFieldInfo[]
+  sourceNodeId?: string
+  sourceNodeName?: string
+}) {
+  logger.info('[FlowCanvas] Realtime datasource node config confirmed', {
+    mode: data.mode,
+    fieldCount: data.fields.length,
+    sourceNodeId: data.sourceNodeId
+  })
+
+  // 创建实时数据源节点
+  const position = pendingNodePosition.value || { x: 100, y: 100 }
+  const nodeData: import('@/types/nodes').RealtimeDataSourceNodeData = {
+    label: '实时数据源',
+    category: NodeCategory.DATA_SOURCE,
+    sourceType: DataSourceType.REALTIME,
+    icon: '⚡',
+    color: '#FA8C16',
+    description: '流式数据输入源',
+    realtimeConfig: {
+      mode: data.mode,
+      fields: data.fields,
+      sourceNodeId: data.sourceNodeId,
+      sourceNodeName: data.sourceNodeName
+    },
+    isConfigured: data.fields.length > 0
+  }
+
+  const newNode: Node = {
+    id: pendingRealtimeNodeId.value || `realtime_node_${Date.now()}`,
+    type: 'realtime_datasource',
+    position,
+    data: nodeData as any
+  }
+
+  addNode(newNode)
+  logger.info('[FlowCanvas] Realtime datasource node created', {
+    nodeId: newNode.id,
+    position
+  })
+
+  // 关闭弹窗
+  showRealtimeDataSourceNodeDialog.value = false
+  pendingRealtimeNodeId.value = ''
+  pendingRealtimeNodeData.value = undefined
+}
+
+/**
+ * 处理实时数据源节点选择"从现有数据源选择"（打开统一资源选择器）
+ */
+function handleRealtimeSelectDatasource() {
+  logger.info('[FlowCanvas] Opening unified selector for realtime datasource')
+  isRealtimeDatasourceSelection.value = true
+  showUnifiedSelector.value = true
+  selectorResourceType.value = 'data'
+}
+
+/**
+ * 从资产选择结果创建实时数据源节点
+ */
+function createRealtimeDataSourceNodeFromAsset(
+  assetInfo: AssetInfo,
+  selectedFields: FieldInfo[]
+) {
+  const position = pendingNodePosition.value || { x: 100, y: 100 }
+
+  // 将字段转换为 RealtimeFieldInfo 格式
+  const realtimeFields: import('@/types/nodes').RealtimeFieldInfo[] = selectedFields.map(f => ({
+    name: f.name,
+    dataType: convertToRealtimeDataType(f.dataType),
+    description: f.description
+  }))
+
+  const nodeData: import('@/types/nodes').RealtimeDataSourceNodeData = {
+    label: assetInfo.assetName,
+    category: NodeCategory.DATA_SOURCE,
+    sourceType: DataSourceType.REALTIME,
+    icon: '⚡',
+    color: '#FA8C16',
+    description: assetInfo.intro || '流式数据输入源',
+    realtimeConfig: {
+      mode: 'datasource',
+      fields: realtimeFields,
+      sourceNodeName: assetInfo.assetName
+    },
+    isConfigured: true
+  }
+
+  const newNode: Node = {
+    id: pendingRealtimeNodeId.value || `realtime_node_${Date.now()}`,
+    type: 'realtime_datasource',
+    position,
+    data: nodeData as any
+  }
+
+  addNode(newNode)
+  logger.info('[FlowCanvas] Realtime datasource node created from asset', {
+    nodeId: newNode.id,
+    assetName: assetInfo.assetName,
+    fieldCount: realtimeFields.length
+  })
+
+  // 清理状态
+  pendingRealtimeNodeId.value = ''
+  pendingNodePosition.value = null
+}
+
+/**
+ * 将数据类型转换为实时数据源支持的类型
+ */
+function convertToRealtimeDataType(dataType: string): 'STRING' | 'INTEGER' | 'FLOAT' | 'BOOLEAN' | 'DATE' | 'TIMESTAMP' {
+  const upperType = dataType?.toUpperCase() || 'STRING'
+  if (['INT', 'BIGINT', 'SMALLINT', 'TINYINT', 'INTEGER'].includes(upperType)) {
+    return 'INTEGER'
+  }
+  if (['FLOAT', 'DOUBLE', 'DECIMAL', 'NUMERIC'].includes(upperType)) {
+    return 'FLOAT'
+  }
+  if (['BOOLEAN', 'BOOL'].includes(upperType)) {
+    return 'BOOLEAN'
+  }
+  if (['DATE'].includes(upperType)) {
+    return 'DATE'
+  }
+  if (['DATETIME', 'TIMESTAMP', 'TIMESTAMP'].includes(upperType)) {
+    return 'TIMESTAMP'
+  }
+  return 'STRING'
 }
 
 /**
@@ -3392,23 +3609,27 @@ function handleCreateTestNode(event: Event) {
       flTask: data.flTask
     })
 
-    // 使用默认技术路径创建
-    const techPath = TechPath.SOFTWARE
+    // 如果有 flTask 属性，使用 createFLTaskNode
+    if (data.flTask) {
+      createFLTaskNode(data as any)
+    } else {
+      // 使用默认技术路径创建
+      const techPath = TechPath.SOFTWARE
 
-    // 创建节点数据
-    const nodeData: DroppedNodeData = {
-      type: data.type || 'compute_task',
-      label: data.label,
-      category: NodeCategory.COMPUTE_TASK,
-      taskType: data.taskType || ComputeTaskType.FL,
-      icon: data.icon || '🎓',
-      color: data.color || '#1890ff',
-      description: data.description || '',
-      flTask: data.flTask
+      // 创建节点数据
+      const nodeData: DroppedNodeData = {
+        type: data.type || 'compute_task',
+        label: data.label,
+        category: NodeCategory.COMPUTE_TASK,
+        taskType: data.taskType || ComputeTaskType.FL,
+        icon: data.icon || '🎓',
+        color: data.color || '#1890ff',
+        description: data.description || ''
+      }
+
+      // 直接创建节点
+      createNode(nodeData, position || { x: 400, y: 200 }, techPath)
     }
-
-    // 直接创建节点
-    createNode(nodeData, position || { x: 400, y: 200 }, techPath)
 
     // 清理状态
     pendingNodeData.value = null
@@ -4036,15 +4257,22 @@ function handleUnifiedSelectorConfirm(result: any) {
     resourceType: selectorResourceType.value,
     hasAssetInfo: !!result.assetInfo,
     hasModelInfo: !!result.modelInfo,
-    hasComputeInfo: !!result.computeInfo
+    hasComputeInfo: !!result.computeInfo,
+    isRealtimeDatasource: isRealtimeDatasourceSelection.value
   })
 
   if (selectorResourceType.value === 'data' && result.assetInfo) {
-    // 数据源选择确认
-    handleAssetSelected({
-      assetInfo: result.assetInfo,
-      selectedFields: result.selectedFields
-    })
+    // 检查是否是从实时数据源节点触发的选择
+    if (isRealtimeDatasourceSelection.value) {
+      // 创建实时数据源节点
+      createRealtimeDataSourceNodeFromAsset(result.assetInfo, result.selectedFields)
+    } else {
+      // 普通数据源选择确认
+      handleAssetSelected({
+        assetInfo: result.assetInfo,
+        selectedFields: result.selectedFields
+      })
+    }
   } else if (selectorResourceType.value === 'model' && result.modelInfo) {
     // 模型选择确认
     if (!pendingSelectorResult.value?.data) {
@@ -4066,6 +4294,7 @@ function handleUnifiedSelectorConfirm(result: any) {
   selectorResourceType.value = 'data'
   selectorModelTypeFilter.value = undefined
   pendingSelectorResult.value = undefined
+  isRealtimeDatasourceSelection.value = false
 }
 
 /**
@@ -4077,6 +4306,7 @@ function handleUnifiedSelectorCancel() {
   selectorResourceType.value = 'data'
   selectorModelTypeFilter.value = undefined
   pendingSelectorResult.value = undefined
+  isRealtimeDatasourceSelection.value = false
 }
 
 /**

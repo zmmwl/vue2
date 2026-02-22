@@ -99,7 +99,8 @@ export enum LocalTaskType {
 export enum DataSourceType {
   DATABASE = 'database',  // 数据库
   FILE = 'file',          // 文件
-  API = 'api'             // API 接口
+  API = 'api',            // API 接口
+  REALTIME = 'realtime'   // 实时数据源
 }
 
 // 输入连接点接口
@@ -150,6 +151,23 @@ export interface DataSourceNode extends Node {
     category: NodeCategory.DATA_SOURCE
     sourceType: DataSourceType
   }
+}
+
+// 实时数据源节点数据（可拖拽的实时数据源）
+export interface RealtimeDataSourceNodeData extends NodeData {
+  category: NodeCategory.DATA_SOURCE
+  sourceType: DataSourceType.REALTIME
+
+  // 实时数据源配置
+  realtimeConfig: {
+    mode: 'datasource' | 'manual'  // 从现有数据源选择 | 手工录入
+    fields: RealtimeFieldInfo[]     // 字段列表
+    sourceNodeId?: string           // 关联的数据源节点ID（datasource模式时）
+    sourceNodeName?: string         // 关联的数据源节点名称
+  }
+
+  // 是否已配置
+  isConfigured?: boolean
 }
 
 // 计算任务节点类型
