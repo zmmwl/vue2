@@ -1,0 +1,220 @@
+/**
+ * 节点 Handle 共享样式
+ * 所有节点组件都应该使用这些样式
+ */
+
+// ========== Handle 基础样式 ==========
+
+// 数据源输入 Handle - 长方形（顶部）- 绿色
+.data-input-handle {
+  width: 24px;
+  height: 8px;
+  background-color: #52c41a;
+  border: 2px solid #ffffff;
+  border-radius: 2px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  transform: translateX(-50%);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+
+  &.is-visible {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  &:hover {
+    opacity: 1;
+    visibility: visible;
+    background-color: #1890ff;
+    transform: translateX(-50%) scale(1.1);
+  }
+}
+
+// 模型输入 Handle - 长方形（左侧）- 紫色
+.input-handle {
+  width: 8px;
+  height: 24px;
+  background-color: #722ED1;
+  border: 2px solid #ffffff;
+  border-radius: 2px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  transform: translateY(-50%);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+
+  &.is-visible {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  &:hover {
+    opacity: 1;
+    visibility: visible;
+    background-color: #9254de;
+    transform: translateY(-50%) scale(1.1);
+  }
+}
+
+// 输出 Handle - 圆形（底部）- 灰色
+.output-handle {
+  width: 12px;
+  height: 12px;
+  background-color: #999999;
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+  transform: translateX(-50%);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+
+  &.is-visible {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  &:hover {
+    opacity: 1;
+    visibility: visible;
+    background-color: #1890ff;
+    transform: translateX(-50%) scale(1.2);
+  }
+}
+
+// 算力输入 Handle - 长方形（右侧）- 橙色
+.compute-input-handle {
+  width: 8px;
+  height: 24px;
+  background-color: #FA8C16;
+  border: 2px solid #ffffff;
+  border-radius: 2px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  transform: translateY(-50%);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+
+  &.is-visible {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  &:hover {
+    opacity: 1;
+    visibility: visible;
+    background-color: #1890ff;
+    transform: translateY(-50%) scale(1.1);
+  }
+}
+
+// 实时数据输入 Handle - 长方形（顶部偏右）- 蓝色
+.realtime-input-handle {
+  width: 24px;
+  height: 8px;
+  background-color: #1890ff;
+  border: 2px solid #ffffff;
+  border-radius: 2px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  transform: translateX(-50%);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+
+  &.is-visible {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  &:hover {
+    opacity: 1;
+    visibility: visible;
+    background-color: #40a9ff;
+    transform: translateX(-50%) scale(1.1);
+  }
+}
+
+// 预加载数据输入 Handle - 长方形（顶部偏左）- 青色
+.preload-input-handle {
+  width: 24px;
+  height: 8px;
+  background-color: #13c2c2;
+  border: 2px solid #ffffff;
+  border-radius: 2px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  transform: translateX(-50%);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+
+  &.is-visible {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  &:hover {
+    opacity: 1;
+    visibility: visible;
+    background-color: #36cfc9;
+    transform: translateX(-50%) scale(1.1);
+  }
+}
+
+// 模型输入 Handle（右侧）- 紫色
+.model-input-handle {
+  width: 8px;
+  height: 24px;
+  background-color: #722ED1;
+  border: 2px solid #ffffff;
+  border-radius: 2px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  transform: translateY(-50%);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+
+  &.is-visible {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  &:hover {
+    opacity: 1;
+    visibility: visible;
+    background-color: #9254de;
+    transform: translateY(-50%) scale(1.1);
+  }
+}
+
+// 右侧输入 Handle（FL 任务）- 蓝色
+.right-input-handle {
+  width: 8px;
+  height: 24px;
+  background-color: #1890ff;
+  border: 2px solid #ffffff;
+  border-radius: 2px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  transform: translateY(-50%);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+
+  &.is-visible {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  &:hover {
+    opacity: 1;
+    visibility: visible;
+    background-color: #40a9ff;
+    transform: translateY(-50%) scale(1.1);
+  }
+}
+
+// ========== 悬停时显示所有 Handle ==========
+%hover-show-handles {
+  .data-input-handle,
+  .input-handle,
+  .output-handle,
+  .compute-input-handle,
+  .realtime-input-handle,
+  .preload-input-handle,
+  .model-input-handle,
+  .right-input-handle {
+    opacity: 1;
+    visibility: visible;
+  }
+}

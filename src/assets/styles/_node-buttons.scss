@@ -1,0 +1,192 @@
+/**
+ * 节点按钮共享样式
+ * 添加按钮的统一样式
+ */
+
+// ========== 添加按钮基础 Mixin ==========
+@mixin add-button-base($color, $hover-color) {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  background: linear-gradient(135deg, $color, $hover-color);
+  border: 2px solid #fff;
+  border-radius: 4px;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  transition: all 0.2s ease;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  // 加号
+  &::after {
+    content: '+';
+    color: white;
+    font-size: 14px;
+    font-weight: bold;
+    line-height: 1;
+  }
+
+  // 隐藏原来的文字
+  span {
+    display: none;
+  }
+
+  &:hover {
+    background: linear-gradient(135deg, $hover-color, lighten($hover-color, 10%));
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.4);
+    transform: scale(1.1);
+  }
+
+  &:active {
+    transform: scale(0.95);
+  }
+}
+
+// ========== 添加输出按钮（底部）- 绿色 ==========
+@mixin add-output-button {
+  @include add-button-base(#52C41A, #73d13d);
+
+  bottom: -32px;
+  left: 50%;
+  transform: translateX(-50%);
+
+  // 引出线
+  &::before {
+    content: '';
+    position: absolute;
+    top: -14px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 2px;
+    height: 14px;
+    background: linear-gradient(180deg, #52C41A, rgba(82, 196, 26, 0.3));
+    border-radius: 1px;
+  }
+
+  &:hover {
+    transform: translateX(-50%) scale(1.1);
+
+    &::before {
+      height: 16px;
+      background: linear-gradient(180deg, #73d13d, rgba(115, 209, 61, 0.4));
+    }
+  }
+
+  &:active {
+    transform: translateX(-50%) scale(0.95);
+  }
+}
+
+// ========== 添加模型按钮（左侧）- 紫色 ==========
+@mixin add-model-button {
+  @include add-button-base(#722ED1, #9254de);
+
+  left: -32px;
+  top: 50%;
+  transform: translateY(-50%);
+
+  // 引出线
+  &::before {
+    content: '';
+    position: absolute;
+    right: -14px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 14px;
+    height: 2px;
+    background: linear-gradient(90deg, #722ED1, rgba(114, 46, 209, 0.3));
+    border-radius: 1px;
+  }
+
+  &:hover {
+    transform: translateY(-50%) scale(1.1);
+
+    &::before {
+      width: 16px;
+      background: linear-gradient(90deg, #9254de, rgba(146, 84, 222, 0.4));
+    }
+  }
+
+  &:active {
+    transform: translateY(-50%) scale(0.95);
+  }
+}
+
+// ========== 添加算力按钮（右侧）- 橙色 ==========
+@mixin add-compute-button {
+  @include add-button-base(#FA8C16, #ffa940);
+
+  right: -32px;
+  top: 50%;
+  transform: translateY(-50%);
+
+  // 引出线
+  &::before {
+    content: '';
+    position: absolute;
+    left: -14px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 14px;
+    height: 2px;
+    background: linear-gradient(90deg, rgba(250, 140, 22, 0.3), #FA8C16);
+    border-radius: 1px;
+  }
+
+  &:hover {
+    transform: translateY(-50%) scale(1.1);
+
+    &::before {
+      width: 16px;
+      background: linear-gradient(90deg, rgba(255, 169, 64, 0.4), #ffa940);
+    }
+  }
+
+  &:active {
+    transform: translateY(-50%) scale(0.95);
+  }
+}
+
+// ========== 添加模型输出按钮（底部）- 紫色 ==========
+@mixin add-model-output-button {
+  @include add-button-base(#722ED1, #9254de);
+
+  bottom: -32px;
+  left: 30%;
+  transform: translateX(-50%);
+
+  // 引出线
+  &::before {
+    content: '';
+    position: absolute;
+    top: -14px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 2px;
+    height: 14px;
+    background: linear-gradient(180deg, #722ED1, rgba(114, 46, 209, 0.3));
+    border-radius: 1px;
+  }
+
+  &:hover {
+    transform: translateX(-50%) scale(1.1);
+
+    &::before {
+      height: 16px;
+    }
+  }
+
+  &:active {
+    transform: translateX(-50%) scale(0.95);
+  }
+}
+
+// ========== 添加 FL 输出按钮（底部）- 绿色 ==========
+@mixin add-fl-output-button {
+  @include add-output-button;
+
+  left: 70%;
+}

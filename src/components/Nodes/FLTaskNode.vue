@@ -49,7 +49,7 @@
     <button
       v-if="isFeatureEngineering"
       class="add-output-btn"
-      @click="handleAddOutput"
+      @click="onAddOutput"
       @mousedown.stop
       title="添加输出"
     >
@@ -60,7 +60,7 @@
     <button
       v-if="isModelTask"
       class="add-model-output-btn"
-      @click="handleAddModelOutput"
+      @click="onAddModelOutput"
       @mousedown.stop
       title="添加模型输出"
     >
@@ -71,14 +71,19 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { Handle, Position, useVueFlow } from '@vue-flow/core'
+import { Handle, Position } from '@vue-flow/core'
 import type { NodeProps } from '@vue-flow/core'
 import type { FLTaskNodeData, NodeData } from '@/types/nodes'
 import { FLTaskCategory, FLMode } from '@/types/fl-tasks'
 import { getFLCategoryColor, getFLModeLabel } from '@/utils/fl-task-templates'
+import { useHandleVisibility } from '@/composables/useHandleVisibility'
+import { useNodeEvents } from '@/composables/useNodeEvents'
 
 const props = defineProps<NodeProps<NodeData>>()
-const { edges } = useVueFlow()
+
+// 使用 composables
+const { hasDataInputConnection, hasOutputConnection } = useHandleVisibility(props.id)
+const { handleAddFLOutput, handleAddModelOutput } = useNodeEvents()
 
 // 获取 FL 任务数据
 const flData = computed(() => props.data as unknown as FLTaskNodeData)
@@ -140,15 +145,9 @@ const hasOutput = computed(() => {
   return true
 })
 
-// 检查是否有数据源输入连接
-const isDataInputVisible = computed(() => {
-  return edges.value.some(edge => edge.target === props.id && edge.targetHandle === 'data-input')
-})
-
-// 检查是否有输出连接
-const isOutputVisible = computed(() => {
-  return edges.value.some(edge => edge.source === props.id && edge.sourceHandle === 'output')
-})
+// 使用 composable 提供的 Handle 可见性计算属性
+const isDataInputVisible = hasDataInputConnection
+const isOutputVisible = hasOutputConnection
 
 // 是否是特征工程任务
 const isFeatureEngineering = computed(() => {
@@ -164,28 +163,22 @@ const isModelTask = computed(() => {
 /**
  * 处理添加输出按钮点击（特征工程任务）
  */
-function handleAddOutput() {
-  const event = new CustomEvent('add-fl-output', {
-    detail: { nodeId: props.id },
-    bubbles: true
-  })
-  document.dispatchEvent(event)
+function onAddOutput() {
+  handleAddFLOutput(props.id)
 }
 
 /**
  * 处理添加模型输出按钮点击（横向/纵向模型任务）
  */
-function handleAddModelOutput() {
-  const event = new CustomEvent('add-fl-model-output', {
-    detail: { nodeId: props.id },
-    bubbles: true
-  })
-  document.dispatchEvent(event)
+function onAddModelOutput() {
+  handleAddModelOutput(props.id)
 }
 </script>
 
 <style scoped lang="scss">
 @use '@/assets/styles/variables.scss' as *;
+@import '@/assets/styles/_node-handles.scss';
+@import '@/assets/styles/_node-buttons.scss';
 
 .fl-task-node {
   min-width: 180px;
@@ -200,11 +193,22 @@ function handleAddModelOutput() {
   &:hover {
     box-shadow: var(--shadow-card-hover);
     transform: translateY(-2px);
+
+    // 悬停时显示所有 Handle
+    .node-handle {
+      opacity: 1;
+      visibility: visible;
+    }
   }
 
   &.is-selected {
     border-color: var(--color-primary);
     box-shadow: var(--shadow-selected);
+
+    .node-handle {
+      opacity: 1;
+      visibility: visible;
+    }
   }
 
   &.is-configured {
@@ -282,6 +286,7 @@ function handleAddModelOutput() {
   font-style: italic;
 }
 
+// Handle 样式 - 使用共享样式类
 .node-handle {
   width: 12px;
   height: 12px;
@@ -304,79 +309,17 @@ function handleAddModelOutput() {
   transform: translateX(-50%);
 }
 
-.fl-task-node:hover .node-handle,
-.fl-task-node.is-selected .node-handle {
-  opacity: 1;
-  visibility: visible;
-}
-
 .node-handle:hover {
   transform: translateX(-50%) scale(1.3);
 }
 
-// 添加输出按钮（特征工程任务）
+// 添加输出按钮（特征工程任务）- 使用共享 mixin
 .add-output-btn {
-  position: absolute;
-  bottom: -12px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 24px;
-  height: 24px;
-  background: var(--node-color, #1890ff);
-  border: 2px solid white;
-  border-radius: 4px;
-  color: white;
-  font-size: 16px;
-  font-weight: bold;
-  cursor: pointer;
-  opacity: 0;
-  transition: all 0.2s ease;
-  z-index: 10;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
-
-  &:hover {
-    transform: translateX(-50%) scale(1.1);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-  }
-
-  .fl-task-node:hover & {
-    opacity: 1;
-  }
+  @include add-fl-output-button;
 }
 
-// 添加模型输出按钮（横向/纵向模型任务）
+// 添加模型输出按钮（横向/纵向模型任务）- 使用共享 mixin
 .add-model-output-btn {
-  position: absolute;
-  bottom: -12px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 24px;
-  height: 24px;
-  background: var(--node-color, #722ed1);
-  border: 2px solid white;
-  border-radius: 4px;
-  color: white;
-  font-size: 16px;
-  font-weight: bold;
-  cursor: pointer;
-  opacity: 0;
-  transition: all 0.2s ease;
-  z-index: 10;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
-
-  &:hover {
-    transform: translateX(-50%) scale(1.1);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-  }
-
-  .fl-task-node:hover & {
-    opacity: 1;
-  }
+  @include add-model-output-button;
 }
 </style>
