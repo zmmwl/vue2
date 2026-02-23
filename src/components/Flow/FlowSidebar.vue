@@ -884,20 +884,24 @@ const onDragStartLocalTask = (event: DragEvent) => {
 <style lang="scss">
 @use '@/assets/styles/variables.scss' as *;
 
-// FL 卡片子菜单 - 磨砂玻璃态效果
+// FL 卡片子菜单 - 磨砂玻璃态效果 (iOS/macOS 风格)
 .fl-card-submenu {
   position: fixed;
   width: 200px;
-  background: rgba(255, 255, 255, 0.55);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  border-radius: var(--radius-lg);
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.75) 0%,
+    rgba(255, 255, 255, 0.45) 100%
+  );
+  backdrop-filter: blur(40px) saturate(200%);
+  -webkit-backdrop-filter: blur(40px) saturate(200%);
+  border-radius: 16px;
   box-shadow:
-    0 8px 32px rgba(0, 0, 0, 0.12),
-    inset 0 1px 0 rgba(255, 255, 255, 0.6),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.4);
-  border-top-color: rgba(255, 255, 255, 0.7);
+    0 25px 50px -12px rgba(0, 0, 0, 0.15),
+    0 12px 24px -8px rgba(0, 0, 0, 0.1),
+    inset 0 1px 1px rgba(255, 255, 255, 0.9),
+    inset 0 -1px 1px rgba(0, 0, 0, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.5);
   z-index: 1000;
   overflow: hidden;
 }
@@ -905,8 +909,8 @@ const onDragStartLocalTask = (event: DragEvent) => {
 // 模式切换 Tab
 .fl-mode-tabs {
   display: flex;
-  background: rgba(0, 0, 0, 0.02);
-  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  background: rgba(255, 255, 255, 0.25);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.3);
 }
 
 .fl-mode-tab {
@@ -920,21 +924,22 @@ const onDragStartLocalTask = (event: DragEvent) => {
   font-weight: 500;
   color: var(--text-secondary);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   border-bottom: 2px solid transparent;
+  background: transparent;
 
   .tab-icon {
     font-size: 16px;
   }
 
   &:hover {
-    background: rgba(0, 0, 0, 0.02);
+    background: rgba(255, 255, 255, 0.35);
     color: var(--text-primary);
   }
 
   &.is-active {
     color: #1890ff;
-    background: #fff;
+    background: rgba(255, 255, 255, 0.5);
     border-bottom-color: #1890ff;
   }
 }
@@ -945,10 +950,10 @@ const onDragStartLocalTask = (event: DragEvent) => {
 }
 
 .fl-category-card {
-  border-radius: var(--radius-md);
+  border-radius: 10px;
   margin-bottom: 4px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 
   &:last-child {
     margin-bottom: 0;
@@ -956,7 +961,8 @@ const onDragStartLocalTask = (event: DragEvent) => {
 
   &:hover,
   &.is-hovered {
-    background: rgba(24, 144, 255, 0.08);
+    background: rgba(24, 144, 255, 0.12);
+    box-shadow: inset 0 0 0 1px rgba(24, 144, 255, 0.2);
   }
 
   .category-card-header {
@@ -965,7 +971,7 @@ const onDragStartLocalTask = (event: DragEvent) => {
     gap: 8px;
     padding: 10px 12px;
     border-left: 3px solid transparent;
-    border-radius: 0 6px 6px 0;
+    border-radius: 0 8px 8px 0;
   }
 
   .category-icon {
@@ -990,20 +996,24 @@ const onDragStartLocalTask = (event: DragEvent) => {
   }
 }
 
-// 任务卡片 - 磨砂玻璃态效果
+// 任务卡片 - 磨砂玻璃态效果 (iOS/macOS 风格)
 .fl-task-card {
   position: fixed;
   width: 220px;
-  background: rgba(255, 255, 255, 0.55);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  border-radius: var(--radius-lg);
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.75) 0%,
+    rgba(255, 255, 255, 0.45) 100%
+  );
+  backdrop-filter: blur(40px) saturate(200%);
+  -webkit-backdrop-filter: blur(40px) saturate(200%);
+  border-radius: 16px;
   box-shadow:
-    0 8px 32px rgba(0, 0, 0, 0.12),
-    inset 0 1px 0 rgba(255, 255, 255, 0.6),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.4);
-  border-top-color: rgba(255, 255, 255, 0.7);
+    0 25px 50px -12px rgba(0, 0, 0, 0.15),
+    0 12px 24px -8px rgba(0, 0, 0, 0.1),
+    inset 0 1px 1px rgba(255, 255, 255, 0.9),
+    inset 0 -1px 1px rgba(0, 0, 0, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.5);
   z-index: 1001;
   overflow: hidden;
 }
@@ -1027,9 +1037,12 @@ const onDragStartLocalTask = (event: DragEvent) => {
 
   .header-badge {
     font-size: 11px;
-    padding: 2px 8px;
-    background: rgba(255, 255, 255, 0.2);
-    border-radius: 10px;
+    padding: 3px 10px;
+    background: rgba(255, 255, 255, 0.25);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
   }
 }
 
@@ -1043,7 +1056,7 @@ const onDragStartLocalTask = (event: DragEvent) => {
   }
 
   &::-webkit-scrollbar-thumb {
-    background: rgba(0, 0, 0, 0.1);
+    background: rgba(0, 0, 0, 0.08);
     border-radius: 2px;
   }
 }
@@ -1053,15 +1066,17 @@ const onDragStartLocalTask = (event: DragEvent) => {
   align-items: center;
   gap: 10px;
   padding: 10px 12px;
-  border-radius: var(--radius-md);
+  border-radius: 10px;
   cursor: grab;
-  transition: all 0.2s ease;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   border: 1px solid transparent;
+  background: transparent;
 
   &:hover {
-    background: var(--list-item-hover-bg);
-    border-color: var(--list-item-selected-border);
+    background: rgba(24, 144, 255, 0.12);
+    border-color: rgba(24, 144, 255, 0.2);
     transform: translateX(2px);
+    box-shadow: 0 2px 8px rgba(24, 144, 255, 0.1);
   }
 
   &:active {
@@ -1076,8 +1091,11 @@ const onDragStartLocalTask = (event: DragEvent) => {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: rgba(0, 0, 0, 0.04);
-    border-radius: var(--button-sm-radius);
+    background: rgba(255, 255, 255, 0.4);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
   }
 
   .task-content {
