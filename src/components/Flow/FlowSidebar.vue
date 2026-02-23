@@ -884,16 +884,20 @@ const onDragStartLocalTask = (event: DragEvent) => {
 <style lang="scss">
 @use '@/assets/styles/variables.scss' as *;
 
-// FL 卡片子菜单 - 毛玻璃效果
+// FL 卡片子菜单 - 磨砂玻璃态效果
 .fl-card-submenu {
   position: fixed;
   width: 200px;
-  background: var(--glass-bg);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
+  background: rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-card-lg);
-  border: 1px solid var(--glass-border);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-top-color: rgba(255, 255, 255, 0.7);
   z-index: 1000;
   overflow: hidden;
 }
@@ -986,16 +990,20 @@ const onDragStartLocalTask = (event: DragEvent) => {
   }
 }
 
-// 任务卡片 - 毛玻璃效果
+// 任务卡片 - 磨砂玻璃态效果
 .fl-task-card {
   position: fixed;
   width: 220px;
-  background: var(--glass-bg);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
+  background: rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-card-lg);
-  border: 1px solid var(--glass-border);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-top-color: rgba(255, 255, 255, 0.7);
   z-index: 1001;
   overflow: hidden;
 }
