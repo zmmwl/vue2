@@ -25,15 +25,29 @@ html, body {
 // 节点基础样式
 .vue-flow__node {
   cursor: grab;
+  outline: none !important;  // 强制移除所有 outline
 
   &:active {
     cursor: grabbing;
+  }
+
+  // 移除浏览器默认的焦点边框
+  &:focus {
+    outline: none !important;
+  }
+
+  &:focus-visible {
+    outline: none !important;
+  }
+
+  &:focus-within {
+    outline: none !important;
   }
 }
 
 // 选中状态
 .vue-flow__node.selected {
-  outline: none;
+  outline: none !important;
 }
 
 // 连接线样式
@@ -47,9 +61,19 @@ html, body {
   }
 }
 
-.vue-flow__edge.selected .vue-flow__edge-path {
+.vue-flow__edge.selected .vue-flow__edge-path{
   stroke: var(--color-primary);
   stroke-width: 3px;
+}
+
+// 移除连接线焦点时的默认边框
+.vue-flow__edge {
+  outline: none !important;
+
+  &:focus,
+  &:focus-visible {
+    outline: none !important;
+  }
 }
 
 // 连接点样式

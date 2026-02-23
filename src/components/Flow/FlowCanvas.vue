@@ -5570,10 +5570,15 @@ onUnmounted(() => {
   stroke: #1890ff;
 }
 
-// n8n 风格选中节点样式
+// 选中节点样式 - 移除 outline，由节点组件内部的 border 表示选中状态
 :deep(.vue-flow__node.selected) {
-  outline: 2px solid #1890ff;
-  outline-offset: 2px;
+  outline: none;
+}
+
+// 移除节点焦点时的默认 outline
+:deep(.vue-flow__node:focus),
+:deep(.vue-flow__node:focus-visible) {
+  outline: none;
 }
 
 // n8n 风格 Minimap 样式
