@@ -708,23 +708,8 @@ export function getParameterTemplateByTaskName(taskName: string): FLTaskParamete
   return getAllParameterTemplates().find(t => t.taskName === taskName)
 }
 
-// ========== 模拟 API 调用 ==========
+// ========== 获取任务的参数定义列表 ==========
 
-/** 获取已部署模型列表 */
-export async function fetchDeployedModels(): Promise<DeployedModel[]> {
-  // 模拟网络延迟
-  await new Promise(resolve => setTimeout(resolve, 500))
-  return MOCK_DEPLOYED_MODELS
-}
-
-/** 获取任务参数模板 */
-export async function fetchTaskParameterTemplate(taskName: string): Promise<FLTaskParameterTemplate | null> {
-  // 模拟网络延迟
-  await new Promise(resolve => setTimeout(resolve, 300))
-  return getParameterTemplateByTaskName(taskName) || null
-}
-
-/** 获取任务的参数定义列表 */
 export function getParametersForTask(taskName: string): import('@/types/fl-tasks').FLTaskParameterDef[] {
   const template = getParameterTemplateByTaskName(taskName)
   if (!template) return []

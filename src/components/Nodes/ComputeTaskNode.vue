@@ -6,7 +6,7 @@
       type="target"
       :position="Position.Top"
       :style="{ left: '50%' }"
-      :class="['data-input-handle', { 'is-visible': isDataInputVisible }]"
+      :class="['data-input-handle', { 'is-visible': hasDataInputConnection }]"
     />
 
     <!-- 左侧输入连接点（模型节点） -->
@@ -14,7 +14,7 @@
       id="input"
       type="target"
       :position="Position.Left"
-      :class="['input-handle', { 'is-visible': isInputVisible }]"
+      :class="['input-handle', { 'is-visible': hasModelInputConnection }]"
     />
 
     <div class="node-card">
@@ -44,7 +44,7 @@
     <!-- 左侧"添加模型"按钮 -->
     <button
       class="add-model-btn"
-      @click="handleAddModel"
+      @click="() => handleAddModel(id)"
       @mouseenter="handleHighlightModels"
       @mouseleave="handleClearHighlight"
       @mousedown.stop
@@ -54,14 +54,14 @@
     </button>
 
     <!-- 添加输出按钮 -->
-    <button class="add-output-btn" @click="handleAddOutput" @mousedown.stop title="添加输出">
+    <button class="add-output-btn" @click="() => handleAddOutput(id)" @mousedown.stop title="添加输出">
       <span>+</span>
     </button>
 
     <!-- 右侧"添加算力"按钮 -->
     <button
       class="add-compute-btn"
-      @click="handleAddCompute"
+      @click="() => handleAddCompute(id)"
       @mouseenter="handleHighlightComputes"
       @mouseleave="handleClearHighlight"
       @mousedown.stop
@@ -75,7 +75,7 @@
       id="compute-input"
       type="target"
       :position="Position.Right"
-      :class="['compute-input-handle', { 'is-visible': isComputeInputVisible }]"
+      :class="['compute-input-handle', { 'is-visible': hasComputeInputConnection }]"
     />
 
     <!-- 固定的底部输出连接点 -->
@@ -84,7 +84,7 @@
       type="source"
       :position="Position.Bottom"
       :style="{ left: '50%' }"
-      :class="['output-handle', { 'is-visible': isOutputVisible }]"
+      :class="['output-handle', { 'is-visible': hasOutputConnection }]"
     />
   </div>
 </template>
@@ -94,42 +94,36 @@ import { computed } from 'vue'
 import { Handle, Position } from '@vue-flow/core'
 import type { NodeProps } from '@vue-flow/core'
 import type { NodeData, ComputeTaskNodeData } from '@/types/nodes'
-import { useVueFlow } from '@vue-flow/core'
-import { TechPath } from '@/types/nodes'
+import { useHandleVisibility } from '@/composables/useHandleVisibility'
+import { useNodeEvents } from '@/composables/useNodeEvents'
+import { getTechPathLabel } from '@/utils/task-utils'
 
 const props = defineProps<NodeProps<NodeData>>()
 
-const { edges } = useVueFlow()
+// 使用 composables
+const {
+  hasDataInputConnection,
+  hasOutputConnection,
+  hasModelInputConnection,
+  hasComputeInputConnection
+} = useHandleVisibility(props.id)
 
-// 检查是否有输入连接
-const isInputVisible = computed(() => {
-  return edges.value.some(edge => edge.target === props.id && edge.targetHandle === 'input')
-})
+const {
+  handleAddModel,
+  handleAddCompute,
+  handleAddOutput,
+  handleHighlightModels,
+  handleHighlightComputes,
+  handleClearHighlight
+} = useNodeEvents()
 
-// 检查是否有输出连接
-const isOutputVisible = computed(() => {
-  return edges.value.some(edge => edge.source === props.id && edge.sourceHandle === 'output')
-})
-
-// 检查是否有算力输入连接
-const isComputeInputVisible = computed(() => {
-  return edges.value.some(edge => edge.target === props.id && edge.targetHandle === 'compute-input')
-})
-
-// 检查是否有数据源输入连接
-const isDataInputVisible = computed(() => {
-  return edges.value.some(edge => edge.target === props.id && edge.targetHandle === 'data-input')
-})
+// 节点 ID (简化模板使用)
+const id = props.id
 
 // 技术路径标签
 const techPathLabel = computed(() => {
   const taskData = props.data as ComputeTaskNodeData
-  if (taskData.techPath === TechPath.TEE) {
-    return '硬件 TEE'
-  } else if (taskData.techPath === TechPath.SOFTWARE) {
-    return '软件密码学'
-  }
-  return ''
+  return getTechPathLabel(taskData.techPath)
 })
 
 // 输入数据源数量
@@ -143,64 +137,6 @@ const outputsCount = computed(() => {
   const taskData = props.data as ComputeTaskNodeData
   return taskData.outputs?.length || 0
 })
-
-/**
- * 处理添加输出按钮点击
- */
-function handleAddOutput() {
-  // 触发自定义事件，由父组件处理
-  const event = new CustomEvent('add-output', {
-    detail: { nodeId: props.id },
-    bubbles: true
-  })
-  document.dispatchEvent(event)
-}
-
-/**
- * 处理添加模型按钮点击
- */
-function handleAddModel() {
-  const event = new CustomEvent('add-model', {
-    detail: { nodeId: props.id },
-    bubbles: true
-  })
-  document.dispatchEvent(event)
-}
-
-/**
- * 处理添加算力按钮点击
- */
-function handleAddCompute() {
-  const event = new CustomEvent('add-compute', {
-    detail: { nodeId: props.id },
-    bubbles: true
-  })
-  document.dispatchEvent(event)
-}
-
-/**
- * 高亮左侧面板的模型节点
- */
-function handleHighlightModels() {
-  const event = new CustomEvent('highlight-models', { bubbles: true })
-  document.dispatchEvent(event)
-}
-
-/**
- * 高亮左侧面板的算力节点
- */
-function handleHighlightComputes() {
-  const event = new CustomEvent('highlight-computes', { bubbles: true })
-  document.dispatchEvent(event)
-}
-
-/**
- * 清除左侧面板的高亮
- */
-function handleClearHighlight() {
-  const event = new CustomEvent('clear-highlight', { bubbles: true })
-  document.dispatchEvent(event)
-}
 </script>
 
 <style scoped lang="scss">

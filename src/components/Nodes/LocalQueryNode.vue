@@ -6,7 +6,7 @@
       type="target"
       :position="Position.Top"
       :style="{ left: '50%' }"
-      :class="['data-input-handle', { 'is-visible': isDataInputVisible }]"
+      :class="['data-input-handle', { 'is-visible': hasDataInputConnection }]"
     />
 
     <div class="node-card">
@@ -39,7 +39,7 @@
     </div>
 
     <!-- 添加输出按钮 -->
-    <button class="add-output-btn" @click="handleAddOutput" @mousedown.stop title="添加输出">
+    <button class="add-output-btn" @click="() => handleAddOutput(id)" @mousedown.stop title="添加输出">
       <span>+</span>
     </button>
 
@@ -49,7 +49,7 @@
       type="source"
       :position="Position.Bottom"
       :style="{ left: '50%' }"
-      :class="['output-handle', { 'is-visible': isOutputVisible }]"
+      :class="['output-handle', { 'is-visible': hasOutputConnection }]"
     />
   </div>
 </template>
@@ -59,21 +59,17 @@ import { computed } from 'vue'
 import { Handle, Position } from '@vue-flow/core'
 import type { NodeProps } from '@vue-flow/core'
 import type { NodeData, LocalQueryNodeData } from '@/types/nodes'
-import { useVueFlow } from '@vue-flow/core'
+import { useHandleVisibility } from '@/composables/useHandleVisibility'
+import { useNodeEvents } from '@/composables/useNodeEvents'
 
 const props = defineProps<NodeProps<NodeData>>()
 
-const { edges } = useVueFlow()
+// 使用 composables
+const { hasDataInputConnection, hasOutputConnection } = useHandleVisibility(props.id)
+const { handleAddOutput, handleEditLocalQuery } = useNodeEvents()
 
-// 检查是否有数据源输入连接
-const isDataInputVisible = computed(() => {
-  return edges.value.some(edge => edge.target === props.id && edge.targetHandle === 'data-input')
-})
-
-// 检查是否有输出连接
-const isOutputVisible = computed(() => {
-  return edges.value.some(edge => edge.source === props.id && edge.sourceHandle === 'output')
-})
+// 节点 ID (简化模板使用)
+const id = props.id
 
 // 获取节点数据
 const nodeData = computed(() => props.data as LocalQueryNodeData)
@@ -106,22 +102,7 @@ const hasGroupBy = computed(() => {
  * 处理双击事件 - 打开编辑弹窗
  */
 function handleDoubleClick() {
-  const event = new CustomEvent('edit-local-query', {
-    detail: { nodeId: props.id },
-    bubbles: true
-  })
-  document.dispatchEvent(event)
-}
-
-/**
- * 处理添加输出按钮点击
- */
-function handleAddOutput() {
-  const event = new CustomEvent('add-output', {
-    detail: { nodeId: props.id },
-    bubbles: true
-  })
-  document.dispatchEvent(event)
+  handleEditLocalQuery(props.id)
 }
 </script>
 

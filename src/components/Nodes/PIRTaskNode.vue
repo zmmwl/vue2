@@ -14,7 +14,7 @@
       id="input"
       type="target"
       :position="Position.Left"
-      :class="['input-handle', { 'is-visible': isInputVisible }]"
+      :class="['input-handle', { 'is-visible': hasModelInputConnection }]"
     />
 
     <div class="node-card">
@@ -45,7 +45,7 @@
     <!-- 左侧"添加模型"按钮 -->
     <button
       class="add-model-btn"
-      @click="handleAddModel"
+      @click="() => handleAddModel(id)"
       @mouseenter="handleHighlightModels"
       @mouseleave="handleClearHighlight"
       @mousedown.stop
@@ -55,14 +55,14 @@
     </button>
 
     <!-- 添加输出按钮 -->
-    <button class="add-output-btn" @click="handleAddOutput" @mousedown.stop title="添加输出">
+    <button class="add-output-btn" @click="() => handleAddOutput(id, 'stream')" @mousedown.stop title="添加输出">
       <span>+</span>
     </button>
 
     <!-- 右侧"添加算力"按钮 -->
     <button
       class="add-compute-btn"
-      @click="handleAddCompute"
+      @click="() => handleAddCompute(id)"
       @mouseenter="handleHighlightComputes"
       @mouseleave="handleClearHighlight"
       @mousedown.stop
@@ -76,7 +76,7 @@
       id="compute-input"
       type="target"
       :position="Position.Right"
-      :class="['compute-input-handle', { 'is-visible': isComputeInputVisible }]"
+      :class="['compute-input-handle', { 'is-visible': hasComputeInputConnection }]"
     />
 
     <!-- 固定的底部输出连接点 -->
@@ -95,56 +95,43 @@ import { computed } from 'vue'
 import { Handle, Position } from '@vue-flow/core'
 import type { NodeProps } from '@vue-flow/core'
 import type { NodeData, PIRTaskNodeData } from '@/types/nodes'
-import { useVueFlow } from '@vue-flow/core'
-import { TechPath } from '@/types/nodes'
+import { useHandleVisibility } from '@/composables/useHandleVisibility'
+import { useNodeEvents } from '@/composables/useNodeEvents'
+import { getTechPathLabel } from '@/utils/task-utils'
 
 const props = defineProps<NodeProps<NodeData>>()
 
-const { edges } = useVueFlow()
+// 使用 composables
+const {
+  hasDataInputConnection,
+  hasOutputConnection,
+  hasModelInputConnection,
+  hasComputeInputConnection
+} = useHandleVisibility(props.id)
+
+const {
+  handleAddModel,
+  handleAddCompute,
+  handleAddOutput,
+  handleHighlightModels,
+  handleHighlightComputes,
+  handleClearHighlight
+} = useNodeEvents()
+
+// 节点 ID (简化模板使用)
+const id = props.id
 
 // 获取 PIR 任务数据
-const pirData = computed(() => props.data as unknown as PIRTaskNodeData)
-
-// 检查是否有输入连接
-const isInputVisible = computed(() => {
-  return edges.value.some(edge => edge.target === props.id && edge.targetHandle === 'input')
-})
-
-// 检查是否有输出连接
-const isOutputVisible = computed(() => {
-  return outputsCount.value > 0 || edges.value.some(edge => edge.source === props.id && edge.sourceHandle === 'output')
-})
-
-// 检查是否有算力输入连接
-const isComputeInputVisible = computed(() => {
-  return edges.value.some(edge => edge.target === props.id && edge.targetHandle === 'compute-input')
-})
-
-// 检查是否有数据源输入连接
-const isDataInputVisible = computed(() => {
-  return hasPreloadDataSource.value || hasRealtimeDataSource.value ||
-    edges.value.some(edge => edge.target === props.id && edge.targetHandle === 'data-input')
-})
+const pirData = computed(() => props.data as PIRTaskNodeData)
 
 // 技术路径标签
-const techPathLabel = computed(() => {
-  if (pirData.value.techPath === TechPath.TEE) {
-    return '硬件 TEE'
-  } else if (pirData.value.techPath === TechPath.SOFTWARE) {
-    return '软件密码学'
-  }
-  return ''
-})
+const techPathLabel = computed(() => getTechPathLabel(pirData.value.techPath))
 
 // 是否有预加载数据源
-const hasPreloadDataSource = computed(() => {
-  return !!pirData.value.preloadDataSource
-})
+const hasPreloadDataSource = computed(() => !!pirData.value.preloadDataSource)
 
 // 是否有实时数据源
-const hasRealtimeDataSource = computed(() => {
-  return !!pirData.value.realtimeDataSource?.fields?.length
-})
+const hasRealtimeDataSource = computed(() => !!pirData.value.realtimeDataSource?.fields?.length)
 
 // 输入数据源总数
 const inputDataSourcesCount = computed(() => {
@@ -155,67 +142,19 @@ const inputDataSourcesCount = computed(() => {
 })
 
 // 输出数量
-const outputsCount = computed(() => {
-  return pirData.value.outputs?.length || 0
-})
+const outputsCount = computed(() => pirData.value.outputs?.length || 0)
 
-/**
- * 处理添加输出按钮点击
- */
-function handleAddOutput() {
-  // 触发自定义事件，由父组件处理
-  const event = new CustomEvent('add-output', {
-    detail: { nodeId: props.id, outputType: 'stream' },
-    bubbles: true
-  })
-  document.dispatchEvent(event)
-}
+// 数据源输入可见性（考虑预加载和实时数据源）
+const isDataInputVisible = computed(() =>
+  hasPreloadDataSource.value ||
+  hasRealtimeDataSource.value ||
+  hasDataInputConnection.value
+)
 
-/**
- * 处理添加模型按钮点击
- */
-function handleAddModel() {
-  const event = new CustomEvent('add-model', {
-    detail: { nodeId: props.id },
-    bubbles: true
-  })
-  document.dispatchEvent(event)
-}
-
-/**
- * 处理添加算力按钮点击
- */
-function handleAddCompute() {
-  const event = new CustomEvent('add-compute', {
-    detail: { nodeId: props.id },
-    bubbles: true
-  })
-  document.dispatchEvent(event)
-}
-
-/**
- * 高亮左侧面板的模型节点
- */
-function handleHighlightModels() {
-  const event = new CustomEvent('highlight-models', { bubbles: true })
-  document.dispatchEvent(event)
-}
-
-/**
- * 高亮左侧面板的算力节点
- */
-function handleHighlightComputes() {
-  const event = new CustomEvent('highlight-computes', { bubbles: true })
-  document.dispatchEvent(event)
-}
-
-/**
- * 清除左侧面板的高亮
- */
-function handleClearHighlight() {
-  const event = new CustomEvent('clear-highlight', { bubbles: true })
-  document.dispatchEvent(event)
-}
+// 输出连接可见性（考虑已配置的输出数量）
+const isOutputVisible = computed(() =>
+  outputsCount.value > 0 || hasOutputConnection.value
+)
 </script>
 
 <style scoped lang="scss">

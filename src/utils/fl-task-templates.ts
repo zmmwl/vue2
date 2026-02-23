@@ -180,13 +180,3 @@ export function getFLTaskInfo(taskName: string): FLTaskMenuItem | undefined {
   ]
   return allTasks.find(t => t.taskName === taskName)
 }
-
-/** 获取任务所属类别 */
-export function getFLTaskCategory(taskName: string): FLTaskCategory | undefined {
-  for (const category of FL_TRAINING_MENU.categories) {
-    if (category.tasks.some(t => t.taskName === taskName)) {
-      return category.category
-    }
-  }
-  return undefined
-}

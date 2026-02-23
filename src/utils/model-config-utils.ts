@@ -28,21 +28,6 @@ export function generateAvailableFields(taskData: ComputeTaskNodeData): Availabl
 }
 
 /**
- * 验证必填参数是否已配置
- */
-export function validateRequiredParams(items: ParameterConfigItem[]): string[] {
-  const errors: string[] = []
-
-  items.forEach(item => {
-    if (item.isEncrypt === 1 && !item.isConfigured) {
-      errors.push(`参数 "${item.name}" 为必填项，请配置`)
-    }
-  })
-
-  return errors
-}
-
-/**
  * 获取数据类型名称
  */
 export function getDataTypeName(dataType: number): string {

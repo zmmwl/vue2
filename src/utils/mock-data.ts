@@ -1,7 +1,6 @@
 /**
  * Mock 数据工厂
  * 生成模拟数据，确保与后端接口数据结构一致
- * 对应 FR-057~FR-061
  */
 
 import type { Enterprise, AssetInfo } from '@/types/nodes'
@@ -304,33 +303,6 @@ export const MOCK_COMPUTE_RESOURCES: Record<string, Array<{
       cardModel: '华为海思TEE板卡'
     }
   ]
-}
-
-// ========== Mock 字段列表 ==========
-
-/** Mock 字段列表（用于字段选择器） */
-export const MOCK_FIELDS = [
-  { name: 'user_id', type: 'VARCHAR', length: '64', description: '用户ID' },
-  { name: 'name', type: 'VARCHAR', length: '100', description: '姓名' },
-  { name: 'age', type: 'INT', length: '', description: '年龄' },
-  { name: 'email', type: 'VARCHAR', length: '255', description: '邮箱' },
-  { name: 'phone', type: 'VARCHAR', length: '20', description: '电话' },
-  { name: 'amount', type: 'DECIMAL', length: '18,2', description: '金额' },
-  { name: 'create_time', type: 'DATETIME', length: '', description: '创建时间' }
-]
-
-/**
- * 根据 assetId 获取数据资产详情
- */
-export function getMockAssetDetail(assetId: string): AssetInfo | undefined {
-  return MOCK_ASSET_DETAILS[assetId]
-}
-
-/**
- * 根据 participantId 获取企业信息
- */
-export function getMockEnterprise(participantId: string): Enterprise | undefined {
-  return MOCK_ENTERPRISES.find(ent => ent.participantId === participantId)
 }
 
 /**

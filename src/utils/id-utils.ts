@@ -11,24 +11,3 @@
 export function generateId(prefix: string = 'id'): string {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
 }
-
-/**
- * 生成节点 ID
- */
-export function generateNodeId(): string {
-  return generateId('node')
-}
-
-/**
- * 生成连接线 ID
- */
-export function generateEdgeId(): string {
-  return generateId('edge')
-}
-
-/**
- * 生成任务 ID
- */
-export function generateJobId(): string {
-  return generateId('job')
-}
