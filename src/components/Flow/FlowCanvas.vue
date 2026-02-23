@@ -1960,6 +1960,12 @@ function createFLTaskNode(data: DroppedNodeData & { flTask: {
     category: flTask.category,
     mode: flTask.mode
   })
+
+  // 创建节点后立即打开配置弹窗
+  // 使用 nextTick 确保节点已添加到画布
+  nextTick(() => {
+    openFLTaskConfig(newNode.id)
+  })
 }
 
 /**
