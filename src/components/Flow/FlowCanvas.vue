@@ -607,6 +607,58 @@ onMounted(() => {
     // 更新 PIR 节点数据（如果目标是 PIR 任务）
     if (targetNode?.type === 'pir_task') {
       updatePIRNodeData(sourceId, targetId, targetHandle)
+
+      // 同时更新 inputProviders（用于详情面板显示）
+      const sourceNode = nodes.value.find(n => n.id === sourceId)
+      const pirData = targetNode.data as import('@/types/nodes').PIRTaskNodeData
+      const sourceData = sourceNode?.data as NodeData
+
+      if (sourceData && pirData) {
+        // 判断是否是实时数据源
+        const isRealtimeSource = sourceNode?.type === 'realtime_datasource' ||
+          (sourceData as any).dataSourceType === 'realtime' ||
+          (sourceData as any).sourceType === DataSourceType.REALTIME
+
+        // 初始化 inputProviders
+        if (!pirData.inputProviders) {
+          pirData.inputProviders = []
+        }
+
+        // 创建 InputProvider
+        const newProvider: import('@/types/nodes').InputProvider = {
+          sourceNodeId: sourceId,
+          sourceType: 'dataSource',  // 实时数据源也使用 'dataSource' 类型，通过 isRealtime 区分
+          participantId: sourceData.assetInfo?.participantId || '',
+          dataset: sourceData.assetInfo?.assetName || sourceData.label || '',
+          fields: (sourceData.selectedFields || []).map(name => {
+            const field = sourceData.assetInfo?.dataInfo?.fieldList.find(f => f.name === name)
+            return {
+              columnName: name,
+              columnAlias: name,
+              columnType: field?.dataType || 'STRING',
+              isJoinField: false
+            }
+          }),
+          isRealtime: isRealtimeSource
+        }
+
+        // 实时数据源的字段可能来自 realtimeConfig
+        if (isRealtimeSource && (sourceData as any).realtimeConfig?.fields) {
+          newProvider.fields = (sourceData as any).realtimeConfig.fields.map((f: any) => ({
+            columnName: f.name,
+            columnAlias: f.name,
+            columnType: f.dataType || 'STRING',
+            isJoinField: false
+          }))
+        }
+
+        pirData.inputProviders.push(newProvider)
+        logger.info('[FlowCanvas] PIR inputProviders updated via test API', {
+          taskId: targetId,
+          inputProviderCount: pirData.inputProviders.length,
+          isRealtime: isRealtimeSource
+        })
+      }
     }
 
     logger.info('[FlowCanvas] Edge created via test API', { edgeId: newEdge.id })

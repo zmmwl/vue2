@@ -160,7 +160,7 @@
             <p>暂未配置输入数据源</p>
             <p class="empty-hint">PIR 任务需要连接两个数据源：一个普通数据源 + 一个实时数据源</p>
           </div>
-          <div v-else class="providers-list">
+          <div v-else class="input-providers-list">
             <div
               v-for="(provider, index) in pirInputProviders"
               :key="provider.sourceNodeId"
@@ -169,13 +169,16 @@
             >
               <div class="provider-header">
                 <span class="provider-index">{{ index + 1 }}</span>
-                <span class="provider-name">{{ provider.dataset || '数据源' }}</span>
+                <span class="provider-name">{{ getEnterpriseDisplayName(provider.participantId) || '数据源' }}</span>
+                <span class="provider-dataset">{{ provider.dataset || '' }}</span>
                 <span v-if="provider.isRealtime" class="realtime-badge">⚡ 实时</span>
+                <button class="config-provider-btn" @click="handleConfigPIRInputProvider(provider, index)" title="配置字段">
+                  ⚙️ 配置
+                </button>
               </div>
               <div class="provider-fields" v-if="provider.fields?.length">
                 <div class="fields-header">
                   <span>字段 ({{ provider.fields.length }})</span>
-                  <button class="config-btn small" @click="handleConfigPIRInputProvider(provider, index)">⚙️</button>
                 </div>
                 <div class="fields-list">
                   <div
@@ -184,7 +187,6 @@
                     class="field-chip"
                   >
                     <span class="field-alias">{{ field.columnAlias || field.columnName }}</span>
-                    <span class="field-type-badge">{{ field.columnType }}</span>
                     <span v-if="field.isJoinField" class="join-badge">JOIN</span>
                   </div>
                 </div>
@@ -1045,8 +1047,13 @@ const isModelNode = computed(() => {
 
 // 判断是否为 PIR 任务节点
 const isPIRTaskNode = computed(() => {
-  return props.selectedNode?.data?.category === NodeCategory.COMPUTE_TASK &&
-         props.selectedNode?.data?.taskType === ComputeTaskType.PIR
+  const category = props.selectedNode?.data?.category
+  const taskType = props.selectedNode?.data?.taskType
+  const nodeType = props.selectedNode?.type
+
+  // 支持通过 taskType 或 node.type 判断
+  return category === NodeCategory.COMPUTE_TASK &&
+         (taskType === ComputeTaskType.PIR || nodeType === 'pir_task')
 })
 
 // 判断是否为 FL 任务节点
@@ -1576,11 +1583,34 @@ function handleConfigPIRInputProvider(provider: any, index: number) {
     taskId: props.selectedNode.id
   })
 
-  // 触发输入数据源配置事件（和 MPC 任务一样）
-  emit('configInputProvider', {
-    taskId: props.selectedNode.id,
-    sourceNodeId: provider.sourceNodeId,
-    fields: provider.fields || []
+  // 查找源节点获取可用字段
+  const sourceNode = props.nodes.find(n => n.id === provider.sourceNodeId)
+  let availableFields: FieldInfo[] = []
+
+  if (sourceNode) {
+    // 从数据源节点获取字段列表
+    if (sourceNode.data?.assetInfo?.dataInfo?.fieldList) {
+      availableFields = sourceNode.data.assetInfo.dataInfo.fieldList
+    }
+    // 实时数据源的字段
+    if ((sourceNode.data as any)?.realtimeConfig?.fields) {
+      availableFields = (sourceNode.data as any).realtimeConfig.fields.map((f: any) => ({
+        name: f.name,
+        dataType: f.dataType || 'STRING',
+        description: f.description || ''
+      }))
+    }
+  }
+
+  // 设置弹窗数据（和 MPC 任务一样打开配置对话框）
+  configProvider.value = provider
+  configProviderAvailableFields.value = availableFields
+  configProviderParticipantName.value = getEnterpriseDisplayName(provider.participantId)
+  showInputProviderConfig.value = true
+
+  logger.info('[FlowDetailPanel] PIR input provider config dialog opened', {
+    providerIndex: index,
+    availableFieldsCount: availableFields.length
   })
 }
 
@@ -1592,14 +1622,25 @@ function handleConfigPIRModel(model: any) {
 
   logger.info('[FlowDetailPanel] PIR model config clicked', {
     modelId: model.id,
+    modelType: model.type,
     taskId: props.selectedNode.id
   })
 
-  emit('configParams', {
-    modelId: model.id,
-    modelConfig: model,
-    taskId: props.selectedNode.id
-  })
+  // 根据模型类型发送不同的事件
+  if (model.type === 'expression') {
+    // 表达式模型：打开表达式编辑器
+    emit('configExpression', {
+      modelId: model.id,
+      taskId: props.selectedNode.id
+    })
+  } else {
+    // 其他模型：打开参数配置对话框
+    emit('configParams', {
+      modelId: model.id,
+      modelConfig: model,
+      taskId: props.selectedNode.id
+    })
+  }
 }
 
 /**
