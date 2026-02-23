@@ -884,14 +884,16 @@ const onDragStartLocalTask = (event: DragEvent) => {
 <style lang="scss">
 @use '@/assets/styles/variables.scss' as *;
 
-// FL 卡片子菜单
+// FL 卡片子菜单 - 毛玻璃效果
 .fl-card-submenu {
   position: fixed;
   width: 200px;
-  background: var(--bg-secondary);
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
   border-radius: var(--radius-lg);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
-  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: var(--shadow-card-lg);
+  border: 1px solid var(--glass-border);
   z-index: 1000;
   overflow: hidden;
 }
@@ -984,14 +986,16 @@ const onDragStartLocalTask = (event: DragEvent) => {
   }
 }
 
-// 任务卡片
+// 任务卡片 - 毛玻璃效果
 .fl-task-card {
   position: fixed;
   width: 220px;
-  background: var(--bg-secondary);
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
   border-radius: var(--radius-lg);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
-  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: var(--shadow-card-lg);
+  border: 1px solid var(--glass-border);
   z-index: 1001;
   overflow: hidden;
 }
