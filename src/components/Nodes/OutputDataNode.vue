@@ -15,9 +15,17 @@
       :position="Position.Top"
       :style="{ left: '50%' }"
       class="input-handle"
+      :class="{ 'is-realtime': isRealtimeDataSource }"
     />
 
-    <div class="node-card" :class="{ 'is-expanded': isExpanded }">
+    <div class="node-card" :class="{ 'is-expanded': isExpanded, 'is-realtime-card': isRealtimeDataSource }">
+      <!-- 流动动画背景（实时输出时显示） -->
+      <div class="flow-animation" v-if="isRealtimeDataSource">
+        <div class="flow-line"></div>
+        <div class="flow-line"></div>
+        <div class="flow-line"></div>
+      </div>
+
       <!-- 头部：图标 + 标题 -->
       <div class="node-header">
         <div class="node-icon-wrapper">
@@ -26,15 +34,15 @@
         <div class="node-title-section">
           <div class="node-title" :title="outputDataset">{{ displayTitle }}</div>
           <div v-if="participantDisplay" class="node-meta">
-            {{ isPIROutput ? '实时数据源' : '接收方' }}: <span class="participant-text">{{ participantDisplay }}</span>
+            {{ isRealtimeDataSource ? '实时数据源' : '接收方' }}: <span class="participant-text">{{ participantDisplay }}</span>
           </div>
         </div>
       </div>
 
       <!-- 实时数据源标识 -->
-      <div v-if="isPIROutput" class="realtime-badge">
+      <div v-if="isRealtimeDataSource" class="realtime-badge">
         <span class="badge-icon">⚡</span>
-        <span class="badge-text">PIR输出 · 实时数据源</span>
+        <span class="badge-text">{{ isPIROutput ? 'PIR输出 · 实时数据源' : '实时输出' }}</span>
       </div>
 
       <!-- 字段信息 -->
@@ -79,7 +87,7 @@
       :position="Position.Bottom"
       :style="{ left: '50%' }"
       class="output-handle"
-      :class="{ 'is-realtime': isPIROutput }"
+      :class="{ 'is-realtime': isRealtimeDataSource }"
     />
   </div>
 </template>
@@ -103,8 +111,10 @@ const isPIROutput = computed(() => {
   return !!(outputData.value as any)?.isPIROutput
 })
 
-// 是否是实时数据源样式
-const isRealtimeDataSource = computed(() => isPIROutput.value)
+// 是否是实时数据源样式（PIR 输出或有实时数据源输入）
+const isRealtimeDataSource = computed(() => {
+  return isPIROutput.value || !!(outputData.value as any)?.isRealtime
+})
 
 // 节点图标
 const nodeIcon = computed(() => {
@@ -492,9 +502,66 @@ const displayFields = computed(() => {
   // 实时数据源样式
   &.is-realtime,
   &.is-pir-output {
-    .node-card {
-      background: linear-gradient(135deg, #f0f9ff 0%, #e0f7fa 100%);
-      border: 2px dashed var(--realtime-datasource-color, #13c2c2);
+    .node-card.is-realtime-card {
+      background: var(--bg-secondary, #fafafa);
+      border-color: rgba(250, 140, 22, 0.3);
+    }
+
+    .realtime-badge {
+      background: linear-gradient(135deg, rgba(250, 140, 22, 0.1), rgba(250, 140, 22, 0.05));
+      border: 1px dashed rgba(250, 140, 22, 0.4);
+
+      .badge-text {
+        color: #FA8C16;
+      }
+    }
+
+    .field-type {
+      background: rgba(250, 140, 22, 0.1);
+      color: #FA8C16;
+    }
+  }
+
+  // 流动动画背景
+  .flow-animation {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    overflow: hidden;
+    pointer-events: none;
+    border-radius: 12px;
+
+    .flow-line {
+      position: absolute;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, rgba(250, 140, 22, 0.3), transparent);
+      animation: flowMove 2s linear infinite;
+
+      &:nth-child(1) {
+        top: 20%;
+        animation-delay: 0s;
+      }
+      &:nth-child(2) {
+        top: 50%;
+        animation-delay: 0.5s;
+      }
+      &:nth-child(3) {
+        top: 80%;
+        animation-delay: 1s;
+      }
+    }
+  }
+
+  @keyframes flowMove {
+    0% {
+      left: -100%;
+      width: 50%;
+    }
+    100% {
+      left: 100%;
+      width: 50%;
     }
   }
 
@@ -503,10 +570,12 @@ const displayFields = computed(() => {
     align-items: center;
     gap: 6px;
     padding: 6px 10px;
-    background: linear-gradient(135deg, rgba(19, 194, 194, 0.1), rgba(19, 194, 194, 0.05));
-    border: 1px dashed rgba(19, 194, 194, 0.4);
+    background: linear-gradient(135deg, rgba(250, 140, 22, 0.1), rgba(250, 140, 22, 0.05));
+    border: 1px dashed rgba(250, 140, 22, 0.4);
     border-radius: 6px;
     margin-top: 4px;
+    position: relative;
+    z-index: 1;
 
     .badge-icon {
       font-size: 14px;
@@ -515,23 +584,30 @@ const displayFields = computed(() => {
     .badge-text {
       font-size: 11px;
       font-weight: 500;
-      color: #0891b2;
+      color: #FA8C16;
     }
+  }
+
+  // 实时数据源输入 handle 样式
+  .input-handle.is-realtime {
+    background-color: #FA8C16;
+    border: 2px solid #ffffff;
+    box-shadow: 0 1px 3px rgba(250, 140, 22, 0.3);
   }
 
   // 实时数据源输出 handle 样式
   .output-handle.is-realtime {
-    background: var(--realtime-datasource-color, #13c2c2);
-    border: 2px dashed #ffffff;
-    animation: pulse 2s infinite;
+    background: #FA8C16;
+    border: 2px solid #ffffff;
+    box-shadow: 0 1px 3px rgba(250, 140, 22, 0.3);
   }
 
   @keyframes pulse {
     0%, 100% {
-      box-shadow: 0 0 0 0 rgba(19, 194, 194, 0.4);
+      box-shadow: 0 0 0 0 rgba(250, 140, 22, 0.4);
     }
     50% {
-      box-shadow: 0 0 0 4px rgba(19, 194, 194, 0);
+      box-shadow: 0 0 0 4px rgba(250, 140, 22, 0);
     }
   }
 

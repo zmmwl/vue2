@@ -544,9 +544,23 @@ function validatePIRDataSourceConnection(
   const pirData = targetNode.data as import('@/types/nodes').PIRTaskNodeData
 
   // 判断源节点是否是实时数据源
-  const isRealtimeSource = sourceNode.type === 'realtime_datasource' ||
+  // 1. 检查是否是实时数据源节点
+  // 2. 检查是否是实时输出节点（PIR 任务的实时输出）
+  let isRealtimeSource = sourceNode.type === 'realtime_datasource' ||
     (sourceData as any).dataSourceType === 'realtime' ||
     (sourceData as any).sourceType === DataSourceType.REALTIME
+
+  // 如果源节点是输出节点，检查其 isRealtime 属性
+  if (!isRealtimeSource && sourceNode.type === 'outputData') {
+    const outputData = sourceNode.data as any
+    isRealtimeSource = outputData.isRealtime === true || outputData.isStreamOutput === true
+    logger.info('[FlowCanvas] PIR connection: output node detected, checking isRealtime', {
+      sourceId,
+      isRealtime: outputData.isRealtime,
+      isStreamOutput: outputData.isStreamOutput,
+      isRealtimeSource
+    })
+  }
 
   // 使用 inputProviders 检查已有数据源
   const inputProviders = pirData.inputProviders || []
@@ -615,9 +629,17 @@ onMounted(() => {
 
       if (sourceData && pirData) {
         // 判断是否是实时数据源
-        const isRealtimeSource = sourceNode?.type === 'realtime_datasource' ||
+        // 1. 检查是否是实时数据源节点
+        // 2. 检查是否是实时输出节点（PIR 任务的实时输出）
+        let isRealtimeSource = sourceNode?.type === 'realtime_datasource' ||
           (sourceData as any).dataSourceType === 'realtime' ||
           (sourceData as any).sourceType === DataSourceType.REALTIME
+
+        // 如果源节点是输出节点，检查其 isRealtime 属性
+        if (!isRealtimeSource && sourceNode?.type === 'outputData') {
+          const outputData = sourceNode.data as any
+          isRealtimeSource = outputData.isRealtime === true || outputData.isStreamOutput === true
+        }
 
         // 初始化 inputProviders
         if (!pirData.inputProviders) {
@@ -627,7 +649,7 @@ onMounted(() => {
         // 创建 InputProvider
         const newProvider: import('@/types/nodes').InputProvider = {
           sourceNodeId: sourceId,
-          sourceType: 'dataSource',  // 实时数据源也使用 'dataSource' 类型，通过 isRealtime 区分
+          sourceType: sourceNode?.type === 'outputData' ? 'outputData' : 'dataSource',  // 区分输出节点和数据源
           participantId: sourceData.assetInfo?.participantId || '',
           dataset: sourceData.assetInfo?.assetName || sourceData.label || '',
           fields: (sourceData.selectedFields || []).map(name => {
@@ -644,11 +666,21 @@ onMounted(() => {
 
         // 实时数据源的字段可能来自 realtimeConfig
         if (isRealtimeSource && (sourceData as any).realtimeConfig?.fields) {
-          newProvider.fields = (sourceData as any).realtimeConfig.fields.map((f: any) => ({
+          newProvider.fields = (sourceData as any).realtimeConfig.fields.map((f: any, index: number) => ({
             columnName: f.name,
             columnAlias: f.name,
             columnType: f.dataType || 'STRING',
-            isJoinField: false
+            isJoinField: index === 0  // 实时数据源默认第一个字段为 join 键
+          }))
+        }
+
+        // 输出节点的字段来自 fields 属性
+        if (sourceNode?.type === 'outputData' && (sourceData as any).fields) {
+          newProvider.fields = ((sourceData as any).fields || []).map((f: any, index: number) => ({
+            columnName: f.columnName,
+            columnAlias: f.columnAlias || f.columnName,
+            columnType: f.columnType || 'STRING',
+            isJoinField: index === 0  // 实时输出默认第一个字段为 join 键
           }))
         }
 
@@ -698,11 +730,11 @@ onMounted(() => {
 
         // 实时数据源的字段可能来自 realtimeConfig
         if (isRealtimeSource && (sourceData as any).realtimeConfig?.fields) {
-          newProvider.fields = (sourceData as any).realtimeConfig.fields.map((f: any) => ({
+          newProvider.fields = (sourceData as any).realtimeConfig.fields.map((f: any, index: number) => ({
             columnName: f.name,
             columnAlias: f.name,
             columnType: f.dataType || 'STRING',
-            isJoinField: false
+            isJoinField: index === 0  // 实时数据源默认第一个字段为 join 键
           }))
         }
 
@@ -740,11 +772,68 @@ onMounted(() => {
 
     return true
   }
+
+  // 暴露测试用的全局方法：直接为任务添加输出（绕过对话框）
+  ;(window as any).__addOutputForTask = (
+    taskId: string,
+    options?: {
+      participantId?: string
+      datasetName?: string
+      fieldNames?: string[]
+    }
+  ) => {
+    logger.info('[FlowCanvas] __addOutputForTask called', { taskId, options })
+
+    const taskNode = nodes.value.find(n => n.id === taskId)
+    if (!taskNode) {
+      logger.warn('[FlowCanvas] Task node not found:', taskId)
+      return { success: false, error: 'Task node not found' }
+    }
+
+    // 设置 pending 状态
+    pendingOutputTaskId.value = taskId
+    pendingOutputSourceType.value = 'task'
+
+    // 获取可用字段
+    const fields = availableInputFields.value
+    if (fields.length === 0) {
+      logger.warn('[FlowCanvas] No available fields for output')
+      clearOutputConfigState()
+      return { success: false, error: 'No available fields' }
+    }
+
+    // 确定要输出的字段
+    const selectedFieldNames = options?.fieldNames || fields.slice(0, 1).map(f => f.name)
+    const outputFields: OutputField[] = selectedFieldNames.map(name => {
+      const field = fields.find(f => f.name === name)
+      return {
+        source: 'input' as const,
+        columnName: name,
+        columnAlias: name,
+        columnType: field?.type || 'STRING'
+      }
+    })
+
+    // 获取企业 ID
+    const participantId = options?.participantId || availableEnterprises.value[0]?.id || 'ent_001'
+    const datasetName = options?.datasetName || `test_output_${Date.now()}`
+
+    // 调用输出配置确认函数
+    handleOutputConfigConfirmed({
+      participantId,
+      dataset: datasetName,
+      fields: outputFields
+    })
+
+    logger.info('[FlowCanvas] Output added via test API', { taskId, participantId, datasetName, fieldCount: outputFields.length })
+    return { success: true, participantId, datasetName, fieldCount: outputFields.length }
+  }
 })
 
 onUnmounted(() => {
   delete (window as any).__createEdge
   delete (window as any).__connectWithFieldSelector
+  delete (window as any).__addOutputForTask
 })
 
 /**
@@ -773,36 +862,54 @@ const availableInputFields = computed(() => {
   if (taskNode.type === 'pir_task') {
     const pirData = taskNode.data as import('@/types/nodes').PIRTaskNodeData
 
-    // 从预加载数据源提取字段
-    if (pirData.preloadDataSource) {
-      pirData.preloadDataSource.fields.forEach(field => {
-        fields.push({
-          id: `input-preload-${field.columnName}`,
-          name: field.columnName,
-          type: field.columnType,
-          source: `预加载数据源: ${pirData.preloadDataSource?.dataset || '未知'}`,
-          sourceNodeId: pirData.preloadDataSource?.sourceNodeId || '',
-          sourceType: 'dataSource',
-          participantId: pirData.preloadDataSource?.participantId || '',
-          dataset: pirData.preloadDataSource?.dataset || ''
+    // 优先从 inputProviders 提取字段（新的连接方式）
+    if (pirData.inputProviders && pirData.inputProviders.length > 0) {
+      pirData.inputProviders.forEach((provider) => {
+        provider.fields.forEach(field => {
+          fields.push({
+            id: `input-${provider.sourceNodeId}-${field.columnName}`,
+            name: field.columnName,
+            type: field.columnType,
+            source: `${provider.isRealtime ? '实时数据源' : '数据源'}: ${provider.dataset}`,
+            sourceNodeId: provider.sourceNodeId,
+            sourceType: provider.sourceType,
+            participantId: provider.participantId,
+            dataset: provider.dataset
+          })
         })
       })
-    }
+    } else {
+      // 兼容旧逻辑：从预加载数据源提取字段
+      if (pirData.preloadDataSource) {
+        pirData.preloadDataSource.fields.forEach(field => {
+          fields.push({
+            id: `input-preload-${field.columnName}`,
+            name: field.columnName,
+            type: field.columnType,
+            source: `预加载数据源: ${pirData.preloadDataSource?.dataset || '未知'}`,
+            sourceNodeId: pirData.preloadDataSource?.sourceNodeId || '',
+            sourceType: 'dataSource',
+            participantId: pirData.preloadDataSource?.participantId || '',
+            dataset: pirData.preloadDataSource?.dataset || ''
+          })
+        })
+      }
 
-    // 从实时数据源提取字段
-    if (pirData.realtimeDataSource?.fields) {
-      pirData.realtimeDataSource.fields.forEach(field => {
-        fields.push({
-          id: `input-realtime-${field.name}`,
-          name: field.name,
-          type: field.dataType,
-          source: `实时数据源: ${pirData.realtimeDataSource?.name || '未知'}`,
-          sourceNodeId: pirData.realtimeDataSource?.sourceNodeId || '',
-          sourceType: 'dataSource',
-          participantId: '',
-          dataset: pirData.realtimeDataSource?.name || ''
+      // 从实时数据源提取字段
+      if (pirData.realtimeDataSource?.fields) {
+        pirData.realtimeDataSource.fields.forEach(field => {
+          fields.push({
+            id: `input-realtime-${field.name}`,
+            name: field.name,
+            type: field.dataType,
+            source: `实时数据源: ${pirData.realtimeDataSource?.name || '未知'}`,
+            sourceNodeId: pirData.realtimeDataSource?.sourceNodeId || '',
+            sourceType: 'dataSource',
+            participantId: '',
+            dataset: pirData.realtimeDataSource?.name || ''
+          })
         })
-      })
+      }
     }
 
     return fields
@@ -2007,9 +2114,23 @@ function handleFieldSelected(selection: {
     }
 
     // 判断是否是实时数据源
-    const isRealtimeSource = sourceNode?.type === 'realtime_datasource' ||
+    // 1. 检查是否是实时数据源节点
+    // 2. 检查是否是实时输出节点（PIR 任务的实时输出）
+    let isRealtimeSource = sourceNode?.type === 'realtime_datasource' ||
       (sourceData as any)?.dataSourceType === 'realtime' ||
       (sourceData as any)?.sourceType === DataSourceType.REALTIME
+
+    // 如果源节点是输出节点，检查其 isRealtime 属性
+    if (!isRealtimeSource && sourceNode?.type === 'outputData') {
+      const outputData = sourceNode.data as any
+      isRealtimeSource = outputData.isRealtime === true || outputData.isStreamOutput === true
+      logger.info('[FlowCanvas] Field selection: output node detected, checking isRealtime', {
+        sourceNodeId: selection.sourceNodeId,
+        isRealtime: outputData.isRealtime,
+        isStreamOutput: outputData.isStreamOutput,
+        isRealtimeSource
+      })
+    }
 
     // 添加新的输入提供者
     const newInputProvider = {
@@ -2216,11 +2337,14 @@ function handleAddOutput(event: Event) {
   // 检查是否是 PIR 任务节点
   const isPIRTask = taskNode.type === 'pir_task'
   if (isPIRTask) {
-    // PIR 任务节点：直接打开输出配置，不需要检查 inputProviders
+    // PIR 任务节点：直接打开输出配置
     const pirData = taskNode.data as import('@/types/nodes').PIRTaskNodeData
 
-    // 检查是否已配置数据源
-    if (!pirData.preloadDataSource && !pirData.realtimeDataSource) {
+    // 检查是否已配置数据源（支持 inputProviders 或旧的 preloadDataSource/realtimeDataSource）
+    const hasInputProviders = pirData.inputProviders && pirData.inputProviders.length > 0
+    const hasLegacyDataSources = pirData.preloadDataSource || pirData.realtimeDataSource
+
+    if (!hasInputProviders && !hasLegacyDataSources) {
       logger.warn('[FlowCanvas] Cannot add output for PIR: no data source configured')
       return
     }
@@ -2232,7 +2356,11 @@ function handleAddOutput(event: Event) {
     pendingOutputLocalQueryData.value = undefined
 
     showOutputConfigDialog.value = true
-    logger.info('[FlowCanvas] Opening output config dialog for PIR task', { taskId: nodeId })
+    logger.info('[FlowCanvas] Opening output config dialog for PIR task', {
+      taskId: nodeId,
+      hasInputProviders,
+      hasLegacyDataSources
+    })
     return
   }
 
@@ -2868,7 +2996,8 @@ function handleOutputConfigConfirmed(config: {
       color: isStreamOutput ? '#FA8C16' : '#52C41A',
       description: isStreamOutput ? `流式输出到 ${config.participantId}` : `输出到 ${config.participantId}`,
       isStreamOutput,
-      isRealtime: hasRealtimeInput
+      isRealtime: hasRealtimeInput,
+      isPIROutput: isPIRTask
     } as OutputDataNodeData
 
     // 更新父任务的 outputs 配置
@@ -2932,7 +3061,8 @@ function handleOutputConfigConfirmed(config: {
         dataset: config.dataset,
         fields: config.fields,
         isStreamOutput,  // 标记为流式输出
-        isRealtime: hasRealtimeInput  // 标记是否为实时输出
+        isRealtime: hasRealtimeInput,  // 标记是否为实时输出
+        isPIROutput: isPIRTask  // 标记是否为 PIR 输出（用于 OutputDataNode 组件显示特殊样式）
       } as any
     }
 
