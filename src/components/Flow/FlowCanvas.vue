@@ -711,7 +711,7 @@ onMounted(() => {
         }
 
         // 创建 InputProvider
-        const newProvider: InputProvider = {
+        const newProvider: import('@/types/nodes').InputProvider = {
           sourceNodeId: sourceId,
           sourceType: 'dataSource',
           participantId: sourceData.assetInfo?.participantId || '',
@@ -1680,6 +1680,10 @@ const onDrop = (event: DragEvent) => {
           logger.info('[FlowCanvas] Opening unified resource selector for data source')
         }
       }
+    } else if (data.type === 'fl_task' && (data as any).flTask) {
+      // 联邦学习任务节点：优先检查，直接创建，稍后配置参数
+      logger.info('[FlowCanvas] Creating FL task node', { flTask: (data as any).flTask })
+      createFLTaskNode(data as any)
     } else if (data.category === NodeCategory.COMPUTE_TASK) {
       // 计算任务节点：需要技术路径选择
       const isTestMode = !!(window as any).__PLAYWRIGHT_TEST__
@@ -1696,10 +1700,6 @@ const onDrop = (event: DragEvent) => {
         showTechPathDialog.value = true
         logger.info('[FlowCanvas] Opening tech path selector dialog for compute task')
       }
-    } else if (data.type === 'fl_task' && (data as any).flTask) {
-      // 联邦学习任务节点：直接创建，稍后配置参数
-      logger.info('[FlowCanvas] Creating FL task node', { flTask: (data as any).flTask })
-      createFLTaskNode(data as any)
     } else if (data.category === 'model') {
       // 模型节点：检查是否拖拽到计算任务节点上
       const targetElement = document.elementFromPoint(event.clientX, event.clientY)
