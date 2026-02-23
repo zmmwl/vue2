@@ -884,33 +884,62 @@ const onDragStartLocalTask = (event: DragEvent) => {
 <style lang="scss">
 @use '@/assets/styles/variables.scss' as *;
 
-// FL 卡片子菜单 - 磨砂玻璃态效果 (iOS/macOS 风格)
+// FL 卡片子菜单 - 磨砂玻璃态效果
 .fl-card-submenu {
   position: fixed;
   width: 200px;
-  background: linear-gradient(
-    135deg,
-    rgba(255, 255, 255, 0.75) 0%,
-    rgba(255, 255, 255, 0.45) 100%
-  );
-  backdrop-filter: blur(40px) saturate(200%);
-  -webkit-backdrop-filter: blur(40px) saturate(200%);
-  border-radius: 16px;
+  // 多层叠加创造真实磨砂玻璃质感
+  background:
+    // 顶部高光渐变
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.9) 0%,
+      rgba(255, 255, 255, 0) 30%
+    ),
+    // 主背景 - 低透明度让背景透出
+    linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.6) 0%,
+      rgba(255, 255, 255, 0.3) 100%
+    );
+  // 强模糊 + 饱和度提升是磨砂玻璃的关键
+  backdrop-filter: blur(50px) saturate(250%) brightness(1.05);
+  -webkit-backdrop-filter: blur(50px) saturate(250%) brightness(1.05);
+  border-radius: 18px;
+  // 多层阴影创造深度和玻璃悬浮感
   box-shadow:
-    0 25px 50px -12px rgba(0, 0, 0, 0.15),
-    0 12px 24px -8px rgba(0, 0, 0, 0.1),
-    inset 0 1px 1px rgba(255, 255, 255, 0.9),
-    inset 0 -1px 1px rgba(0, 0, 0, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.5);
+    0 0 0 1px rgba(255, 255, 255, 0.6),
+    0 8px 40px rgba(0, 0, 0, 0.08),
+    0 30px 60px -10px rgba(0, 0, 0, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.03);
+  border: none;
   z-index: 1000;
   overflow: hidden;
+  // 添加微妙的内发光
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(255, 255, 255, 1) 50%,
+      transparent 100%
+    );
+  }
 }
 
-// 模式切换 Tab
+// 模式切换 Tab - 玻璃质感
 .fl-mode-tabs {
   display: flex;
-  background: rgba(255, 255, 255, 0.25);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.2);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.4);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 
 .fl-mode-tab {
@@ -922,7 +951,7 @@ const onDragStartLocalTask = (event: DragEvent) => {
   padding: 12px 8px;
   font-size: 13px;
   font-weight: 500;
-  color: var(--text-secondary);
+  color: rgba(0, 0, 0, 0.5);
   cursor: pointer;
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   border-bottom: 2px solid transparent;
@@ -933,13 +962,13 @@ const onDragStartLocalTask = (event: DragEvent) => {
   }
 
   &:hover {
-    background: rgba(255, 255, 255, 0.35);
-    color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.4);
+    color: rgba(0, 0, 0, 0.75);
   }
 
   &.is-active {
     color: #1890ff;
-    background: rgba(255, 255, 255, 0.5);
+    background: rgba(255, 255, 255, 0.6);
     border-bottom-color: #1890ff;
   }
 }
@@ -996,26 +1025,53 @@ const onDragStartLocalTask = (event: DragEvent) => {
   }
 }
 
-// 任务卡片 - 磨砂玻璃态效果 (iOS/macOS 风格)
+// 任务卡片 - 磨砂玻璃态效果
 .fl-task-card {
   position: fixed;
   width: 220px;
-  background: linear-gradient(
-    135deg,
-    rgba(255, 255, 255, 0.75) 0%,
-    rgba(255, 255, 255, 0.45) 100%
-  );
-  backdrop-filter: blur(40px) saturate(200%);
-  -webkit-backdrop-filter: blur(40px) saturate(200%);
-  border-radius: 16px;
+  // 多层叠加创造真实磨砂玻璃质感
+  background:
+    // 顶部高光渐变
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.9) 0%,
+      rgba(255, 255, 255, 0) 30%
+    ),
+    // 主背景
+    linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.6) 0%,
+      rgba(255, 255, 255, 0.3) 100%
+    );
+  // 强模糊是磨砂玻璃的关键
+  backdrop-filter: blur(50px) saturate(250%) brightness(1.05);
+  -webkit-backdrop-filter: blur(50px) saturate(250%) brightness(1.05);
+  border-radius: 18px;
+  // 多层阴影创造深度
   box-shadow:
-    0 25px 50px -12px rgba(0, 0, 0, 0.15),
-    0 12px 24px -8px rgba(0, 0, 0, 0.1),
-    inset 0 1px 1px rgba(255, 255, 255, 0.9),
-    inset 0 -1px 1px rgba(0, 0, 0, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.5);
+    0 0 0 1px rgba(255, 255, 255, 0.6),
+    0 8px 40px rgba(0, 0, 0, 0.08),
+    0 30px 60px -10px rgba(0, 0, 0, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.03);
+  border: none;
   z-index: 1001;
   overflow: hidden;
+  // 添加微妙的顶部高光
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(255, 255, 255, 1) 50%,
+      transparent 100%
+    );
+  }
 }
 
 .task-card-header {
@@ -1033,16 +1089,18 @@ const onDragStartLocalTask = (event: DragEvent) => {
     flex: 1;
     font-size: 14px;
     font-weight: 600;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
   }
 
   .header-badge {
     font-size: 11px;
     padding: 3px 10px;
-    background: rgba(255, 255, 255, 0.25);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
+    background: rgba(255, 255, 255, 0.3);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
     border-radius: 12px;
-    border: 1px solid rgba(255, 255, 255, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.1);
   }
 }
 
@@ -1056,7 +1114,7 @@ const onDragStartLocalTask = (event: DragEvent) => {
   }
 
   &::-webkit-scrollbar-thumb {
-    background: rgba(0, 0, 0, 0.08);
+    background: rgba(0, 0, 0, 0.06);
     border-radius: 2px;
   }
 }
@@ -1066,17 +1124,19 @@ const onDragStartLocalTask = (event: DragEvent) => {
   align-items: center;
   gap: 10px;
   padding: 10px 12px;
-  border-radius: 10px;
+  border-radius: 12px;
   cursor: grab;
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   border: 1px solid transparent;
   background: transparent;
 
   &:hover {
-    background: rgba(24, 144, 255, 0.12);
-    border-color: rgba(24, 144, 255, 0.2);
-    transform: translateX(2px);
-    box-shadow: 0 2px 8px rgba(24, 144, 255, 0.1);
+    background: rgba(24, 144, 255, 0.15);
+    border-color: rgba(24, 144, 255, 0.25);
+    transform: translateX(3px);
+    box-shadow:
+      0 4px 12px rgba(24, 144, 255, 0.15),
+      inset 0 1px 0 rgba(255, 255, 255, 0.5);
   }
 
   &:active {
@@ -1086,16 +1146,17 @@ const onDragStartLocalTask = (event: DragEvent) => {
 
   .task-icon {
     font-size: 18px;
-    width: 32px;
-    height: 32px;
+    width: 34px;
+    height: 34px;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: rgba(255, 255, 255, 0.4);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    border-radius: 8px;
-    border: 1px solid rgba(255, 255, 255, 0.3);
+    background: rgba(255, 255, 255, 0.5);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
   }
 
   .task-content {
@@ -1106,12 +1167,12 @@ const onDragStartLocalTask = (event: DragEvent) => {
   .task-name {
     font-size: 13px;
     font-weight: 500;
-    color: var(--text-primary);
+    color: rgba(0, 0, 0, 0.85);
   }
 
   .task-desc {
     font-size: 11px;
-    color: var(--text-secondary);
+    color: rgba(0, 0, 0, 0.45);
     margin-top: 2px;
     overflow: hidden;
     text-overflow: ellipsis;
