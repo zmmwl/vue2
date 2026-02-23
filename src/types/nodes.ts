@@ -359,6 +359,7 @@ export interface OutputDataConfig {
   dataset: string           // 输出数据集名称
   outputFields: OutputField[]
   outputNodeId: string      // 关联的输出数据节点ID
+  isRealtime?: boolean      // 是否为实时输出（当任一输入为实时数据源时为 true）
 }
 
 /** 资源类型优先级（用于企业排序） */
@@ -563,6 +564,7 @@ export interface PIROutputConfig {
   fields: OutputField[]           // 输出字段列表
   description?: string            // 描述
   outputNodeId?: string           // 关联的输出节点ID
+  isRealtime?: boolean            // 是否为实时输出（当任一输入为实时数据源时为 true）
 }
 
 /** PIR任务节点数据 */

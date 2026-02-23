@@ -661,6 +661,60 @@ onMounted(() => {
       }
     }
 
+    // 更新普通计算任务节点数据（如果目标是 compute_task 类型，如 MPC）
+    if (targetNode?.type === 'compute_task' && targetHandle === 'data-input') {
+      const sourceNode = nodes.value.find(n => n.id === sourceId)
+      const taskData = targetNode.data as ComputeTaskNodeData
+      const sourceData = sourceNode?.data as NodeData
+
+      if (sourceData && taskData) {
+        // 判断是否是实时数据源
+        const isRealtimeSource = sourceNode?.type === 'realtime_datasource' ||
+          (sourceData as any).dataSourceType === 'realtime' ||
+          (sourceData as any).sourceType === DataSourceType.REALTIME
+
+        // 初始化 inputProviders
+        if (!taskData.inputProviders) {
+          taskData.inputProviders = []
+        }
+
+        // 创建 InputProvider
+        const newProvider: InputProvider = {
+          sourceNodeId: sourceId,
+          sourceType: 'dataSource',
+          participantId: sourceData.assetInfo?.participantId || '',
+          dataset: sourceData.assetInfo?.assetName || sourceData.label || '',
+          fields: (sourceData.selectedFields || []).map(name => {
+            const field = sourceData.assetInfo?.dataInfo?.fieldList.find(f => f.name === name)
+            return {
+              columnName: name,
+              columnAlias: name,
+              columnType: field?.dataType || 'STRING',
+              isJoinField: false
+            }
+          }),
+          isRealtime: isRealtimeSource
+        }
+
+        // 实时数据源的字段可能来自 realtimeConfig
+        if (isRealtimeSource && (sourceData as any).realtimeConfig?.fields) {
+          newProvider.fields = (sourceData as any).realtimeConfig.fields.map((f: any) => ({
+            columnName: f.name,
+            columnAlias: f.name,
+            columnType: f.dataType || 'STRING',
+            isJoinField: false
+          }))
+        }
+
+        taskData.inputProviders.push(newProvider)
+        logger.info('[FlowCanvas] Compute task inputProviders updated via test API', {
+          taskId: targetId,
+          inputProviderCount: taskData.inputProviders.length,
+          isRealtime: isRealtimeSource
+        })
+      }
+    }
+
     logger.info('[FlowCanvas] Edge created via test API', { edgeId: newEdge.id })
   }
 
@@ -2785,6 +2839,10 @@ function handleOutputConfigConfirmed(config: {
   // 检查是否是 PIR 任务
   const isPIRTask = taskNode.type === 'pir_task'
 
+  // 检查是否有实时数据源输入（任一输入为实时数据源，输出也应为实时）
+  const taskData = taskNode.data as ComputeTaskNodeData | import('@/types/nodes').PIRTaskNodeData
+  const hasRealtimeInput = taskData.inputProviders?.some(p => p.isRealtime === true) || false
+
   // 根据 participantId 查找企业名称
   const enterprise = availableEnterprises.value.find(e => e.id === config.participantId)
   const entityName = enterprise?.name || ''
@@ -2798,13 +2856,19 @@ function handleOutputConfigConfirmed(config: {
     }
 
     // 更新输出节点数据
+    const isStreamOutput = isPIRTask || hasRealtimeInput
+    const existingData = outputNode.data as OutputDataNodeData
     outputNode.data = {
-      ...outputNode.data,
+      ...existingData,
       label: config.dataset,
       participantId: config.participantId,
       entityName: entityName,
       dataset: config.dataset,
-      fields: config.fields
+      fields: config.fields,
+      color: isStreamOutput ? '#FA8C16' : '#52C41A',
+      description: isStreamOutput ? `流式输出到 ${config.participantId}` : `输出到 ${config.participantId}`,
+      isStreamOutput,
+      isRealtime: hasRealtimeInput
     } as OutputDataNodeData
 
     // 更新父任务的 outputs 配置
@@ -2820,6 +2884,7 @@ function handleOutputConfigConfirmed(config: {
             columnAlias: f.columnAlias,
             columnType: f.columnType
           }))
+          outputConfig.isRealtime = hasRealtimeInput
         }
       }
     } else {
@@ -2830,13 +2895,15 @@ function handleOutputConfigConfirmed(config: {
           outputConfig.participantId = config.participantId
           outputConfig.dataset = config.dataset
           outputConfig.outputFields = config.fields
+          outputConfig.isRealtime = hasRealtimeInput
         }
       }
     }
 
     logger.info('[FlowCanvas] Output node updated', {
       outputNodeId: editingOutputNodeId.value,
-      parentTaskId: pendingOutputTaskId.value
+      parentTaskId: pendingOutputTaskId.value,
+      isRealtime: hasRealtimeInput
     })
   } else {
     // 新建模式：创建新的输出节点
@@ -2846,8 +2913,8 @@ function handleOutputConfigConfirmed(config: {
       y: taskNode.position.y + 150
     }
 
-    // PIR 输出节点使用流式样式
-    const isStreamOutput = isPIRTask
+    // PIR 输出节点或包含实时数据源输入的任务使用流式样式
+    const isStreamOutput = isPIRTask || hasRealtimeInput
 
     const outputNode: Node = {
       id: outputNodeId,
@@ -2864,7 +2931,8 @@ function handleOutputConfigConfirmed(config: {
         entityName: entityName,
         dataset: config.dataset,
         fields: config.fields,
-        isStreamOutput  // 标记为流式输出
+        isStreamOutput,  // 标记为流式输出
+        isRealtime: hasRealtimeInput  // 标记是否为实时输出
       } as any
     }
 
@@ -2897,7 +2965,8 @@ function handleOutputConfigConfirmed(config: {
           columnAlias: f.columnAlias,
           columnType: f.columnType
         })),
-        outputNodeId: outputNodeId
+        outputNodeId: outputNodeId,
+        isRealtime: hasRealtimeInput
       })
     } else {
       const taskData = taskNode.data as ComputeTaskNodeData
@@ -2910,7 +2979,8 @@ function handleOutputConfigConfirmed(config: {
         participantId: config.participantId,
         dataset: config.dataset,
         outputFields: config.fields,
-        outputNodeId: outputNodeId
+        outputNodeId: outputNodeId,
+        isRealtime: hasRealtimeInput
       })
     }
 
@@ -2918,7 +2988,8 @@ function handleOutputConfigConfirmed(config: {
       outputNodeId,
       parentTaskId: pendingOutputTaskId.value,
       edgeId: outputEdge.id,
-      isStreamOutput
+      isStreamOutput,
+      isRealtime: hasRealtimeInput
     })
   }
 
