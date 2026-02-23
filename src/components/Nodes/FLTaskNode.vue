@@ -44,6 +44,28 @@
       class="node-handle output-handle"
       :class="{ 'is-visible': isOutputVisible }"
     />
+
+    <!-- 特征工程任务：添加输出按钮 -->
+    <button
+      v-if="isFeatureEngineering"
+      class="add-output-btn"
+      @click="handleAddOutput"
+      @mousedown.stop
+      title="添加输出"
+    >
+      <span>+</span>
+    </button>
+
+    <!-- 横向/纵向模型任务：添加模型输出按钮 -->
+    <button
+      v-if="isModelTask"
+      class="add-model-output-btn"
+      @click="handleAddModelOutput"
+      @mousedown.stop
+      title="添加模型输出"
+    >
+      <span>+</span>
+    </button>
   </div>
 </template>
 
@@ -127,6 +149,39 @@ const isDataInputVisible = computed(() => {
 const isOutputVisible = computed(() => {
   return edges.value.some(edge => edge.source === props.id && edge.sourceHandle === 'output')
 })
+
+// 是否是特征工程任务
+const isFeatureEngineering = computed(() => {
+  return flData.value.flCategory === FLTaskCategory.FEATURE_ENGINEERING
+})
+
+// 是否是模型任务（横向或纵向）
+const isModelTask = computed(() => {
+  return flData.value.flCategory === FLTaskCategory.HORIZONTAL_MODEL ||
+         flData.value.flCategory === FLTaskCategory.VERTICAL_MODEL
+})
+
+/**
+ * 处理添加输出按钮点击（特征工程任务）
+ */
+function handleAddOutput() {
+  const event = new CustomEvent('add-fl-output', {
+    detail: { nodeId: props.id },
+    bubbles: true
+  })
+  document.dispatchEvent(event)
+}
+
+/**
+ * 处理添加模型输出按钮点击（横向/纵向模型任务）
+ */
+function handleAddModelOutput() {
+  const event = new CustomEvent('add-fl-model-output', {
+    detail: { nodeId: props.id },
+    bubbles: true
+  })
+  document.dispatchEvent(event)
+}
 </script>
 
 <style scoped lang="scss">
@@ -257,5 +312,71 @@ const isOutputVisible = computed(() => {
 
 .node-handle:hover {
   transform: translateX(-50%) scale(1.3);
+}
+
+// 添加输出按钮（特征工程任务）
+.add-output-btn {
+  position: absolute;
+  bottom: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 24px;
+  height: 24px;
+  background: var(--node-color, #1890ff);
+  border: 2px solid white;
+  border-radius: 4px;
+  color: white;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  opacity: 0;
+  transition: all 0.2s ease;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+
+  &:hover {
+    transform: translateX(-50%) scale(1.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  }
+
+  .fl-task-node:hover & {
+    opacity: 1;
+  }
+}
+
+// 添加模型输出按钮（横向/纵向模型任务）
+.add-model-output-btn {
+  position: absolute;
+  bottom: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 24px;
+  height: 24px;
+  background: var(--node-color, #722ed1);
+  border: 2px solid white;
+  border-radius: 4px;
+  color: white;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  opacity: 0;
+  transition: all 0.2s ease;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+
+  &:hover {
+    transform: translateX(-50%) scale(1.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  }
+
+  .fl-task-node:hover & {
+    opacity: 1;
+  }
 }
 </style>

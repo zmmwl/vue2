@@ -2005,11 +2005,14 @@ function createFLTaskNode(data: DroppedNodeData & { flTask: {
     mode: flTask.mode
   })
 
-  // 创建节点后立即打开配置弹窗
+  // 创建节点后立即打开配置弹窗（测试模式下跳过）
   // 使用 nextTick 确保节点已添加到画布
-  nextTick(() => {
-    openFLTaskConfig(newNode.id)
-  })
+  const isTestMode = !!(window as any).__PLAYWRIGHT_TEST__
+  if (!isTestMode) {
+    nextTick(() => {
+      openFLTaskConfig(newNode.id)
+    })
+  }
 }
 
 /**
@@ -3884,6 +3887,26 @@ function handleAddFLModelOutput(nodeId: string) {
 }
 
 /**
+ * 处理 FL 特征工程添加输出事件（从 FLTaskNode 发出）
+ */
+function handleAddFLOutputEvent(event: Event) {
+  const customEvent = event as CustomEvent
+  const nodeId = customEvent.detail.nodeId
+  logger.info('[FlowCanvas] Add FL output event received from FLTaskNode', { nodeId })
+  handleAddFLOutput(nodeId)
+}
+
+/**
+ * 处理 FL 模型添加模型输出事件（从 FLTaskNode 发出）
+ */
+function handleAddFLModelOutputEvent(event: Event) {
+  const customEvent = event as CustomEvent
+  const nodeId = customEvent.detail.nodeId
+  logger.info('[FlowCanvas] Add FL model output event received from FLTaskNode', { nodeId })
+  handleAddFLModelOutput(nodeId)
+}
+
+/**
  * 确认参数配置
  */
 function handleParamConfigConfirm(parameters: ModelParameter[]) {
@@ -5468,6 +5491,8 @@ onMounted(() => {
   document.addEventListener('add-model', handleAddModel)
   document.addEventListener('add-compute', handleAddCompute)
   document.addEventListener('edit-local-query', handleEditLocalQuery)
+  document.addEventListener('add-fl-output', handleAddFLOutputEvent)
+  document.addEventListener('add-fl-model-output', handleAddFLModelOutputEvent)
   // 监听 window 上的事件，与测试中的 window.dispatchEvent 匹配
   window.addEventListener('create-test-node', handleCreateTestNode)
   window.addEventListener('create-test-task-with-output', handleCreateTestTaskWithOutput)
@@ -5489,6 +5514,8 @@ onUnmounted(() => {
   document.removeEventListener('add-model', handleAddModel)
   document.removeEventListener('add-compute', handleAddCompute)
   document.removeEventListener('edit-local-query', handleEditLocalQuery)
+  document.removeEventListener('add-fl-output', handleAddFLOutputEvent)
+  document.removeEventListener('add-fl-model-output', handleAddFLModelOutputEvent)
   window.removeEventListener('create-test-node', handleCreateTestNode)
   window.removeEventListener('create-test-task-with-output', handleCreateTestTaskWithOutput)
   window.removeEventListener('create-test-task-with-model', handleCreateTestTaskWithModel)
