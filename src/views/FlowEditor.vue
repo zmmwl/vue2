@@ -36,6 +36,10 @@
         @config-input-provider="handleConfigInputProvider"
         @config-pir-task="handleConfigPIRTask"
         @config-fl-task="handleConfigFLTask"
+        @config-fl-output="handleConfigFLOutput"
+        @config-fl-model-output="handleConfigFLModelOutput"
+        @add-fl-output="handleAddFLOutput"
+        @add-fl-model-output="handleAddFLModelOutput"
       />
     </div>
     <!-- 隐藏的文件输入用于导入 -->
@@ -222,6 +226,50 @@ function handleConfigFLTask(nodeId: string) {
   const flowCanvas = flowCanvasRef.value as any
   if (flowCanvas && typeof flowCanvas.handleConfigFLTask === 'function') {
     flowCanvas.handleConfigFLTask(nodeId)
+  }
+}
+
+/**
+ * 处理 FL 特征工程输出配置事件
+ */
+function handleConfigFLOutput(data: { taskId: string; outputIndex: number }) {
+  logger.info('[FlowEditor] Config FL output event received', data)
+  const flowCanvas = flowCanvasRef.value as any
+  if (flowCanvas && typeof flowCanvas.handleConfigFLOutput === 'function') {
+    flowCanvas.handleConfigFLOutput(data)
+  }
+}
+
+/**
+ * 处理 FL 模型输出配置事件
+ */
+function handleConfigFLModelOutput(data: { taskId: string; outputIndex: number }) {
+  logger.info('[FlowEditor] Config FL model output event received', data)
+  const flowCanvas = flowCanvasRef.value as any
+  if (flowCanvas && typeof flowCanvas.handleConfigFLModelOutput === 'function') {
+    flowCanvas.handleConfigFLModelOutput(data)
+  }
+}
+
+/**
+ * 处理添加 FL 输出事件
+ */
+function handleAddFLOutput(nodeId: string) {
+  logger.info('[FlowEditor] Add FL output event received', { nodeId })
+  const flowCanvas = flowCanvasRef.value as any
+  if (flowCanvas && typeof flowCanvas.handleAddFLOutput === 'function') {
+    flowCanvas.handleAddFLOutput(nodeId)
+  }
+}
+
+/**
+ * 处理添加 FL 模型输出事件
+ */
+function handleAddFLModelOutput(nodeId: string) {
+  logger.info('[FlowEditor] Add FL model output event received', { nodeId })
+  const flowCanvas = flowCanvasRef.value as any
+  if (flowCanvas && typeof flowCanvas.handleAddFLModelOutput === 'function') {
+    flowCanvas.handleAddFLModelOutput(nodeId)
   }
 }
 

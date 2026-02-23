@@ -286,7 +286,105 @@
               <div class="provider-header">
                 <span class="provider-index">{{ index + 1 }}</span>
                 <span class="provider-name">{{ provider.dataset || '数据源' }}</span>
+                <span class="provider-enterprise">{{ getEnterpriseDisplayName(provider.participantId) }}</span>
               </div>
+              <!-- 展示字段列表 -->
+              <div class="provider-fields" v-if="provider.fields && provider.fields.length > 0">
+                <div class="fields-header">
+                  <span class="fields-label">字段 ({{ provider.fields.length }})</span>
+                </div>
+                <div class="fields-list">
+                  <div v-for="field in provider.fields" :key="field.columnName" class="field-tag">
+                    <span class="field-name">{{ field.columnName }}</span>
+                    <span class="field-type">{{ field.columnType }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </CollapsibleSection>
+
+        <!-- 预处理任务：输出字段（与输入一致） -->
+        <CollapsibleSection
+          v-if="isFLPreprocessTask"
+          title="输出字段"
+          :count="flOutputFieldsCount"
+        >
+          <div v-if="!flTaskData?.inputProviders?.length" class="empty-inputs">
+            <div class="empty-icon">📤</div>
+            <p>请先配置输入数据源</p>
+          </div>
+          <div v-else class="output-fields-section">
+            <p class="output-hint">预处理任务的输出结构与输入一致</p>
+            <div class="output-fields-list">
+              <div v-for="field in flOutputFields" :key="field.columnName" class="field-tag output-field">
+                <span class="field-name">{{ field.columnName }}</span>
+                <span class="field-type">{{ field.columnType }}</span>
+              </div>
+            </div>
+          </div>
+        </CollapsibleSection>
+
+        <!-- 特征工程任务：输出数据（类似 MPC，可添加多个） -->
+        <CollapsibleSection
+          v-if="isFLFeatureEngineeringTask"
+          title="输出数据"
+          :count="flOutputsCount"
+        >
+          <div v-if="!flOutputs || flOutputs.length === 0" class="empty-inputs">
+            <div class="empty-icon">📤</div>
+            <p>暂无输出配置</p>
+            <p class="empty-hint">点击任务节点下方的"添加输出"按钮</p>
+          </div>
+          <div v-else class="outputs-list">
+            <div
+              v-for="(output, index) in flOutputs"
+              :key="index"
+              class="output-card"
+            >
+              <div class="output-header">
+                <span class="output-index">{{ Number(index) + 1 }}</span>
+                <span class="output-participant">{{ getEnterpriseDisplayName(output.participantId) }}</span>
+              </div>
+              <div class="output-dataset">{{ output.dataset }}</div>
+              <div class="output-fields">
+                <span class="fields-count">{{ output.outputFields?.length || 0 }} 个字段</span>
+              </div>
+              <button class="config-params-btn" @click="handleConfigFLOutput(output, index)">
+                ⚙️ 配置
+              </button>
+            </div>
+          </div>
+        </CollapsibleSection>
+
+        <!-- 横向/纵向模型任务：模型输出 -->
+        <CollapsibleSection
+          v-if="isFLModelTask"
+          title="模型输出"
+          :count="flModelOutputsCount"
+        >
+          <div v-if="!flModelOutputs || flModelOutputs.length === 0" class="empty-inputs">
+            <div class="empty-icon">🤖</div>
+            <p>暂无模型输出</p>
+            <p class="empty-hint">点击任务节点下方的"添加模型输出"按钮</p>
+          </div>
+          <div v-else class="outputs-list">
+            <div
+              v-for="(model, index) in flModelOutputs"
+              :key="index"
+              class="output-card model-output-card"
+            >
+              <div class="output-header">
+                <span class="output-index">{{ Number(index) + 1 }}</span>
+                <span class="output-participant">{{ getEnterpriseDisplayName(model.participantId) }}</span>
+              </div>
+              <div class="output-dataset">🤖 {{ model.modelName || '模型' }}</div>
+              <div class="output-fields">
+                <span class="fields-count">{{ model.modelType || '训练模型' }}</span>
+              </div>
+              <button class="config-params-btn" @click="handleConfigFLModelOutput(model, index)">
+                ⚙️ 配置
+              </button>
             </div>
           </div>
         </CollapsibleSection>
@@ -1012,6 +1110,10 @@ interface Emits {
   (e: 'configInputProvider', data: { taskId: string; sourceNodeId: string; fields: any[] }): void  // 配置输入数据源
   (e: 'config-pir-task', nodeId: string): void  // 配置 PIR 任务
   (e: 'config-fl-task', nodeId: string): void  // 配置 FL 任务
+  (e: 'config-fl-output', data: { taskId: string; outputIndex: number }): void  // 配置 FL 特征工程输出
+  (e: 'config-fl-model-output', data: { taskId: string; outputIndex: number }): void  // 配置 FL 模型输出
+  (e: 'add-fl-output', nodeId: string): void  // 添加 FL 输出
+  (e: 'add-fl-model-output', nodeId: string): void  // 添加 FL 模型输出
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -1116,6 +1218,59 @@ const flModeLabel = computed(() => {
   if (!flTaskData.value) return ''
   return flTaskData.value.flMode === 'training' ? '训练' : '推断'
 })
+
+// 判断是否为 FL 预处理任务
+const isFLPreprocessTask = computed(() => {
+  return flTaskData.value?.flCategory === 'preprocess'
+})
+
+// 判断是否为 FL 特征工程任务
+const isFLFeatureEngineeringTask = computed(() => {
+  return flTaskData.value?.flCategory === 'feature_engineering'
+})
+
+// 判断是否为 FL 模型任务（横向或纵向）
+const isFLModelTask = computed(() => {
+  const category = flTaskData.value?.flCategory
+  return category === 'horizontal' || category === 'vertical'
+})
+
+// FL 预处理任务的输出字段（与输入一致）
+const flOutputFields = computed(() => {
+  if (!flTaskData.value?.inputProviders) return []
+  const allFields: { columnName: string; columnType: string; columnAlias: string }[] = []
+  flTaskData.value.inputProviders.forEach(provider => {
+    provider.fields.forEach(field => {
+      if (!allFields.some(f => f.columnName === field.columnName)) {
+        allFields.push({
+          columnName: field.columnName,
+          columnType: field.columnType,
+          columnAlias: field.columnAlias
+        })
+      }
+    })
+  })
+  return allFields
+})
+
+// FL 预处理任务的输出字段数量
+const flOutputFieldsCount = computed(() => flOutputFields.value.length)
+
+// FL 特征工程任务的输出列表
+const flOutputs = computed(() => {
+  return (flTaskData.value as any)?.outputs || []
+})
+
+// FL 特征工程任务的输出数量
+const flOutputsCount = computed(() => flOutputs.value.length)
+
+// FL 模型任务的模型输出列表
+const flModelOutputs = computed(() => {
+  return (flTaskData.value as any)?.modelOutputs || []
+})
+
+// FL 模型任务的模型输出数量
+const flModelOutputsCount = computed(() => flModelOutputs.value.length)
 
 // 判断数据源节点是否已配置
 const isConfigured = computed(() => {
@@ -1671,6 +1826,44 @@ function handleConfigFLTask() {
   })
 
   emit('config-fl-task', props.selectedNode.id)
+}
+
+/**
+ * 处理 FL 特征工程输出配置
+ */
+function handleConfigFLOutput(_output: any, index: number | string) {
+  if (!props.selectedNode) return
+
+  const outputIndex = typeof index === 'string' ? parseInt(index, 10) : index
+
+  logger.info('[FlowDetailPanel] FL output config clicked', {
+    taskId: props.selectedNode.id,
+    outputIndex
+  })
+
+  emit('config-fl-output', {
+    taskId: props.selectedNode.id,
+    outputIndex
+  })
+}
+
+/**
+ * 处理 FL 模型输出配置
+ */
+function handleConfigFLModelOutput(_model: any, index: number | string) {
+  if (!props.selectedNode) return
+
+  const outputIndex = typeof index === 'string' ? parseInt(index, 10) : index
+
+  logger.info('[FlowDetailPanel] FL model output config clicked', {
+    taskId: props.selectedNode.id,
+    outputIndex
+  })
+
+  emit('config-fl-model-output', {
+    taskId: props.selectedNode.id,
+    outputIndex
+  })
 }
 
 /**

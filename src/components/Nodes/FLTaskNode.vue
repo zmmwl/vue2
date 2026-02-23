@@ -28,11 +28,13 @@
     </div>
 
     <!-- Handle 连接点 -->
+    <!-- 顶部数据源输入连接点 -->
     <Handle
       type="target"
       :position="Position.Top"
-      id="input"
+      id="data-input"
       class="node-handle input-handle"
+      :class="{ 'is-visible': isDataInputVisible }"
     />
     <Handle
       v-if="hasOutput"
@@ -40,19 +42,21 @@
       :position="Position.Bottom"
       id="output"
       class="node-handle output-handle"
+      :class="{ 'is-visible': isOutputVisible }"
     />
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { Handle, Position } from '@vue-flow/core'
+import { Handle, Position, useVueFlow } from '@vue-flow/core'
 import type { NodeProps } from '@vue-flow/core'
 import type { FLTaskNodeData, NodeData } from '@/types/nodes'
 import { FLTaskCategory, FLMode } from '@/types/fl-tasks'
 import { getFLCategoryColor, getFLModeLabel } from '@/utils/fl-task-templates'
 
 const props = defineProps<NodeProps<NodeData>>()
+const { edges } = useVueFlow()
 
 // 获取 FL 任务数据
 const flData = computed(() => props.data as unknown as FLTaskNodeData)
@@ -105,9 +109,23 @@ const configSummary = computed(() => {
   return keys.length > 2 ? `${summary}...` : summary
 })
 
-// 是否有输出（预处理没有输出节点）
+// 是否有输出（所有 FL 任务都有输出，预处理任务的输出结构和输入一致）
 const hasOutput = computed(() => {
-  return flData.value.flCategory !== FLTaskCategory.PREPROCESS
+  // 预处理任务需要配置后才有输出
+  if (flData.value.flCategory === FLTaskCategory.PREPROCESS) {
+    return !!(flData.value.inputProviders && flData.value.inputProviders.length > 0)
+  }
+  return true
+})
+
+// 检查是否有数据源输入连接
+const isDataInputVisible = computed(() => {
+  return edges.value.some(edge => edge.target === props.id && edge.targetHandle === 'data-input')
+})
+
+// 检查是否有输出连接
+const isOutputVisible = computed(() => {
+  return edges.value.some(edge => edge.source === props.id && edge.sourceHandle === 'output')
 })
 </script>
 

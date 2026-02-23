@@ -1133,7 +1133,10 @@ const isValidConnection = (
   else if (targetData.category === NodeCategory.COMPUTE_TASK || targetData.category === NodeCategory.LOCAL_TASK) {
     // 根据源节点类型确定正确的 targetHandle
     let correctHandle: string
-    if (sourceData.category === NodeCategory.DATA_SOURCE || sourceData.category === NodeCategory.OUTPUT_DATA) {
+    // 判断源节点是否是 FL 任务节点（预处理任务可以作为数据源）
+    const isFLTaskAsDataSource = sourceData.category === NodeCategory.COMPUTE_TASK &&
+      (sourceData as ComputeTaskNodeData).taskType === ComputeTaskType.FL
+    if (sourceData.category === NodeCategory.DATA_SOURCE || sourceData.category === NodeCategory.OUTPUT_DATA || isFLTaskAsDataSource) {
       correctHandle = 'data-input' // 顶部
     } else if (sourceData.category === NodeCategory.MODEL) {
       correctHandle = 'input' // 左侧
@@ -1195,8 +1198,11 @@ const onConnect = (connection: Connection) => {
 
   // 根据源节点类型和目标节点类型自动设置正确的 targetHandle
   let correctedTargetHandle = connection.targetHandle
+  // 判断源节点是否是 FL 任务节点（预处理任务可以作为数据源）
+  const isFLTaskAsDataSource = sourceData.category === NodeCategory.COMPUTE_TASK &&
+    (sourceData as ComputeTaskNodeData).taskType === ComputeTaskType.FL
   if (targetData.category === NodeCategory.COMPUTE_TASK) {
-    if (sourceData.category === NodeCategory.DATA_SOURCE || sourceData.category === NodeCategory.OUTPUT_DATA) {
+    if (sourceData.category === NodeCategory.DATA_SOURCE || sourceData.category === NodeCategory.OUTPUT_DATA || isFLTaskAsDataSource) {
       // 所有计算任务（包括 PIR）都使用 data-input
       correctedTargetHandle = 'data-input'
     } else if (sourceData.category === NodeCategory.MODEL) {
@@ -1286,6 +1292,44 @@ const onConnect = (connection: Connection) => {
         dataType: field.columnType,
         description: field.columnAlias
       }))
+    } else if (isFLTaskAsDataSource) {
+      // FL 任务节点作为数据源（预处理任务的输出结构和输入一致）
+      const flTaskData = sourceData as import('@/types/nodes').FLTaskNodeData
+      pendingSourceName.value = flTaskData.taskDisplayName || flTaskData.label || 'FL任务'
+      // 预处理任务可能有多个参与方，这里取第一个
+      const firstProvider = flTaskData.inputProviders?.[0]
+      pendingParticipantId.value = firstProvider?.participantId || ''
+      pendingDataset.value = `${flTaskData.taskDisplayName || 'fl'}_output`
+      pendingSourceType.value = 'flTask'
+
+      // 从 inputProviders 获取所有字段（输出结构和输入一致）
+      const allFields: { name: string; dataType: string; description?: string }[] = []
+      flTaskData.inputProviders?.forEach(provider => {
+        provider.fields.forEach(field => {
+          // 避免重复字段
+          if (!allFields.some(f => f.name === field.columnName)) {
+            allFields.push({
+              name: field.columnName,
+              dataType: field.columnType,
+              description: field.columnAlias
+            })
+          }
+        })
+      })
+
+      pendingAvailableFields.value = allFields.map(field => ({
+        name: field.name,
+        dataType: field.dataType,
+        dataLength: undefined,
+        description: field.description,
+        isPrimaryKey: false
+      }))
+
+      logger.info('[FlowCanvas] FL task as datasource fields prepared for selection', {
+        taskName: flTaskData.taskName,
+        fieldCount: pendingAvailableFields.value.length,
+        providerCount: flTaskData.inputProviders?.length || 0
+      })
     } else {
       logger.warn('[FlowCanvas] Unsupported source node type for field selection')
       return
@@ -2216,10 +2260,8 @@ function onNodeClick(event: any) {
   // 注意：PIR 任务点击时不打开任何弹窗
   // PIR 任务的实时数据源是通过连线接入的，不需要手工配置
 
-  // 处理 FL 任务节点点击 - 打开任务配置弹窗
-  if (clickedNode.type === 'fl_task') {
-    openFLTaskConfig(clickedNodeId)
-  }
+  // 注意：FL 任务点击时不打开配置弹窗
+  // FL 任务通过"重新配置"按钮打开配置弹窗
 }
 
 /**
@@ -3657,6 +3699,191 @@ function handleConfigFLTask(nodeId: string) {
 }
 
 /**
+ * 处理 FL 特征工程输出配置
+ */
+function handleConfigFLOutput(data: { taskId: string; outputIndex: number }) {
+  logger.info('[FlowCanvas] Config FL output event received', data)
+
+  const taskNode = nodes.value.find(n => n.id === data.taskId)
+  if (!taskNode) {
+    logger.warn('[FlowCanvas] FL task node not found', { taskId: data.taskId })
+    return
+  }
+
+  const taskData = taskNode.data as any
+  const outputs = taskData.outputs || []
+  const output = outputs[data.outputIndex]
+
+  if (!output) {
+    logger.warn('[FlowCanvas] FL output not found', { outputIndex: data.outputIndex })
+    return
+  }
+
+  // 复用 MPC 的输出配置逻辑
+  pendingOutputTaskId.value = data.taskId
+  pendingOutputConfig.value = {
+    participantId: output.participantId,
+    dataset: output.dataset,
+    fields: output.outputFields || [],
+    fieldSources: output.fieldSources
+  }
+  editingOutputNodeId.value = output.outputNodeId
+  pendingOutputSourceType.value = 'fl_task'
+
+  showOutputConfigDialog.value = true
+  logger.info('[FlowCanvas] Opening FL output config dialog', {
+    taskId: data.taskId,
+    outputIndex: data.outputIndex
+  })
+}
+
+/**
+ * 处理 FL 模型输出配置
+ */
+function handleConfigFLModelOutput(data: { taskId: string; outputIndex: number }) {
+  logger.info('[FlowCanvas] Config FL model output event received', data)
+
+  const taskNode = nodes.value.find(n => n.id === data.taskId)
+  if (!taskNode) {
+    logger.warn('[FlowCanvas] FL task node not found', { taskId: data.taskId })
+    return
+  }
+
+  const taskData = taskNode.data as any
+  const modelOutputs = taskData.modelOutputs || []
+  const modelOutput = modelOutputs[data.outputIndex]
+
+  if (!modelOutput) {
+    logger.warn('[FlowCanvas] FL model output not found', { outputIndex: data.outputIndex })
+    return
+  }
+
+  // TODO: 打开模型输出配置弹窗
+  logger.info('[FlowCanvas] FL model output config', {
+    taskId: data.taskId,
+    outputIndex: data.outputIndex,
+    modelOutput
+  })
+}
+
+/**
+ * 处理添加 FL 输出（特征工程任务）
+ */
+function handleAddFLOutput(nodeId: string) {
+  logger.info('[FlowCanvas] Add FL output event received', { nodeId })
+
+  const taskNode = nodes.value.find(n => n.id === nodeId)
+  if (!taskNode) {
+    logger.warn('[FlowCanvas] FL task node not found', { nodeId })
+    return
+  }
+
+  const taskData = taskNode.data as any
+
+  // 检查是否有输入数据
+  if (!taskData.inputProviders || taskData.inputProviders.length === 0) {
+    showError('请先配置输入数据源')
+    return
+  }
+
+  // 初始化 outputs 数组
+  if (!taskData.outputs) {
+    taskData.outputs = []
+  }
+
+  // 设置待处理的输出配置
+  pendingOutputTaskId.value = nodeId
+  pendingOutputConfig.value = undefined
+  editingOutputNodeId.value = undefined
+  pendingOutputSourceType.value = 'fl_task'
+
+  showOutputConfigDialog.value = true
+  logger.info('[FlowCanvas] Opening FL output config dialog for new output', {
+    taskId: nodeId
+  })
+}
+
+/**
+ * 处理添加 FL 模型输出（横向/纵向模型任务）
+ */
+function handleAddFLModelOutput(nodeId: string) {
+  logger.info('[FlowCanvas] Add FL model output event received', { nodeId })
+
+  const taskNode = nodes.value.find(n => n.id === nodeId)
+  if (!taskNode) {
+    logger.warn('[FlowCanvas] FL task node not found', { nodeId })
+    return
+  }
+
+  const taskData = taskNode.data as any
+
+  // 检查是否有输入数据
+  if (!taskData.inputProviders || taskData.inputProviders.length === 0) {
+    showError('请先配置输入数据源')
+    return
+  }
+
+  // 初始化 modelOutputs 数组
+  if (!taskData.modelOutputs) {
+    taskData.modelOutputs = []
+  }
+
+  // 创建新的模型输出
+  const newModelOutput = {
+    id: `fl_model_${Date.now()}`,
+    participantId: taskData.inputProviders[0]?.participantId || '',
+    modelName: `${taskData.taskDisplayName || '模型'}_${taskData.modelOutputs.length + 1}`,
+    modelType: taskData.flCategory === 'horizontal' ? '横向模型' : '纵向模型',
+    outputNodeId: ''
+  }
+
+  taskData.modelOutputs.push(newModelOutput)
+
+  // 创建模型输出节点
+  const outputNodeId = `fl_model_node_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+  const outputPosition = {
+    x: taskNode.position.x + 100 * (taskData.modelOutputs.length - 1),
+    y: taskNode.position.y + 150
+  }
+
+  const outputNode: Node = {
+    id: outputNodeId,
+    type: 'fl_model_output',
+    position: outputPosition,
+    data: {
+      label: newModelOutput.modelName,
+      category: NodeCategory.OUTPUT_DATA,
+      color: taskData.flCategory === 'horizontal' ? '#722ed1' : '#fa8c16',
+      icon: '🤖',
+      description: '联邦学习模型输出',
+      parentTaskId: nodeId,
+      participantId: newModelOutput.participantId,
+      modelType: newModelOutput.modelType
+    } as any
+  }
+
+  addNode(outputNode)
+
+  // 创建连线
+  const outputEdge = createUniqueEdge({
+    source: nodeId,
+    target: outputNodeId,
+    sourceHandle: 'output',
+    targetHandle: 'input'
+  }, edges.value, NodeCategory.COMPUTE_TASK)
+  edges.value.push(outputEdge)
+
+  // 更新模型输出的 outputNodeId
+  newModelOutput.outputNodeId = outputNodeId
+
+  logger.info('[FlowCanvas] FL model output created', {
+    taskId: nodeId,
+    outputNodeId,
+    modelName: newModelOutput.modelName
+  })
+}
+
+/**
  * 确认参数配置
  */
 function handleParamConfigConfirm(parameters: ModelParameter[]) {
@@ -5024,7 +5251,11 @@ defineExpose({
   handleConfigModelNode,
   handleConfigInputProvider,
   handleConfigPIRTask,
-  handleConfigFLTask
+  handleConfigFLTask,
+  handleConfigFLOutput,
+  handleConfigFLModelOutput,
+  handleAddFLOutput,
+  handleAddFLModelOutput
 })
 
 /**
