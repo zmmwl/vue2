@@ -188,15 +188,13 @@ function onAddModelOutput() {
   box-shadow:
     0 2px 4px rgba(0, 0, 0, 0.06),
     0 4px 12px rgba(0, 0, 0, 0.08);
-  transition: all 0.2s ease;
+  transition: box-shadow 0.2s ease;
   cursor: pointer;
-  overflow: hidden;
 
   &:hover {
     box-shadow:
       0 4px 8px rgba(0, 0, 0, 0.08),
       0 8px 24px rgba(0, 0, 0, 0.12);
-    transform: translateY(-2px);
 
     // 悬停时显示所有 Handle
     .data-input-handle,
