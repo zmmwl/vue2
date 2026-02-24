@@ -33,6 +33,7 @@
       type="target"
       :position="Position.Top"
       id="data-input"
+      :style="{ left: '50%' }"
       class="node-handle input-handle"
       :class="{ 'is-visible': isDataInputVisible }"
     />
@@ -41,6 +42,7 @@
       type="source"
       :position="Position.Bottom"
       id="output"
+      :style="{ left: '50%' }"
       class="node-handle output-handle"
       :class="{ 'is-visible': isOutputVisible }"
     />
