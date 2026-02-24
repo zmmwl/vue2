@@ -3318,6 +3318,39 @@ function handleComputeSelectorCancel() {
 function handleExpressionConfirmed(expression: string) {
   logger.info('[FlowCanvas] Expression confirmed')
 
+  // 情况1：编辑现有表达式模型
+  if (currentModelConfig.value && currentTaskId.value) {
+    logger.info('[FlowCanvas] Updating existing expression model', {
+      modelId: currentModelConfig.value.id,
+      taskId: currentTaskId.value
+    })
+
+    // 更新模型配置的表达式
+    currentModelConfig.value.expression = expression
+
+    // 更新计算任务的 models 数组
+    const taskNode = nodes.value.find(n => n.id === currentTaskId.value)
+    if (taskNode) {
+      const taskData = taskNode.data as ComputeTaskNodeData
+      if (taskData.models) {
+        const modelIndex = taskData.models.findIndex(m => m.id === currentModelConfig.value!.id)
+        if (modelIndex !== -1 && taskData.models[modelIndex]) {
+          taskData.models[modelIndex].expression = expression
+          logger.info('[FlowCanvas] Expression model updated in task')
+        }
+      }
+    }
+
+    // 清理状态
+    showExpressionEditorDialog.value = false
+    pendingExpression.value = ''
+    currentModelConfig.value = null
+    currentTaskId.value = ''
+    pendingTargetTaskNodeId.value = ''
+    return
+  }
+
+  // 情况2：创建新的表达式模型
   if (!pendingExpressionData.value) {
     logger.warn('[FlowCanvas] No pending expression data')
     return
@@ -3348,6 +3381,9 @@ function handleExpressionEditorCancel() {
   showExpressionEditorDialog.value = false
   pendingExpression.value = ''
   pendingExpressionData.value = null
+  currentModelConfig.value = null
+  currentTaskId.value = ''
+  pendingTargetTaskNodeId.value = ''
 }
 
 /**

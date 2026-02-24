@@ -22,7 +22,14 @@ export const createUniqueEdge = (
       edge.targetHandle === connection.targetHandle
   )
 
-  const edgeData = sourceCategory ? { sourceCategory } : undefined
+  // 判断是否使用虚线样式（模型和算力资源使用虚线、无箭头）
+  const isDashedLine = sourceCategory === 'model' || sourceCategory === 'computeResource'
+
+  const edgeData = sourceCategory ? {
+    sourceCategory,
+    isDashed: isDashedLine,
+    noArrow: isDashedLine
+  } : undefined
 
   if (exists && connection.sourceHandle && connection.targetHandle) {
     // 如果连接点已被使用，为当前连接创建新的 handle ID

@@ -10,6 +10,10 @@ export interface EdgeData {
   targetColor?: string
   // 源节点类型（用于决定连线路径类型）
   sourceCategory?: string
+  // 是否虚线
+  isDashed?: boolean
+  // 是否无箭头
+  noArrow?: boolean
 }
 
 // 自定义连接线类型

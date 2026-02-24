@@ -4,9 +4,21 @@ import { BaseEdge, getSmoothStepPath, getBezierPath, type EdgeProps } from '@vue
 
 const props = defineProps<EdgeProps>()
 
-// 默认连线颜色
-const EDGE_COLOR = '#B8B8B8'
-const SELECTED_COLOR = '#1890ff'
+// 连线颜色
+const EDGE_COLOR = '#B8B8B8'          // 默认灰色（数据源连接）
+const MODEL_COLOR = '#8B5CF6'          // 紫色（模型连接）
+const COMPUTE_COLOR = '#FA8C16'        // 橙色（算力连接）
+const SELECTED_COLOR = '#1890ff'       // 选中颜色
+
+// 边数据类型
+interface EdgeDataType {
+  sourceCategory?: string
+  isDashed?: boolean
+  noArrow?: boolean
+}
+
+// 获取边数据
+const edgeData = computed(() => (props.data as EdgeDataType) || {})
 
 /**
  * 判断是否使用圆角折线
@@ -25,7 +37,7 @@ function extractPath(pathResult: string | [string, number, number, number, numbe
 
 // 计算路径（根据源节点类型选择路径类型）
 const path = computed(() => {
-  const sourceCategory = (props.data as { sourceCategory?: string })?.sourceCategory
+  const sourceCategory = edgeData.value.sourceCategory
   const useSmoothStep = shouldUseSmoothStep(sourceCategory)
 
   if (useSmoothStep) {
@@ -56,8 +68,24 @@ const path = computed(() => {
 // 箭头 ID（唯一）
 const arrowId = computed(() => `edge-arrow-${props.id}`)
 
-// 当前颜色
-const currentColor = computed(() => props.selected ? SELECTED_COLOR : EDGE_COLOR)
+// 是否显示箭头
+const showArrow = computed(() => !edgeData.value.noArrow)
+
+// 是否虚线
+const isDashed = computed(() => edgeData.value.isDashed)
+
+// 当前颜色（根据源节点类型）
+const currentColor = computed(() => {
+  if (props.selected) return SELECTED_COLOR
+
+  const sourceCategory = edgeData.value.sourceCategory
+  if (sourceCategory === 'model') return MODEL_COLOR
+  if (sourceCategory === 'computeResource') return COMPUTE_COLOR
+  return EDGE_COLOR
+})
+
+// 虚线样式
+const strokeDasharray = computed(() => isDashed.value ? '8 4' : 'none')
 </script>
 
 <template>
@@ -113,19 +141,20 @@ const currentColor = computed(() => props.selected ? SELECTED_COLOR : EDGE_COLOR
     <BaseEdge
       :id="id"
       :path="path"
-      :marker-end="`url(#${arrowId})`"
+      :marker-end="showArrow ? `url(#${arrowId})` : undefined"
       :style="{
         stroke: currentColor,
         strokeWidth: selected ? 2.5 : 2,
+        strokeDasharray: strokeDasharray,
         filter: selected ? 'url(#edge-glow)' : 'none',
         transition: 'stroke 0.2s ease, stroke-width 0.2s ease'
       }"
       class="edge-path"
     />
 
-    <!-- 单光点流动效果 -->
+    <!-- 单光点流动效果（虚线不显示） -->
     <circle
-      v-if="!selected"
+      v-if="!selected && !isDashed"
       r="3"
       fill="#1890ff"
       stroke="#fff"
