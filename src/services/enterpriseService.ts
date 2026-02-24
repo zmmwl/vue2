@@ -46,14 +46,6 @@ export async function getEnterpriseList(): Promise<Enterprise[]> {
 }
 
 /**
- * 根据 participantId 获取企业信息
- */
-export async function getEnterpriseById(participantId: string): Promise<Enterprise | undefined> {
-  const enterprises = await getEnterpriseList()
-  return enterprises.find(ent => ent.participantId === participantId)
-}
-
-/**
  * 获取指定类型的企业列表
  * @param resourceType 资源类型 - 'data' | 'model' | 'compute'
  */
