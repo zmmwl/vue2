@@ -10,13 +10,6 @@ import type { NodeData } from '@/types/nodes'
 import type { ExportJson } from '@/types/export'
 import { convertDagToJson } from '@/utils/dag-export'
 
-export interface GraphState {
-  nodes: Node<NodeData>[]
-  edges: Edge[]
-  selectedNodeId: string | null
-  detailViewMode: 'detail' | 'preview'
-}
-
 // 模块级单例状态
 const nodes = ref<Node<NodeData>[]>([])
 const edges = ref<Edge[]>([])
