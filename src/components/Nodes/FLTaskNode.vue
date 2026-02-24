@@ -302,11 +302,11 @@ function onAddModelOutput() {
 
 // Handle 样式 - 与计算任务节点保持一致
 
-// 数据源输入 handle - 长方形（顶部）- 绿色
+// 数据源输入 handle - 长方形（顶部）- 使用节点颜色
 .data-input-handle {
   width: 24px;
   height: 8px;
-  background-color: #52c41a;
+  background-color: var(--node-color, #52c41a);
   border: 2px solid #ffffff;
   border-radius: 2px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
