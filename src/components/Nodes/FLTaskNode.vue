@@ -183,15 +183,32 @@ function onAddModelOutput() {
 .fl-task-node {
   min-width: 180px;
   max-width: 220px;
-  background: var(--node-bg, var(--info-card-bg));
-  border: 2px solid var(--node-color, var(--datasource-blue));
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-card-sm);
-  transition: var(--button-transition);
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.06),
+    0 4px 12px rgba(0, 0, 0, 0.08);
+  transition: all 0.2s ease;
   cursor: pointer;
+  overflow: hidden;
+
+  // 顶部彩色边框条
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--node-color, var(--datasource-blue));
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
+  }
 
   &:hover {
-    box-shadow: var(--shadow-card-hover);
+    box-shadow:
+      0 4px 8px rgba(0, 0, 0, 0.08),
+      0 8px 24px rgba(0, 0, 0, 0.12);
     transform: translateY(-2px);
 
     // 悬停时显示所有 Handle
@@ -203,32 +220,39 @@ function onAddModelOutput() {
 
   &.is-selected {
     border-color: var(--color-primary);
-    box-shadow: var(--shadow-selected);
+    box-shadow:
+      0 2px 8px rgba(24, 144, 255, 0.15),
+      0 4px 16px rgba(24, 144, 255, 0.2);
 
     .node-handle {
       opacity: 1;
       visibility: visible;
     }
+
+    &::before {
+      background: var(--color-primary);
+    }
   }
 
   &.is-configured {
     .node-header {
-      background: linear-gradient(135deg, var(--node-color), transparent);
-      opacity: 0.9;
+      background: linear-gradient(135deg, var(--node-color), color-mix(in srgb, var(--node-color) 60%, white));
     }
   }
 }
 
 .node-header {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 12px;
-  background: linear-gradient(135deg, var(--node-color, var(--datasource-blue)), transparent);
-  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  padding: 10px 12px;
+  background: linear-gradient(135deg, var(--node-color, var(--datasource-blue)), color-mix(in srgb, var(--node-color) 70%, white));
+  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
   color: white;
   font-size: 12px;
   font-weight: 600;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
 .node-icon {
@@ -243,26 +267,30 @@ function onAddModelOutput() {
 }
 
 .mode-badge {
-  padding: 2px 6px;
-  border-radius: 4px;
+  padding: 2px 8px;
+  border-radius: 10px;
   font-size: 10px;
   font-weight: 500;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  backdrop-filter: brightness(0.95);
 
   &.training {
-    background: var(--fl-training-badge-bg);
-    color: var(--fl-training-badge-text);
+    background: rgba(255, 255, 255, 0.25);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.3);
   }
 
   &.inference {
-    background: var(--fl-inference-badge-bg);
-    color: var(--fl-inference-badge-text);
+    background: rgba(255, 255, 255, 0.25);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.3);
   }
 }
 
 .node-content {
-  padding: 10px 12px;
-  background: rgba(255, 255, 255, 0.9);
-  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+  padding: 12px;
+  background: linear-gradient(180deg, #ffffff 0%, #fafafa 100%);
+  border-radius: 0 0 calc(var(--radius-md) - 1px) calc(var(--radius-md) - 1px);
 }
 
 .task-name {
