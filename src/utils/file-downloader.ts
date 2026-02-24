@@ -45,16 +45,3 @@ export function downloadJsonFile(json: ExportJson, filename?: string): void {
   const finalFilename = filename || generateFileName(json)
   triggerDownload(blob, finalFilename)
 }
-
-/**
- * 验证 JSON 对象是否符合 ExportJson 格式
- */
-export function validateExportJson(json: any): json is ExportJson {
-  return (
-    typeof json === 'object' &&
-    json !== null &&
-    typeof json.jobId === 'string' &&
-    Array.isArray(json.participantList) &&
-    Array.isArray(json.taskList)
-  )
-}

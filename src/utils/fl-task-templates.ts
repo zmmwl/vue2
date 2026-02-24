@@ -157,14 +157,6 @@ export function getFLCategoryColor(category: FLTaskCategory): string {
   return colors[category]
 }
 
-/** 获取 FL 模式徽章颜色 */
-export function getFLModeBadgeColor(mode: FLMode): { bg: string; text: string } {
-  if (mode === FLMode.TRAINING) {
-    return { bg: '#1890FF', text: '#FFFFFF' }
-  }
-  return { bg: '#52C41A', text: '#FFFFFF' }
-}
-
 /** 获取 FL 模式显示文本 */
 export function getFLModeLabel(mode: FLMode): string {
   return mode === FLMode.TRAINING ? '训练' : '推断'

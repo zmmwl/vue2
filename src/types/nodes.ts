@@ -100,24 +100,6 @@ export enum DataSourceType {
   REALTIME = 'realtime'   // 实时数据源
 }
 
-// 输入连接点接口
-export interface InputHandle {
-  id: string
-  position: number  // 百分比位置 (0-100)
-}
-
-// 输出连接点接口
-export interface OutputHandle {
-  id: string
-  position: number  // 百分比位置 (0-100)
-}
-
-// 附着端点接口（保留兼容性）
-export interface AttachmentEndpoint {
-  id: string
-  label?: string
-}
-
 // 节点数据接口
 export interface NodeData {
   label: string
@@ -129,16 +111,9 @@ export interface NodeData {
   description?: string
   status?: 'idle' | 'running' | 'success' | 'error'
   config?: Record<string, any>
-  // ========== 数据资产相关字段 ==========
+  // 数据资产相关字段
   assetInfo?: AssetInfo         // 数据资产完整信息（已配置时存在）
   selectedFields?: string[]     // 已选字段名称列表（用于导出）
-  // =====================================
-  // 节点的输入连接点列表（动态生成，顶部）
-  inputHandles?: InputHandle[]
-  // 节点的输出连接点列表（动态生成，底部）
-  outputHandles?: OutputHandle[]
-  // 任务节点的附着端点列表（用于连接数据源，已弃用）
-  attachmentEndpoints?: AttachmentEndpoint[]
 }
 
 // 数据源节点类型
