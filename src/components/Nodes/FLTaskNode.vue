@@ -177,8 +177,8 @@ function onAddModelOutput() {
 
 <style scoped lang="scss">
 @use '@/assets/styles/variables.scss' as *;
-@import '@/assets/styles/_node-handles.scss';
-@import '@/assets/styles/_node-buttons.scss';
+@use '@/assets/styles/_node-handles.scss' as *;
+@use '@/assets/styles/_node-buttons.scss' as *;
 
 .fl-task-node {
   min-width: 180px;

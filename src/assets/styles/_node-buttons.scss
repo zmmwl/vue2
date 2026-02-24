@@ -3,6 +3,8 @@
  * 添加按钮的统一样式
  */
 
+@use 'sass:color';
+
 // ========== 添加按钮基础 Mixin ==========
 @mixin add-button-base($color, $hover-color) {
   position: absolute;
@@ -35,7 +37,7 @@
   }
 
   &:hover {
-    background: linear-gradient(135deg, $hover-color, lighten($hover-color, 10%));
+    background: linear-gradient(135deg, $hover-color, color.adjust($hover-color, $lightness: 10%));
     box-shadow: 0 3px 8px rgba(0, 0, 0, 0.4);
     transform: scale(1.1);
   }
