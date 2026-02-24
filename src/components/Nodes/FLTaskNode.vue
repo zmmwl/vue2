@@ -34,8 +34,7 @@
       :position="Position.Top"
       id="data-input"
       :style="{ left: '50%' }"
-      class="node-handle input-handle"
-      :class="{ 'is-visible': isDataInputVisible }"
+      :class="['data-input-handle', { 'is-visible': isDataInputVisible }]"
     />
     <Handle
       v-if="hasOutput"
@@ -43,8 +42,7 @@
       :position="Position.Bottom"
       id="output"
       :style="{ left: '50%' }"
-      class="node-handle output-handle"
-      :class="{ 'is-visible': isOutputVisible }"
+      :class="['output-handle', { 'is-visible': isOutputVisible }]"
     />
 
     <!-- 特征工程任务：添加输出按钮 -->
@@ -202,7 +200,8 @@ function onAddModelOutput() {
     transform: translateY(-2px);
 
     // 悬停时显示所有 Handle
-    .node-handle {
+    .data-input-handle,
+    .output-handle {
       opacity: 1;
       visibility: visible;
     }
@@ -214,7 +213,8 @@ function onAddModelOutput() {
       0 2px 8px rgba(24, 144, 255, 0.15),
       0 4px 16px rgba(24, 144, 255, 0.2);
 
-    .node-handle {
+    .data-input-handle,
+    .output-handle {
       opacity: 1;
       visibility: visible;
     }
@@ -300,31 +300,55 @@ function onAddModelOutput() {
   font-style: italic;
 }
 
-// Handle 样式 - 使用共享样式类
-.node-handle {
+// Handle 样式 - 与计算任务节点保持一致
+
+// 数据源输入 handle - 长方形（顶部）- 绿色
+.data-input-handle {
+  width: 24px;
+  height: 8px;
+  background-color: #52c41a;
+  border: 2px solid #ffffff;
+  border-radius: 2px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  transform: translateX(-50%);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+
+  &.is-visible {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  &:hover {
+    opacity: 1;
+    visibility: visible;
+    background-color: #1890ff;
+    transform: translateX(-50%) scale(1.1);
+  }
+}
+
+// 输出 handle - 圆形（底部）- 灰色
+.output-handle {
   width: 12px;
   height: 12px;
-  background: var(--node-color, var(--datasource-blue));
-  border: 2px solid white;
+  background-color: #999999;
+  border: 2px solid #ffffff;
   border-radius: 50%;
-  transition: all 0.2s ease;
+  transform: translateX(-50%);
   opacity: 0;
-}
+  transition: opacity 0.2s ease;
 
-.input-handle {
-  top: -6px;
-  left: 50%;
-  transform: translateX(-50%);
-}
+  &.is-visible {
+    opacity: 1;
+    visibility: visible;
+  }
 
-.output-handle {
-  bottom: -6px;
-  left: 50%;
-  transform: translateX(-50%);
-}
-
-.node-handle:hover {
-  transform: translateX(-50%) scale(1.3);
+  &:hover {
+    opacity: 1;
+    visibility: visible;
+    background-color: #1890ff;
+    transform: translateX(-50%) scale(1.2);
+  }
 }
 
 // 添加输出按钮（特征工程任务）- 使用共享 mixin
