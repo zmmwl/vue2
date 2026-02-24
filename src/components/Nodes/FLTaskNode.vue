@@ -231,6 +231,7 @@ function onAddModelOutput() {
   gap: 8px;
   padding: 10px 12px;
   background: linear-gradient(135deg, var(--node-color, var(--datasource-blue)), color-mix(in srgb, var(--node-color) 70%, white));
+  border-radius: calc(var(--radius-md) - 1px) calc(var(--radius-md) - 1px) 0 0;
   border-bottom: 1px solid rgba(0, 0, 0, 0.04);
   color: white;
   font-size: 12px;
