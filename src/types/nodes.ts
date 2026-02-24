@@ -68,9 +68,6 @@ export interface AssetListItem {
   enterpriseName?: string       // 企业名称（可选）
 }
 
-/** 已选字段（与 FieldInfo 结构相同） */
-export type SelectedField = FieldInfo
-
 // ========== 节点类别枚举 ==========
 export enum NodeCategory {
   DATA_SOURCE = 'data_source',
@@ -422,16 +419,6 @@ export interface ParameterConfigItem extends ModelParameterSignature {
 }
 
 // ========== 统一资源选择器相关类型 ==========
-
-/** 统一资源选择项 */
-export interface ResourceSelectionItem {
-  id: string                  // 资源唯一ID
-  name: string                // 资源名称
-  participantId: string       // 所属企业 ID
-  participantName: string     // 所属企业名称
-  type: string               // 资源类型标签
-  extraInfo?: Record<string, any>  // 额外信息
-}
 
 /** 统一资源选择结果 */
 export interface ResourceSelectionResult {
