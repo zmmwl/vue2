@@ -1112,8 +1112,6 @@ interface Emits {
   (e: 'config-fl-task', nodeId: string): void  // 配置 FL 任务
   (e: 'config-fl-output', data: { taskId: string; outputIndex: number }): void  // 配置 FL 特征工程输出
   (e: 'config-fl-model-output', data: { taskId: string; outputIndex: number }): void  // 配置 FL 模型输出
-  (e: 'add-fl-output', nodeId: string): void  // 添加 FL 输出
-  (e: 'add-fl-model-output', nodeId: string): void  // 添加 FL 模型输出
 }
 
 const props = withDefaults(defineProps<Props>(), {

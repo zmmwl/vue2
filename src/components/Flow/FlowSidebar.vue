@@ -3,7 +3,7 @@
     <!-- 滚动内容容器 -->
     <div class="sidebar-content" ref="sidebarRef">
     <!-- 数据源部分 -->
-    <div class="sidebar-section" ref="dataSourceSectionRef">
+    <div class="sidebar-section">
       <div class="section-title">数据源</div>
       <div class="node-palette">
         <div
@@ -28,7 +28,7 @@
     </div>
 
     <!-- 计算任务部分 -->
-    <div class="sidebar-section" ref="computeTaskSectionRef">
+    <div class="sidebar-section">
       <div class="section-title">计算任务</div>
       <div class="node-palette">
         <!-- 普通计算任务卡片 -->

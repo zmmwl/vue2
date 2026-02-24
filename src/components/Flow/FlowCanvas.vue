@@ -262,7 +262,6 @@ import { getEnterpriseList } from '@/services/enterpriseService'
 
 interface Emits {
   (e: 'node-selected', node: Node<NodeData> | null): void
-  (e: 'edit-asset', nodeId: string): void
 }
 
 const emit = defineEmits<Emits>()
