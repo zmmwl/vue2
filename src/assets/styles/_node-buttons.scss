@@ -157,7 +157,7 @@
   @include add-button-base(#722ED1, #9254de);
 
   bottom: -32px;
-  left: 30%;
+  left: 50%;
   transform: translateX(-50%);
 
   // 引出线
@@ -189,6 +189,4 @@
 // ========== 添加 FL 输出按钮（底部）- 绿色 ==========
 @mixin add-fl-output-button {
   @include add-output-button;
-
-  left: 70%;
 }
