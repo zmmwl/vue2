@@ -178,7 +178,6 @@ function onAddModelOutput() {
 <style scoped lang="scss">
 @use '@/assets/styles/variables.scss' as *;
 @use '@/assets/styles/_node-handles.scss' as *;
-@use '@/assets/styles/_node-buttons.scss' as *;
 
 .fl-task-node {
   min-width: 180px;
@@ -351,13 +350,123 @@ function onAddModelOutput() {
   }
 }
 
-// 添加输出按钮（特征工程任务）- 使用共享 mixin
+// 添加输出按钮（特征工程任务）- 使用节点颜色
 .add-output-btn {
-  @include add-fl-output-button;
+  position: absolute;
+  bottom: -32px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  background: linear-gradient(135deg, var(--node-color, #52C41A), var(--node-color, #73d13d));
+  border: 2px solid #fff;
+  border-radius: 4px;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  transition: box-shadow 0.2s ease;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  // 引出线
+  &::before {
+    content: '';
+    position: absolute;
+    top: -14px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 2px;
+    height: 14px;
+    background: linear-gradient(180deg, var(--node-color, #52C41A), rgba(82, 196, 26, 0.3));
+    border-radius: 1px;
+  }
+
+  // 加号
+  &::after {
+    content: '+';
+    color: white;
+    font-size: 14px;
+    font-weight: bold;
+    line-height: 1;
+  }
+
+  // 隐藏原来的文字
+  span {
+    display: none;
+  }
+
+  &:hover {
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.4);
+
+    &::before {
+      height: 16px;
+    }
+  }
+
+  &:active {
+    transform: translateX(-50%) scale(0.95);
+  }
 }
 
-// 添加模型输出按钮（横向/纵向模型任务）- 使用共享 mixin
+// 添加模型输出按钮（横向/纵向模型任务）- 使用节点颜色
 .add-model-output-btn {
-  @include add-model-output-button;
+  position: absolute;
+  bottom: -32px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  background: linear-gradient(135deg, var(--node-color, #722ED1), var(--node-color, #9254de));
+  border: 2px solid #fff;
+  border-radius: 4px;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  transition: box-shadow 0.2s ease;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  // 引出线
+  &::before {
+    content: '';
+    position: absolute;
+    top: -14px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 2px;
+    height: 14px;
+    background: linear-gradient(180deg, var(--node-color, #722ED1), rgba(114, 46, 209, 0.3));
+    border-radius: 1px;
+  }
+
+  // 加号
+  &::after {
+    content: '+';
+    color: white;
+    font-size: 14px;
+    font-weight: bold;
+    line-height: 1;
+  }
+
+  // 隐藏原来的文字
+  span {
+    display: none;
+  }
+
+  &:hover {
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.4);
+
+    &::before {
+      height: 16px;
+    }
+  }
+
+  &:active {
+    transform: translateX(-50%) scale(0.95);
+  }
 }
 </style>
