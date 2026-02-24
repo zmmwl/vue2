@@ -5,9 +5,7 @@ import { BaseEdge, getSmoothStepPath, getBezierPath, type EdgeProps } from '@vue
 const props = defineProps<EdgeProps>()
 
 // 连线颜色
-const EDGE_COLOR = '#B8B8B8'          // 默认灰色（数据源连接）
-const MODEL_COLOR = '#8B5CF6'          // 紫色（模型连接）
-const COMPUTE_COLOR = '#FA8C16'        // 橙色（算力连接）
+const EDGE_COLOR = '#B8B8B8'          // 默认灰色（所有连接）
 const SELECTED_COLOR = '#1890ff'       // 选中颜色
 
 // 边数据类型
@@ -74,18 +72,17 @@ const showArrow = computed(() => !edgeData.value.noArrow)
 // 是否虚线
 const isDashed = computed(() => edgeData.value.isDashed)
 
-// 当前颜色（根据源节点类型）
-const currentColor = computed(() => {
-  if (props.selected) return SELECTED_COLOR
-
-  const sourceCategory = edgeData.value.sourceCategory
-  if (sourceCategory === 'model') return MODEL_COLOR
-  if (sourceCategory === 'computeResource') return COMPUTE_COLOR
-  return EDGE_COLOR
-})
+// 当前颜色
+const currentColor = computed(() => props.selected ? SELECTED_COLOR : EDGE_COLOR)
 
 // 虚线样式
 const strokeDasharray = computed(() => isDashed.value ? '8 4' : 'none')
+
+// 线条宽度（虚线使用更细的线条）
+const strokeWidth = computed(() => {
+  if (props.selected) return 2.5
+  return isDashed.value ? 1.5 : 2
+})
 </script>
 
 <template>
@@ -144,7 +141,7 @@ const strokeDasharray = computed(() => isDashed.value ? '8 4' : 'none')
       :marker-end="showArrow ? `url(#${arrowId})` : undefined"
       :style="{
         stroke: currentColor,
-        strokeWidth: selected ? 2.5 : 2,
+        strokeWidth: strokeWidth,
         strokeDasharray: strokeDasharray,
         filter: selected ? 'url(#edge-glow)' : 'none',
         transition: 'stroke 0.2s ease, stroke-width 0.2s ease'
