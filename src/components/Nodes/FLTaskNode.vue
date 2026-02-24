@@ -193,18 +193,6 @@ function onAddModelOutput() {
   cursor: pointer;
   overflow: hidden;
 
-  // 顶部彩色边框条
-  &::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 3px;
-    background: var(--node-color, var(--datasource-blue));
-    border-radius: var(--radius-md) var(--radius-md) 0 0;
-  }
-
   &:hover {
     box-shadow:
       0 4px 8px rgba(0, 0, 0, 0.08),
@@ -227,10 +215,6 @@ function onAddModelOutput() {
     .node-handle {
       opacity: 1;
       visibility: visible;
-    }
-
-    &::before {
-      background: var(--color-primary);
     }
   }
 
