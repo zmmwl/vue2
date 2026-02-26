@@ -1,13 +1,22 @@
 {
-  "name": "temp-vite",
+  "name": "privacy-flow-editor",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
+  "main": "electron/main.mjs",
+  "author": "Privacy Computing Team",
+  "description": "隐私计算流程编辑器 - 可视化流程图编辑工具",
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc -b && vite build",
     "build:fast": "vite build",
     "preview": "vite preview",
+    "electron:dev": "concurrently -k \"vite\" \"wait-on http://localhost:5172 && cross-env NODE_ENV=development electron .\"",
+    "electron:build": "npm run build && tsc -p tsconfig.electron.json && mv electron/main.js electron/main.mjs && electron-builder --win --config electron-builder.json",
+    "electron:build:win": "npm run build && tsc -p tsconfig.electron.json && mv electron/main.js electron/main.mjs && electron-builder --win --config electron-builder.json",
+    "electron:build:mac": "npm run build && tsc -p tsconfig.electron.json && mv electron/main.js electron/main.mjs && electron-builder --mac --config electron-builder.json",
+    "electron:build:linux": "npm run build && tsc -p tsconfig.electron.json && mv electron/main.js electron/main.mjs && electron-builder --linux --config electron-builder.json",
+    "electron:preview": "npm run build && tsc -p tsconfig.electron.json && mv electron/main.js electron/main.mjs && electron .",
     "test": "LC_ALL=zh_CN.UTF-8 LANG=zh_CN.UTF-8 playwright test",
     "test:ui": "LC_ALL=zh_CN.UTF-8 LANG=zh_CN.UTF-8 playwright test --ui",
     "test:headed": "LC_ALL=zh_CN.UTF-8 LANG=zh_CN.UTF-8 playwright test --headed",
@@ -38,8 +47,13 @@
     "@types/node": "^24.10.1",
     "@vitejs/plugin-vue": "^6.0.1",
     "@vue/tsconfig": "^0.8.1",
+    "concurrently": "^9.2.1",
+    "cross-env": "^10.1.0",
+    "electron": "^30.0.0",
+    "electron-builder": "^26.8.1",
     "typescript": "~5.9.3",
     "vite": "^7.2.4",
-    "vue-tsc": "^3.1.4"
+    "vue-tsc": "^3.1.4",
+    "wait-on": "^9.0.4"
   }
 }

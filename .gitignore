@@ -32,3 +32,10 @@ dist-ssr
 playwright-report
 test-results
 test-results-output/
+
+# Electron build outputs
+release/
+*.zip
+*.dmg
+*.AppImage
+*.exe

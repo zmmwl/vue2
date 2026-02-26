@@ -5,6 +5,7 @@ import path from 'path'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [vue()],
+  base: './', // Electron 需要相对路径
   server: {
     port: 5172
   },
