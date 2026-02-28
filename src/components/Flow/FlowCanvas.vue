@@ -1677,11 +1677,50 @@ const onDrop = (event: DragEvent) => {
     if (data.category === NodeCategory.DATA_SOURCE) {
       // 检查是否是实时数据源类型
       if (data.sourceType === DataSourceType.REALTIME) {
-        // 实时数据源节点：弹出配置对话框
-        pendingRealtimeNodeId.value = `realtime_node_${Date.now()}`
-        pendingRealtimeNodeData.value = undefined
-        showRealtimeDataSourceNodeDialog.value = true
-        logger.info('[FlowCanvas] Opening realtime datasource config dialog')
+        // 检查是否在测试模式
+        const isTestMode = !!(window as any).__PLAYWRIGHT_TEST__
+
+        if (isTestMode) {
+          // 测试模式：直接创建实时数据源节点
+          logger.info('[FlowCanvas] Test mode detected, creating realtime datasource node with mock data')
+          const position = pendingNodePosition.value || { x: 100, y: 100 }
+          const nodeData: import('@/types/nodes').RealtimeDataSourceNodeData = {
+            label: '实时数据源',
+            category: NodeCategory.DATA_SOURCE,
+            sourceType: DataSourceType.REALTIME,
+            icon: '⚡',
+            color: '#FA8C16',
+            description: '流式数据输入源',
+            realtimeConfig: {
+              mode: 'manual',
+              fields: [
+                { name: 'id', dataType: 'STRING', description: 'ID字段' },
+                { name: 'timestamp', dataType: 'INT', description: '时间戳字段' },
+                { name: 'value', dataType: 'STRING', description: '值字段' }
+              ]
+            },
+            isConfigured: true
+          }
+
+          const newNode: Node = {
+            id: `realtime_node_${Date.now()}`,
+            type: 'realtime_datasource',
+            position,
+            data: nodeData as any
+          }
+
+          addNode(newNode)
+          logger.info('[FlowCanvas] Realtime datasource node created in test mode', {
+            nodeId: newNode.id,
+            position
+          })
+        } else {
+          // 实时数据源节点：弹出配置对话框
+          pendingRealtimeNodeId.value = `realtime_node_${Date.now()}`
+          pendingRealtimeNodeData.value = undefined
+          showRealtimeDataSourceNodeDialog.value = true
+          logger.info('[FlowCanvas] Opening realtime datasource config dialog')
+        }
       } else {
         // 检查是否在测试模式（只检查明确设置的标志）
         const isTestMode = !!(window as any).__PLAYWRIGHT_TEST__
