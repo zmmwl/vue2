@@ -94,6 +94,14 @@ export enum TechPath {
   TEE = 'TEE'                           // 硬件 TEE
 }
 
+/** 算法配置（导出格式） */
+export interface AlgorithmConfig {
+  algorithmId: string          // 算法 ID
+  algorithmName: string        // 算法名称
+  algorithmVersion: string     // 算法版本
+  algorithmParams: Record<string, any>  // 算法参数
+}
+
 /** 计算任务配置 */
 export interface Task {
   taskId: string               // 任务唯一标识
@@ -107,6 +115,7 @@ export interface Task {
   computeProviderList?: ComputeProvider[]  // 算力提供者列表
   resultConsumerList: ResultConsumer[]  // 结果消费者列表
   isFinalTask?: boolean        // 是否为最终任务（可选）
+  algorithmConfig?: AlgorithmConfig  // 算法配置（可选）
 }
 
 // ========== 导出 JSON 结构 ==========

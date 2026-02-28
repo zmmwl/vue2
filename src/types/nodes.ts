@@ -1,5 +1,21 @@
 import type { Node } from '@vue-flow/core'
 
+// ========== 算法配置相关类型（从algorithm.ts导入） ==========
+
+/** 参数值类型 */
+export type ParamValue = string | number | boolean | Date | object | any[]
+
+/** 任务算法配置（存储在任务节点中） */
+export interface TaskAlgorithmConfig {
+  // 算法引用
+  algorithmId: string          // 算法ID (如: "SPDZ-v1.0")
+  algorithmName: string        // 算法名称 (冗余存储，便于显示)
+  algorithmVersion: string     // 算法版本
+
+  // 用户填写的参数值
+  algorithmParams: Record<string, ParamValue>
+}
+
 // ========== 数据资产相关类型 ==========
 
 /** 字段信息 */
@@ -201,6 +217,8 @@ export interface ComputeTaskNodeData extends NodeData {
   computeProviders?: ComputeResourceConfig[]
   // 输出数据配置
   outputs?: OutputDataConfig[]
+  // 算法配置（Feature: 004-algorithm-selection）
+  algorithmConfig?: TaskAlgorithmConfig
 }
 
 /** 模型节点数据 */

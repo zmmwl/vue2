@@ -1,9 +1,8 @@
 <script setup lang="ts">
-import FlowEditor from '@/views/FlowEditor.vue'
 </script>
 
 <template>
-  <FlowEditor />
+  <router-view />
 </template>
 
 <style>

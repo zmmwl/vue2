@@ -10,12 +10,28 @@
       <button class="header-btn">保存</button>
       <button class="header-btn" @click="handleExport">导出</button>
       <button class="header-btn" @click="handleImport">导入</button>
-      <button class="header-btn">设置</button>
+
+      <!-- 设置下拉菜单 -->
+      <div class="settings-dropdown" ref="dropdownRef">
+        <button class="header-btn" @click="toggleDropdown">
+          设置
+          <span class="dropdown-arrow" :class="{ open: isDropdownOpen }">▼</span>
+        </button>
+        <div class="dropdown-menu" v-show="isDropdownOpen">
+          <div class="dropdown-item" @click="handleAlgorithmManager">
+            <span class="item-icon">⚙️</span>
+            <span class="item-text">算法管理</span>
+          </div>
+        </div>
+      </div>
     </div>
   </header>
 </template>
 
 <script setup lang="ts">
+import { ref, onMounted, onUnmounted } from 'vue'
+import { useRouter } from 'vue-router'
+
 interface Emits {
   (e: 'export'): void
   (e: 'import'): void
@@ -23,6 +39,10 @@ interface Emits {
 }
 
 const emit = defineEmits<Emits>()
+const router = useRouter()
+
+const isDropdownOpen = ref(false)
+const dropdownRef = ref<HTMLElement | null>(null)
 
 function handleExport() {
   emit('export')
@@ -35,6 +55,34 @@ function handleImport() {
 function handleAutoLayout() {
   emit('autoLayout')
 }
+
+function toggleDropdown() {
+  isDropdownOpen.value = !isDropdownOpen.value
+}
+
+function closeDropdown() {
+  isDropdownOpen.value = false
+}
+
+function handleAlgorithmManager() {
+  closeDropdown()
+  router.push('/algorithm-manager')
+}
+
+// 点击外部关闭下拉菜单
+function handleClickOutside(event: MouseEvent) {
+  if (dropdownRef.value && !dropdownRef.value.contains(event.target as Node)) {
+    closeDropdown()
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('click', handleClickOutside)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside)
+})
 </script>
 
 <style scoped lang="scss">
@@ -89,6 +137,9 @@ function handleAutoLayout() {
   cursor: pointer;
   transition: all 0.2s ease;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  display: flex;
+  align-items: center;
+  gap: 4px;
 
   &:hover {
     background: #f5f5f5;
@@ -106,6 +157,54 @@ function handleAutoLayout() {
       border-color: #40a9ff;
       color: #ffffff;
     }
+  }
+}
+
+.dropdown-arrow {
+  font-size: 10px;
+  transition: transform 0.2s ease;
+
+  &.open {
+    transform: rotate(180deg);
+  }
+}
+
+.settings-dropdown {
+  position: relative;
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  min-width: 160px;
+  background: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+  overflow: hidden;
+}
+
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+
+  &:hover {
+    background: #f5f5f5;
+  }
+
+  .item-icon {
+    font-size: 14px;
+  }
+
+  .item-text {
+    font-size: 13px;
+    color: #333333;
   }
 }
 </style>

@@ -428,6 +428,25 @@
           </div>
         </div>
 
+        <!-- 算法配置 -->
+        <div class="info-section algorithm-section">
+          <AlgorithmSelector
+            v-if="taskData?.taskType"
+            :compute-type="taskData.taskType"
+            :is-t-e-e="taskData.techPath === TechPath.TEE"
+            :model-value="taskData.algorithmConfig || null"
+            @update:model-value="handleAlgorithmConfigChange"
+            @change="handleAlgorithmChange"
+          />
+          <!-- 动态参数表单 -->
+          <DynamicParamForm
+            v-if="currentAlgorithm?.paramTemplate?.length"
+            :params="currentAlgorithm.paramTemplate"
+            :model-value="taskData?.algorithmConfig?.algorithmParams || {}"
+            @update:model-value="handleParamValuesChange"
+          />
+        </div>
+
         <!-- 输入数据 -->
         <CollapsibleSection title="输入数据" :count="inputProvidersCount">
           <div v-if="!inputProviders || inputProviders.length === 0" class="empty-inputs">
@@ -956,12 +975,89 @@ import JsonPreviewPanel from './JsonPreviewPanel.vue'
 import ModelParamProgress from './ModelCard/ModelParamProgress.vue'
 import ModelParameterPreview from './ModelCard/ModelParameterPreview.vue'
 import InputProviderConfig from '@/components/Modals/InputProviderConfig.vue'
+import AlgorithmSelector from '@/components/Algorithm/AlgorithmSelector.vue'
+import DynamicParamForm from '@/components/Algorithm/DynamicParamForm.vue'
+import { algorithmService } from '@/services/algorithmService'
+import type { Algorithm, TaskAlgorithmConfig, ParamValue } from '@/types/algorithm'
+import { useGraphState } from '@/composables/useGraphState'
+
+// 使用共享的图状态管理
+const { nodes } = useGraphState()
 
 // 企业数据缓存
 const enterpriseCache = ref<Map<string, { name: string; participantId: string }>>(new Map())
 
 // 模型参数签名缓存
 const modelSignaturesCache = ref<Map<string, ModelParameterSignature[]>>(new Map())
+
+// 当前选中的算法（用于显示参数表单）
+const currentAlgorithm = ref<Algorithm | null>(null)
+
+/**
+ * 加载算法详情
+ */
+async function loadAlgorithmDetail(algorithmId: string) {
+  try {
+    const response = await algorithmService.getById(algorithmId)
+    if (response.code === 0 && response.data) {
+      currentAlgorithm.value = response.data
+    }
+  } catch (error) {
+    logger.error('[FlowDetailPanel] Failed to load algorithm detail', error)
+  }
+}
+
+/**
+ * 处理算法配置变化
+ */
+function handleAlgorithmConfigChange(config: TaskAlgorithmConfig | null) {
+  if (!props.selectedNode) return
+
+  const nodeIndex = nodes.value.findIndex(n => n.id === props.selectedNode?.id)
+  if (nodeIndex !== -1) {
+    const node = nodes.value[nodeIndex]
+    if (node) {
+      nodes.value[nodeIndex] = {
+        ...node,
+        data: {
+          ...node.data,
+          algorithmConfig: config
+        } as NodeData
+      }
+    }
+  }
+}
+
+/**
+ * 处理算法选择变化
+ */
+function handleAlgorithmChange(algorithm: Algorithm | null) {
+  currentAlgorithm.value = algorithm
+}
+
+/**
+ * 处理参数值变化
+ */
+function handleParamValuesChange(params: Record<string, ParamValue>) {
+  if (!props.selectedNode) return
+
+  const nodeIndex = nodes.value.findIndex(n => n.id === props.selectedNode?.id)
+  if (nodeIndex !== -1) {
+    const node = nodes.value[nodeIndex]
+    if (node && (node.data as ComputeTaskNodeData).algorithmConfig) {
+      nodes.value[nodeIndex] = {
+        ...node,
+        data: {
+          ...node.data,
+          algorithmConfig: {
+            ...(node.data as ComputeTaskNodeData).algorithmConfig!,
+            algorithmParams: params
+          }
+        } as NodeData
+      }
+    }
+  }
+}
 
 // 输入数据源配置弹窗状态
 const showInputProviderConfig = ref(false)
@@ -1950,6 +2046,13 @@ watch(() => props.selectedNode, (node) => {
         }
       })
     }
+
+    // 如果是计算任务节点且有算法配置，加载算法详情
+    if (isComputeTaskNode.value && taskData.value?.algorithmConfig?.algorithmId) {
+      loadAlgorithmDetail(taskData.value.algorithmConfig.algorithmId)
+    } else {
+      currentAlgorithm.value = null
+    }
   }
 }, { immediate: true })
 </script>
@@ -2179,6 +2282,19 @@ watch(() => props.selectedNode, (node) => {
   &:hover {
     box-shadow: var(--shadow-card-md);
     border-color: rgba(14, 165, 233, 0.1);
+  }
+
+  // 算法配置区域特殊样式
+  &.algorithm-section {
+    padding: 0;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+
+    &:hover {
+      box-shadow: none;
+      border-color: transparent;
+    }
   }
 }
 

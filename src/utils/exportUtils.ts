@@ -1,6 +1,8 @@
 import type { Node, Edge } from '@vue-flow/core'
-import type { NodeData } from '@/types/nodes'
+import type { NodeData, ComputeTaskNodeData } from '@/types/nodes'
+import type { TaskAlgorithmConfig } from '@/types/algorithm'
 import { logger } from '@/utils/logger'
+import { algorithmService } from '@/services/algorithmService'
 
 /**
  * 导出数据结构
@@ -80,4 +82,60 @@ export function restoreNodes(exportedNodes: ExportedNode[]): Node[] {
     position: exportedNode.position,
     data: exportedNode.data
   }))
+}
+
+/**
+ * 算法验证结果
+ */
+export interface AlgorithmValidationResult {
+  valid: boolean
+  missingAlgorithms: Array<{
+    nodeId: string
+    nodeName: string
+    algorithmId: string
+    algorithmName: string
+  }>
+}
+
+/**
+ * 验证导入数据中的算法是否存在
+ * @param nodes 导入的节点列表
+ * @returns 验证结果，包含缺失的算法列表
+ */
+export async function validateAlgorithms(nodes: ExportedNode[]): Promise<AlgorithmValidationResult> {
+  const missingAlgorithms: AlgorithmValidationResult['missingAlgorithms'] = []
+
+  for (const node of nodes) {
+    // 只检查计算任务节点
+    if (node.type === 'compute_task' || node.type === 'pir_task' || node.type === 'fl_task') {
+      const data = node.data as ComputeTaskNodeData
+      const algorithmConfig = data.algorithmConfig as TaskAlgorithmConfig | undefined
+
+      if (algorithmConfig?.algorithmId) {
+        try {
+          const response = await algorithmService.getById(algorithmConfig.algorithmId)
+          if (response.code !== 0 || !response.data) {
+            missingAlgorithms.push({
+              nodeId: node.id,
+              nodeName: data.label || node.id,
+              algorithmId: algorithmConfig.algorithmId,
+              algorithmName: algorithmConfig.algorithmName
+            })
+          }
+        } catch {
+          missingAlgorithms.push({
+            nodeId: node.id,
+            nodeName: data.label || node.id,
+            algorithmId: algorithmConfig.algorithmId,
+            algorithmName: algorithmConfig.algorithmName
+          })
+        }
+      }
+    }
+  }
+
+  return {
+    valid: missingAlgorithms.length === 0,
+    missingAlgorithms
+  }
 }

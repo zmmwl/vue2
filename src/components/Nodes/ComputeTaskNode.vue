@@ -30,6 +30,10 @@
         <div v-if="techPathLabel" class="node-meta">
           {{ techPathLabel }}
         </div>
+        <!-- 显示算法信息 -->
+        <div v-if="algorithmInfo" class="node-meta algorithm-meta">
+          {{ algorithmInfo }}
+        </div>
         <!-- 显示输入数据源数量 -->
         <div v-if="inputProvidersCount > 0" class="node-meta">
           输入: {{ inputProvidersCount }} 个数据源
@@ -136,6 +140,16 @@ const inputProvidersCount = computed(() => {
 const outputsCount = computed(() => {
   const taskData = props.data as ComputeTaskNodeData
   return taskData.outputs?.length || 0
+})
+
+// 算法信息
+const algorithmInfo = computed(() => {
+  const taskData = props.data as ComputeTaskNodeData
+  const config = taskData.algorithmConfig
+  if (config) {
+    return `${config.algorithmName} (${config.algorithmVersion})`
+  }
+  return null
 })
 </script>
 

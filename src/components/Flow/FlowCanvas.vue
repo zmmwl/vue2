@@ -259,6 +259,9 @@ import { sortEnterprisesByPriority } from '@/utils/enterprise-sorter'
 import { useGraphState } from '@/composables/useGraphState'
 import { EXPRESSION_MODEL_OUTPUT, getDataTypeName, getModelInputSignatures } from '@/services/model-mock-service'
 import { getEnterpriseList } from '@/services/enterpriseService'
+import { algorithmService } from '@/services/algorithmService'
+import { getAlgorithmTypeByTask } from '@/types/algorithm'
+import type { TaskAlgorithmConfig } from '@/types/algorithm'
 
 interface Emits {
   (e: 'node-selected', node: Node<NodeData> | null): void
@@ -1887,7 +1890,9 @@ function createNode(
       joinConditions: (data as any).joinConditions || [],
       models: (data as any).models || [],
       computeProviders: (data as any).computeProviders || [],
-      outputs: (data as any).outputs || []
+      outputs: (data as any).outputs || [],
+      // 算法配置（初始为空，稍后自动匹配）
+      algorithmConfig: undefined
     } as NodeData
   }
 
@@ -1906,6 +1911,59 @@ function createNode(
     nodeCategory: newNode.data.category,
     techPath: techPath
   })
+
+  // 自动匹配默认算法（仅对计算任务节点）
+  if (data.category === NodeCategory.COMPUTE_TASK && data.taskType && techPath) {
+    autoMatchAlgorithm(newNode.id, data.taskType, techPath)
+  }
+}
+
+/**
+ * 自动匹配默认算法
+ */
+async function autoMatchAlgorithm(
+  nodeId: string,
+  taskType: string,
+  techPath: TechPath
+) {
+  try {
+    const isTEE = techPath === TechPath.TEE
+    const algorithmType = getAlgorithmTypeByTask(taskType, isTEE)
+
+    const response = await algorithmService.getDefault(algorithmType)
+    if (response.code === 0 && response.data) {
+      const algo = response.data
+      const config: TaskAlgorithmConfig = {
+        algorithmId: algo.id,
+        algorithmName: algo.name,
+        algorithmVersion: algo.version,
+        algorithmParams: {}
+      }
+
+      // 更新节点的算法配置
+      const nodeIndex = nodes.value.findIndex(n => n.id === nodeId)
+      if (nodeIndex !== -1) {
+        const existingNode = nodes.value[nodeIndex]
+        if (existingNode) {
+          nodes.value[nodeIndex] = {
+            ...existingNode,
+            data: {
+              ...existingNode.data,
+              algorithmConfig: config
+            } as NodeData
+          }
+
+          logger.info('[FlowCanvas] Auto-matched algorithm for node', {
+            nodeId,
+            algorithmId: algo.id,
+            algorithmName: algo.name
+          })
+        }
+      }
+    }
+  } catch (error) {
+    logger.warn('[FlowCanvas] Failed to auto-match algorithm', { nodeId, error })
+  }
 }
 
 /**

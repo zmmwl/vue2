@@ -499,6 +499,13 @@ export function buildTask(
     computeProviderList: buildComputeProviderList(data.computeProviders || []),
     resultConsumerList: buildResultConsumerList(data.outputs || []),
     isFinalTask: isFinalTask || data.computeType === 'CONCAT',
+    // 算法配置
+    algorithmConfig: data.algorithmConfig ? {
+      algorithmId: data.algorithmConfig.algorithmId,
+      algorithmName: data.algorithmConfig.algorithmName,
+      algorithmVersion: data.algorithmConfig.algorithmVersion,
+      algorithmParams: data.algorithmConfig.algorithmParams || {}
+    } : undefined,
     // PIR 和 FL 任务的扩展参数
     ...pirTaskParams,
     ...flTaskParams

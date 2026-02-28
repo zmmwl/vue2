@@ -17,11 +17,11 @@
 
 **Goal**: 创建基础类型定义、Mock服务和状态管理
 
-- [ ] T001 [P] Create algorithm type definitions in `src/types/algorithm.ts`
-- [ ] T002 [P] Create algorithm mock data with 10-15 preset algorithms in `src/utils/algorithm-mock-data.ts`
-- [ ] T003 [P] Create AlgorithmService class with CRUD methods in `src/services/algorithmService.ts`
-- [ ] T004 Create useAlgorithmState composable in `src/composables/useAlgorithmState.ts`
-- [ ] T005 Extend ComputeTaskNodeData interface to include algorithmConfig in `src/types/nodes.ts`
+- [X] T001 [P] Create algorithm type definitions in `src/types/algorithm.ts`
+- [X] T002 [P] Create algorithm mock data with 10-15 preset algorithms in `src/utils/algorithm-mock-data.ts`
+- [X] T003 [P] Create AlgorithmService class with CRUD methods in `src/services/algorithmService.ts`
+- [X] T004 Create useAlgorithmState composable in `src/composables/useAlgorithmState.ts`
+- [X] T005 Extend ComputeTaskNodeData interface to include algorithmConfig in `src/types/nodes.ts`
 
 ---
 
@@ -29,10 +29,10 @@
 
 **Goal**: 实现导航入口和路由配置，为用户故事提供基础
 
-- [ ] T006 Add Vue Router configuration for algorithm management page in `src/router/index.ts`
-- [ ] T007 Modify FlowHeader to add dropdown menu on "设置" button in `src/components/Flow/FlowHeader.vue`
-- [ ] T008 Add "算法管理" menu item to settings dropdown in `src/components/Flow/FlowHeader.vue`
-- [ ] T009 Create AlgorithmManager page shell in `src/views/AlgorithmManager.vue`
+- [X] T006 Add Vue Router configuration for algorithm management page in `src/router/index.ts`
+- [X] T007 Modify FlowHeader to add dropdown menu on "设置" button in `src/components/Flow/FlowHeader.vue`
+- [X] T008 Add "算法管理" menu item to settings dropdown in `src/components/Flow/FlowHeader.vue`
+- [X] T009 Create AlgorithmManager page shell in `src/views/AlgorithmManager.vue`
 
 ---
 
@@ -44,11 +44,11 @@
 
 ### Tasks
 
-- [ ] T010 [US1] Create AlgorithmSelector component for task detail panel in `src/components/Algorithm/AlgorithmSelector.vue`
-- [ ] T011 [US1] Implement auto-match algorithm logic on task node creation in `src/composables/useNodeEvents.ts`
-- [ ] T012 [US1] Add algorithm display section to FlowDetailPanel in `src/components/Flow/FlowDetailPanel.vue`
-- [ ] T013 [US1] Display selected algorithm name and version in ComputeTaskNode in `src/components/Nodes/ComputeTaskNode.vue`
-- [ ] T014 [US1] Handle "no available algorithm" case with empty state in `src/components/Algorithm/AlgorithmSelector.vue`
+- [X] T010 [US1] Create AlgorithmSelector component for task detail panel in `src/components/Algorithm/AlgorithmSelector.vue`
+- [X] T011 [US1] Implement auto-match algorithm logic on task node creation in `src/composables/useNodeEvents.ts`
+- [X] T012 [US1] Add algorithm display section to FlowDetailPanel in `src/components/Flow/FlowDetailPanel.vue`
+- [X] T013 [US1] Display selected algorithm name and version in ComputeTaskNode in `src/components/Nodes/ComputeTaskNode.vue`
+- [X] T014 [US1] Handle "no available algorithm" case with empty state in `src/components/Algorithm/AlgorithmSelector.vue`
 
 ---
 
@@ -62,10 +62,10 @@
 
 ### Tasks
 
-- [ ] T015 [US2] Add dropdown list to AlgorithmSelector showing available algorithms in `src/components/Algorithm/AlgorithmSelector.vue`
-- [ ] T016 [US2] Implement algorithm filtering by computeType in `src/services/algorithmService.ts`
-- [ ] T017 [US2] Add algorithm change handler to clear params and update form in `src/composables/useAlgorithmState.ts`
-- [ ] T018 [US2] Update FlowDetailPanel to respond to algorithm selection changes in `src/components/Flow/FlowDetailPanel.vue`
+- [X] T015 [US2] Add dropdown list to AlgorithmSelector showing available algorithms in `src/components/Algorithm/AlgorithmSelector.vue`
+- [X] T016 [US2] Implement algorithm filtering by computeType in `src/services/algorithmService.ts`
+- [X] T017 [US2] Add algorithm change handler to clear params and update form in `src/composables/useAlgorithmState.ts`
+- [X] T018 [US2] Update FlowDetailPanel to respond to algorithm selection changes in `src/components/Flow/FlowDetailPanel.vue`
 
 ---
 
@@ -79,12 +79,12 @@
 
 ### Tasks
 
-- [ ] T019 [P] [US3] Create DynamicParamForm component in `src/components/Algorithm/DynamicParamForm.vue`
-- [ ] T020 [P] [US3] Implement input controls for 8 param types (string, integer, float, boolean, enum, date, json, array) in `src/components/Algorithm/DynamicParamForm.vue`
-- [ ] T021 [US3] Implement validation rules (required, min/max length, min/max value, pattern, enum) in `src/components/Algorithm/DynamicParamForm.vue`
-- [ ] T022 [US3] Add DynamicParamForm to FlowDetailPanel when algorithm has params in `src/components/Flow/FlowDetailPanel.vue`
-- [ ] T023 [US3] Extend dag-export to include algorithmConfig in task export in `src/utils/dag-export.ts`
-- [ ] T024 [US3] Store user-filled params in task node's algorithmConfig in `src/composables/useGraphState.ts`
+- [X] T019 [P] [US3] Create DynamicParamForm component in `src/components/Algorithm/DynamicParamForm.vue`
+- [X] T020 [P] [US3] Implement input controls for 8 param types (string, integer, float, boolean, enum, date, json, array) in `src/components/Algorithm/DynamicParamForm.vue`
+- [X] T021 [US3] Implement validation rules (required, min/max length, min/max value, pattern, enum) in `src/components/Algorithm/DynamicParamForm.vue`
+- [X] T022 [US3] Add DynamicParamForm to FlowDetailPanel when algorithm has params in `src/components/Flow/FlowDetailPanel.vue`
+- [X] T023 [US3] Extend dag-export to include algorithmConfig in task export in `src/utils/dag-export.ts`
+- [X] T024 [US3] Store user-filled params in task node's algorithmConfig in `src/composables/useGraphState.ts`
 
 ---
 
@@ -98,13 +98,13 @@
 
 ### Tasks
 
-- [ ] T025 [P] [US4] Create AlgorithmList component in `src/components/Algorithm/AlgorithmList.vue`
-- [ ] T026 [P] [US4] Add type filter dropdown to AlgorithmList in `src/components/Algorithm/AlgorithmList.vue`
-- [ ] T027 [P] [US4] Add keyword search input to AlgorithmList in `src/components/Algorithm/AlgorithmList.vue`
-- [ ] T028 [US4] Implement delete algorithm with usage check in `src/services/algorithmService.ts`
-- [ ] T029 [US4] Add delete confirmation dialog with usage warning in `src/components/Algorithm/AlgorithmList.vue`
-- [ ] T030 [US4] Integrate AlgorithmList into AlgorithmManager page in `src/views/AlgorithmManager.vue`
-- [ ] T031 [US4] Add return button to navigate back to FlowEditor in `src/views/AlgorithmManager.vue`
+- [X] T025 [P] [US4] Create AlgorithmList component in `src/components/Algorithm/AlgorithmList.vue`
+- [X] T026 [P] [US4] Add type filter dropdown to AlgorithmList in `src/components/Algorithm/AlgorithmList.vue`
+- [X] T027 [P] [US4] Add keyword search input to AlgorithmList in `src/components/Algorithm/AlgorithmList.vue`
+- [X] T028 [US4] Implement delete algorithm with usage check in `src/services/algorithmService.ts`
+- [X] T029 [US4] Add delete confirmation dialog with usage warning in `src/components/Algorithm/AlgorithmList.vue`
+- [X] T030 [US4] Integrate AlgorithmList into AlgorithmManager page in `src/views/AlgorithmManager.vue`
+- [X] T031 [US4] Add return button to navigate back to FlowEditor in `src/views/AlgorithmManager.vue`
 
 ---
 
@@ -118,11 +118,11 @@
 
 ### Tasks
 
-- [ ] T032 [P] [US5] Create AlgorithmForm component in `src/components/Algorithm/AlgorithmForm.vue`
-- [ ] T033 [US5] Add form validation for name, nameEn, version, type fields in `src/components/Algorithm/AlgorithmForm.vue`
-- [ ] T034 [US5] Add file upload button (placeholder, mock mode) in `src/components/Algorithm/AlgorithmForm.vue`
-- [ ] T035 [US5] Integrate AlgorithmForm into AlgorithmManager page in `src/views/AlgorithmManager.vue`
-- [ ] T036 [US5] Implement create algorithm API call with auto-generated ID and createdAt timestamp in `src/services/algorithmService.ts`
+- [X] T032 [P] [US5] Create AlgorithmForm component in `src/components/Algorithm/AlgorithmForm.vue`
+- [X] T033 [US5] Add form validation for name, nameEn, version, type fields in `src/components/Algorithm/AlgorithmForm.vue`
+- [X] T034 [US5] Add file upload button (placeholder, mock mode) in `src/components/Algorithm/AlgorithmForm.vue`
+- [X] T035 [US5] Integrate AlgorithmForm into AlgorithmManager page in `src/views/AlgorithmManager.vue`
+- [X] T036 [US5] Implement create algorithm API call with auto-generated ID and createdAt timestamp in `src/services/algorithmService.ts`
 
 ---
 
@@ -136,11 +136,11 @@
 
 ### Tasks
 
-- [ ] T037 [P] [US6] Create ParamTemplateEditor component in `src/components/Algorithm/ParamTemplateEditor.vue`
-- [ ] T038 [P] [US6] Add param type selector with validation options in `src/components/Algorithm/ParamTemplateEditor.vue`
+- [X] T037 [P] [US6] Create ParamTemplateEditor component in `src/components/Algorithm/ParamTemplateEditor.vue`
+- [X] T038 [P] [US6] Add param type selector with validation options in `src/components/Algorithm/ParamTemplateEditor.vue`
 - [ ] T039 [US6] Implement drag-to-reorder for param list in `src/components/Algorithm/ParamTemplateEditor.vue`
-- [ ] T040 [US6] Integrate ParamTemplateEditor into AlgorithmForm in `src/components/Algorithm/AlgorithmForm.vue`
-- [ ] T041 [US6] Convert param template to structured format on save in `src/services/algorithmService.ts`
+- [X] T040 [US6] Integrate ParamTemplateEditor into AlgorithmForm in `src/components/Algorithm/AlgorithmForm.vue`
+- [X] T041 [US6] Convert param template to structured format on save in `src/services/algorithmService.ts`
 
 ---
 
@@ -148,9 +148,9 @@
 
 **Goal**: 完善用户体验，处理边缘情况
 
-- [ ] T042 Add error handling for algorithm service unavailability in `src/composables/useAlgorithmState.ts`
-- [ ] T043 Add loading states for algorithm list and selector in `src/components/Algorithm/AlgorithmList.vue`
-- [ ] T044 Handle import JSON with missing algorithms (show warning) in `src/utils/dag-export.ts`
+- [X] T042 Add error handling for algorithm service unavailability in `src/composables/useAlgorithmState.ts`
+- [X] T043 Add loading states for algorithm list and selector in `src/components/Algorithm/AlgorithmList.vue`
+- [X] T044 Handle import JSON with missing algorithms (show warning) in `src/utils/dag-export.ts`
 
 ---
 
