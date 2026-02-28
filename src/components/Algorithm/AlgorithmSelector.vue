@@ -1,24 +1,17 @@
 <template>
   <div class="algorithm-selector" ref="selectorRef">
-    <div class="selector-header">
-      <span class="selector-label">算法</span>
-      <button
-        v-if="algorithm"
-        class="change-btn"
-        @click="toggleDropdown"
-        title="更换算法"
-      >
-        {{ showDropdown ? '收起' : '更换' }}
-      </button>
-    </div>
-
     <!-- 有可用算法时显示 -->
     <div v-if="algorithm" class="algorithm-info" @click="toggleDropdown">
       <div class="algorithm-main">
         <div class="algorithm-name">{{ algorithm.name }}</div>
         <div class="algorithm-version">{{ algorithm.version }}</div>
       </div>
-      <span class="dropdown-icon" :class="{ open: showDropdown }">▼</span>
+      <div class="algorithm-actions">
+        <button class="change-btn" @click.stop="toggleDropdown" title="更换算法">
+          {{ showDropdown ? '收起' : '更换' }}
+        </button>
+        <span class="dropdown-icon" :class="{ open: showDropdown }">▼</span>
+      </div>
     </div>
 
     <!-- 算法下拉列表 -->
@@ -47,13 +40,13 @@
     </div>
 
     <!-- 无可用算法时显示空状态 -->
-    <div v-else-if="!loading" class="algorithm-empty">
+    <div v-if="!algorithm && !isLoading" class="algorithm-empty">
       <span class="empty-icon">⚠️</span>
       <span class="empty-text">暂无可用算法</span>
     </div>
 
     <!-- 加载中状态 -->
-    <div v-else class="algorithm-loading">
+    <div v-if="!algorithm && isLoading" class="algorithm-loading">
       <span class="loading-text">加载中...</span>
     </div>
   </div>
@@ -63,7 +56,6 @@
 import { ref, watch, onMounted, onUnmounted } from 'vue'
 import type { Algorithm, TaskAlgorithmConfig } from '@/types/algorithm'
 import { AlgorithmType } from '@/types/algorithm'
-import { useAlgorithmState } from '@/composables/useAlgorithmState'
 import { algorithmService } from '@/services/algorithmService'
 
 interface Props {
@@ -84,12 +76,9 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<Emits>()
 
-const {
-  loading,
-  selectedAlgorithm: algorithm,
-  getDefaultAlgorithm,
-  setCurrentTaskConfig
-} = useAlgorithmState()
+// 组件内部状态（不使用共享状态）
+const algorithm = ref<Algorithm | null>(null)
+const isLoading = ref(true)
 
 // 下拉列表状态
 const selectorRef = ref<HTMLElement | null>(null)
@@ -171,34 +160,46 @@ async function handleSelectAlgorithm(algo: Algorithm) {
  * 自动匹配默认算法
  */
 async function autoMatchAlgorithm() {
-  if (props.modelValue) {
-    // 已有配置，加载对应的算法信息
-    setCurrentTaskConfig(props.modelValue)
-    return
-  }
+  isLoading.value = true
 
-  // 获取默认算法
-  const defaultAlgo = await getDefaultAlgorithm(
-    getAlgorithmType(props.computeType, props.isTEE)
-  )
-
-  if (defaultAlgo) {
-    algorithm.value = defaultAlgo
-
-    // 创建算法配置
-    const config: TaskAlgorithmConfig = {
-      algorithmId: defaultAlgo.id,
-      algorithmName: defaultAlgo.name,
-      algorithmVersion: defaultAlgo.version,
-      algorithmParams: {}
+  try {
+    // 如果已有配置，加载对应的算法信息
+    if (props.modelValue?.algorithmId) {
+      const response = await algorithmService.getById(props.modelValue.algorithmId)
+      if (response.code === 0 && response.data) {
+        algorithm.value = response.data
+      }
+      return
     }
 
-    emit('update:modelValue', config)
-    emit('change', defaultAlgo)
-  } else {
+    // 获取默认算法
+    const type = getAlgorithmType(props.computeType, props.isTEE)
+    const response = await algorithmService.getDefault(type)
+
+    if (response.code === 0 && response.data) {
+      const defaultAlgo = response.data
+      algorithm.value = defaultAlgo
+
+      // 创建算法配置
+      const config: TaskAlgorithmConfig = {
+        algorithmId: defaultAlgo.id,
+        algorithmName: defaultAlgo.name,
+        algorithmVersion: defaultAlgo.version,
+        algorithmParams: {}
+      }
+
+      emit('update:modelValue', config)
+      emit('change', defaultAlgo)
+    } else {
+      algorithm.value = null
+      emit('update:modelValue', null)
+      emit('change', null)
+    }
+  } catch (error) {
+    console.error('Failed to auto-match algorithm:', error)
     algorithm.value = null
-    emit('update:modelValue', null)
-    emit('change', null)
+  } finally {
+    isLoading.value = false
   }
 }
 
@@ -224,6 +225,21 @@ watch(
   }
 )
 
+// 监听 modelValue 变化（外部更新时重新加载）
+watch(
+  () => props.modelValue?.algorithmId,
+  (newId, oldId) => {
+    if (newId && newId !== oldId && newId !== algorithm.value?.id) {
+      // 外部更新了算法配置，重新加载
+      algorithmService.getById(newId).then(response => {
+        if (response.code === 0 && response.data) {
+          algorithm.value = response.data
+        }
+      })
+    }
+  }
+)
+
 // 组件挂载时自动匹配
 onMounted(() => {
   autoMatchAlgorithm()
@@ -237,60 +253,30 @@ onUnmounted(() => {
 
 <style scoped lang="scss">
 .algorithm-selector {
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
-  padding: 12px;
   position: relative;
-}
-
-.selector-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 8px;
-}
-
-.selector-label {
-  font-size: 13px;
-  font-weight: 500;
-  color: #374151;
-}
-
-.change-btn {
-  font-size: 12px;
-  color: #1890ff;
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 2px 8px;
-  border-radius: 4px;
-
-  &:hover {
-    background: #e6f7ff;
-  }
 }
 
 .algorithm-info {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 12px;
+  padding: 10px 12px;
   background: #ffffff;
   border: 1px solid #e5e7eb;
-  border-radius: 4px;
+  border-radius: 6px;
   cursor: pointer;
   transition: all 0.2s;
 
   &:hover {
     border-color: #1890ff;
+    background: #fafafa;
   }
 }
 
 .algorithm-main {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 }
 
 .algorithm-name {
@@ -300,11 +286,31 @@ onUnmounted(() => {
 }
 
 .algorithm-version {
-  font-size: 12px;
+  font-size: 11px;
   color: #6b7280;
   background: #f3f4f6;
   padding: 2px 8px;
   border-radius: 4px;
+}
+
+.algorithm-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.change-btn {
+  font-size: 12px;
+  color: #1890ff;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+
+  &:hover {
+    background: #e6f7ff;
+  }
 }
 
 .dropdown-icon {
@@ -394,7 +400,7 @@ onUnmounted(() => {
   padding: 12px;
   background: #fffbeb;
   border: 1px solid #fcd34d;
-  border-radius: 4px;
+  border-radius: 6px;
 }
 
 .empty-icon {

@@ -429,9 +429,12 @@
         </div>
 
         <!-- 算法配置 -->
-        <div class="info-section algorithm-section">
+        <CollapsibleSection
+          v-if="taskData?.taskType"
+          title="算法配置"
+          :count="currentAlgorithm?.paramTemplate?.length || 0"
+        >
           <AlgorithmSelector
-            v-if="taskData?.taskType"
             :compute-type="taskData.taskType"
             :is-t-e-e="taskData.techPath === TechPath.TEE"
             :model-value="taskData.algorithmConfig || null"
@@ -445,7 +448,7 @@
             :model-value="taskData?.algorithmConfig?.algorithmParams || {}"
             @update:model-value="handleParamValuesChange"
           />
-        </div>
+        </CollapsibleSection>
 
         <!-- 输入数据 -->
         <CollapsibleSection title="输入数据" :count="inputProvidersCount">

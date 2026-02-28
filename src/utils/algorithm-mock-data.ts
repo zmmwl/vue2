@@ -1,7 +1,7 @@
 /**
  * 算法Mock数据
  * Feature: 004-algorithm-selection
- * 预置10-15条算法，覆盖8种算法类型
+ * 预置算法，覆盖8种算法类型，每种类型至少2-3个算法
  */
 
 import type { Algorithm } from '@/types/algorithm'
@@ -15,7 +15,7 @@ function createTimestamp(offsetDays: number): number {
 
 /** 预置算法数据 */
 export const MOCK_ALGORITHMS: Algorithm[] = [
-  // ========== PSI 类型 ==========
+  // ========== PSI 类型 (3个) ==========
   {
     id: 'PSI-ECDH-v1.0',
     name: 'ECDH隐私集合求交',
@@ -61,8 +61,33 @@ export const MOCK_ALGORITHMS: Algorithm[] = [
     paramTemplate: [],
     createdAt: createTimestamp(5)
   },
+  {
+    id: 'PSI-OT-v1.0',
+    name: 'OT隐私集合求交',
+    nameEn: 'PSI-OT',
+    version: 'v1.0',
+    description: '基于不经意传输的PSI协议，适用于小数据量场景',
+    type: AlgorithmType.PSI,
+    paramTemplate: [
+      {
+        key: 'otType',
+        label: 'OT类型',
+        type: ParamType.ENUM,
+        required: false,
+        defaultValue: 'NaorPinkas',
+        order: 1,
+        validation: {
+          enumOptions: [
+            { value: 'NaorPinkas', label: 'Naor-Pinkas' },
+            { value: 'IKNP', label: 'IKNP扩展' }
+          ]
+        }
+      }
+    ],
+    createdAt: createTimestamp(12)
+  },
 
-  // ========== TEE_PSI 类型 ==========
+  // ========== TEE_PSI 类型 (2个) ==========
   {
     id: 'TEE-PSI-SGX-v1.0',
     name: 'SGX硬件加速PSI',
@@ -83,8 +108,18 @@ export const MOCK_ALGORITHMS: Algorithm[] = [
     ],
     createdAt: createTimestamp(2)
   },
+  {
+    id: 'TEE-PSI-TDX-v1.0',
+    name: 'TDX可信域PSI',
+    nameEn: 'TEE-PSI-TDX',
+    version: 'v1.0',
+    description: '基于Intel TDX技术的PSI实现，支持更大内存空间',
+    type: AlgorithmType.TEE_PSI,
+    paramTemplate: [],
+    createdAt: createTimestamp(15)
+  },
 
-  // ========== PIR 类型 ==========
+  // ========== PIR 类型 (3个) ==========
   {
     id: 'PIR-Keyword-v1.0',
     name: '关键字隐私检索',
@@ -115,8 +150,28 @@ export const MOCK_ALGORITHMS: Algorithm[] = [
     paramTemplate: [],
     createdAt: createTimestamp(6)
   },
+  {
+    id: 'PIR-XPIR-v1.0',
+    name: 'XPIR协议',
+    nameEn: 'XPIR',
+    version: 'v1.0',
+    description: '基于格密码的高效PIR实现，支持数据库分片',
+    type: AlgorithmType.PIR,
+    paramTemplate: [
+      {
+        key: 'dimension',
+        label: '维度参数',
+        type: ParamType.INTEGER,
+        required: false,
+        defaultValue: 2,
+        order: 1,
+        validation: { min: 1, max: 10 }
+      }
+    ],
+    createdAt: createTimestamp(14)
+  },
 
-  // ========== TEE_PIR 类型 ==========
+  // ========== TEE_PIR 类型 (2个) ==========
   {
     id: 'TEE-PIR-SGX-v1.0',
     name: 'SGX硬件加速PIR',
@@ -127,8 +182,18 @@ export const MOCK_ALGORITHMS: Algorithm[] = [
     paramTemplate: [],
     createdAt: createTimestamp(3)
   },
+  {
+    id: 'TEE-PIR-TrustZone-v1.0',
+    name: 'TrustZone PIR',
+    nameEn: 'TEE-PIR-TZ',
+    version: 'v1.0',
+    description: '基于ARM TrustZone的PIR实现，适用于移动端场景',
+    type: AlgorithmType.TEE_PIR,
+    paramTemplate: [],
+    createdAt: createTimestamp(16)
+  },
 
-  // ========== MPC 类型 ==========
+  // ========== MPC 类型 (3个) ==========
   {
     id: 'SPDZ-v1.0',
     name: 'SPDZ协议算法',
@@ -190,7 +255,7 @@ export const MOCK_ALGORITHMS: Algorithm[] = [
         validation: { min: 3, max: 3 }
       }
     ],
-    createdAt: createTimestamp(10) // 最新的MPC算法
+    createdAt: createTimestamp(10)
   },
   {
     id: 'MPC-Cheeta-v1.0',
@@ -203,7 +268,7 @@ export const MOCK_ALGORITHMS: Algorithm[] = [
     createdAt: createTimestamp(4)
   },
 
-  // ========== TEE_MPC 类型 ==========
+  // ========== TEE_MPC 类型 (2个) ==========
   {
     id: 'TEE-MPC-SGX-v1.0',
     name: 'SGX硬件加速MPC',
@@ -223,8 +288,18 @@ export const MOCK_ALGORITHMS: Algorithm[] = [
     ],
     createdAt: createTimestamp(7)
   },
+  {
+    id: 'TEE-MPC-CVM-v1.0',
+    name: '机密虚拟机MPC',
+    nameEn: 'TEE-MPC-CVM',
+    version: 'v1.0',
+    description: '基于AMD SEV-SNP的机密虚拟机MPC实现，支持更大规模计算',
+    type: AlgorithmType.TEE_MPC,
+    paramTemplate: [],
+    createdAt: createTimestamp(17)
+  },
 
-  // ========== FL 类型 ==========
+  // ========== FL 类型 (3个) ==========
   {
     id: 'FL-LogisticRegression-v1.0',
     name: '联邦逻辑回归',
@@ -289,10 +364,44 @@ export const MOCK_ALGORITHMS: Algorithm[] = [
         validation: { min: 1, max: 10 }
       }
     ],
-    createdAt: createTimestamp(8) // 最新的FL算法
+    createdAt: createTimestamp(8)
+  },
+  {
+    id: 'FL-NeuralNetwork-v1.0',
+    name: '联邦神经网络',
+    nameEn: 'FL-NN',
+    version: 'v1.0',
+    description: '横向联邦学习神经网络算法，支持深度学习模型',
+    type: AlgorithmType.FL,
+    paramTemplate: [
+      {
+        key: 'hiddenLayers',
+        label: '隐藏层结构',
+        type: ParamType.ARRAY,
+        required: false,
+        defaultValue: [64, 32],
+        order: 1
+      },
+      {
+        key: 'activation',
+        label: '激活函数',
+        type: ParamType.ENUM,
+        required: false,
+        defaultValue: 'relu',
+        order: 2,
+        validation: {
+          enumOptions: [
+            { value: 'relu', label: 'ReLU' },
+            { value: 'sigmoid', label: 'Sigmoid' },
+            { value: 'tanh', label: 'Tanh' }
+          ]
+        }
+      }
+    ],
+    createdAt: createTimestamp(18)
   },
 
-  // ========== TEE_FL 类型 ==========
+  // ========== TEE_FL 类型 (2个) ==========
   {
     id: 'TEE-FL-SGX-v1.0',
     name: 'SGX硬件加速联邦学习',
@@ -302,6 +411,32 @@ export const MOCK_ALGORITHMS: Algorithm[] = [
     type: AlgorithmType.TEE_FL,
     paramTemplate: [],
     createdAt: createTimestamp(5)
+  },
+  {
+    id: 'TEE-FL-Hybrid-v1.0',
+    name: '混合可信联邦学习',
+    nameEn: 'TEE-FL-Hybrid',
+    version: 'v1.0',
+    description: '结合TEE和密码学的混合联邦学习方案',
+    type: AlgorithmType.TEE_FL,
+    paramTemplate: [
+      {
+        key: 'aggregationMethod',
+        label: '聚合方式',
+        type: ParamType.ENUM,
+        required: false,
+        defaultValue: 'fedavg',
+        order: 1,
+        validation: {
+          enumOptions: [
+            { value: 'fedavg', label: 'FedAvg' },
+            { value: 'fedprox', label: 'FedProx' },
+            { value: 'scaffold', label: 'SCAFFOLD' }
+          ]
+        }
+      }
+    ],
+    createdAt: createTimestamp(19)
   }
 ]
 
