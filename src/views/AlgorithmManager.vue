@@ -18,7 +18,7 @@
 
     <!-- 主内容区域 -->
     <main class="manager-content">
-      <AlgorithmList />
+      <AlgorithmList :key="listKey" />
     </main>
 
     <!-- 算法表单对话框 -->
@@ -52,6 +52,7 @@ const router = useRouter()
 const showAlgorithmForm = ref(false)
 const isEditMode = ref(false)
 const editingAlgorithm = ref<Algorithm | null>(null)
+const listKey = ref(0)
 
 function goBack() {
   router.push('/')
@@ -71,7 +72,7 @@ function closeForm() {
 function handleSave() {
   closeForm()
   // 刷新列表（通过 key 强制重新渲染）
-  // 实际项目中可以通过 provide/inject 或事件总线来刷新
+  listKey.value++
 }
 </script>
 
