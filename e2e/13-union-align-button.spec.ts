@@ -382,16 +382,16 @@ test.describe('Union 字段对齐按钮显示', () => {
     const inputCount2 = await detailPanel.locator('h4:has-text("输入数据")').textContent()
     console.log('After second confirm - Input count:', inputCount2)
 
-    // 验证关联方式子 section 出现
-    const subSection = detailPanel.locator('.sub-section')
-    await expect(subSection).toBeVisible({ timeout: 5000 })
+    // 验证关联方式卡片出现
+    const joinConditionsCard = detailPanel.locator('.join-conditions-wrapper .join-conditions-card')
+    await expect(joinConditionsCard).toBeVisible({ timeout: 5000 })
 
     // 验证"关联方式"标题存在
-    const subSectionTitle = subSection.locator('.sub-section-title:has-text("关联方式")')
-    await expect(subSectionTitle).toBeVisible({ timeout: 5000 })
+    const cardTitle = joinConditionsCard.locator('.card-title:has-text("关联方式")')
+    await expect(cardTitle).toBeVisible({ timeout: 5000 })
 
-    // 验证"配置"按钮在 sub-section-header 中
-    const configButton = subSection.locator('.sub-section-header button:has-text("配置")')
+    // 验证"配置"按钮在 card-header 中
+    const configButton = joinConditionsCard.locator('.card-header button:has-text("配置")')
     await expect(configButton).toBeVisible({ timeout: 5000 })
 
     // 验证按钮可点击

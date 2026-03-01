@@ -511,32 +511,34 @@
             </div>
             </div>
             <!-- 关联方式 (子 section) -->
-            <div v-if="joinConditions && joinConditions.length > 0" class="sub-section">
-              <div class="sub-section-header">
-                <div class="sub-section-header-left">
-                  <span class="sub-section-title">关联方式</span>
-                  <span class="sub-section-count">{{ joinConditions.length }}</span>
+            <div v-if="joinConditions && joinConditions.length > 0" class="join-conditions-wrapper">
+              <div class="join-conditions-card">
+                <div class="card-header">
+                  <div class="card-header-left">
+                    <span class="card-title">关联方式</span>
+                    <span class="card-count">{{ joinConditions.length }}</span>
+                  </div>
+                  <button v-if="hasUnionProviders" class="config-provider-btn" @click="openUnionAlignDialog" title="配置 Union 字段对齐">
+                    ⚙️ 配置
+                  </button>
                 </div>
-                <button v-if="hasUnionProviders" class="config-provider-btn" @click="openUnionAlignDialog" title="配置 Union 字段对齐">
-                  ⚙️ 配置
-                </button>
-              </div>
-              <div class="join-conditions-list">
-                <div
-                  v-for="(condition, index) in joinConditions"
-                  :key="index"
-                  class="join-condition-card"
-                >
-                  <div class="condition-type">{{ getJoinTypeLabel(condition.joinType) }}</div>
-                  <div class="condition-operands">
-                    <div
-                      v-for="(operand, opIndex) in condition.operands"
-                      :key="opIndex"
-                      class="operand-item"
-                    >
-                      <span class="operand-participant">{{ getEnterpriseDisplayName(operand.participantId) }}</span>
-                      <span class="operand-dataset">{{ operand.dataset }}</span>
-                      <span class="operand-fields">{{ operand.columnNames.join(', ') }}</span>
+                <div class="card-body">
+                  <div
+                    v-for="(condition, index) in joinConditions"
+                    :key="index"
+                    class="condition-item"
+                  >
+                    <div class="condition-type">{{ getJoinTypeLabel(condition.joinType) }}</div>
+                    <div class="condition-operands">
+                      <div
+                        v-for="(operand, opIndex) in condition.operands"
+                        :key="opIndex"
+                        class="operand-item"
+                      >
+                        <span class="operand-participant">{{ getEnterpriseDisplayName(operand.participantId) }}</span>
+                        <span class="operand-dataset">{{ operand.dataset }}</span>
+                        <span class="operand-fields">{{ operand.columnNames.join(', ') }}</span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -2848,122 +2850,120 @@ watch(() => props.selectedNode, (node) => {
   }
 }
 
-// Join 条件列表
-.join-conditions-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.join-condition-card {
-  background: var(--glass-bg);
-  border: 1px solid rgba(0, 0, 0, 0.06);
-  border-radius: 8px;
-  padding: 12px;
-  transition: all var(--transition-base) var(--easing-smooth);
-
-  &:hover {
-    border-color: rgba(24, 144, 255, 0.2);
-    box-shadow: 0 2px 8px rgba(24, 144, 255, 0.08);
-  }
-
-  .condition-type {
-    display: inline-block;
-    padding: 4px 12px;
-    background: linear-gradient(135deg, #E6F7FF, #BAE7FF);
-    color: #1890FF;
-    border-radius: 6px;
-    font-size: 12px;
-    font-weight: 600;
-    margin-bottom: 10px;
-  }
-
-  .condition-operands {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .operand-item {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 12px;
-    background: rgba(0, 0, 0, 0.02);
-    border-radius: 6px;
-    font-size: 12px;
-
-    .operand-participant {
-      font-weight: 600;
-      color: var(--text-primary);
-    }
-
-    .operand-dataset {
-      color: var(--text-secondary);
-    }
-
-    .operand-fields {
-      flex: 1;
-      color: var(--text-secondary);
-      font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
-      font-size: 11px;
-    }
-  }
-}
-
-// 子 section 样式 (Join 条件)
-.sub-section {
+// 关联方式卡片样式
+.join-conditions-wrapper {
   margin-top: 16px;
   padding-top: 12px;
   border-top: 1px solid rgba(0, 0, 0, 0.08);
 
-  .sub-section-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 12px;
+  .join-conditions-card {
+    background: var(--glass-bg);
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    border-radius: 8px;
+    overflow: hidden;
 
-    .sub-section-header-left {
+    .card-header {
       display: flex;
       align-items: center;
-      gap: 8px;
-    }
+      justify-content: space-between;
+      padding: 10px 12px;
+      background: rgba(0, 0, 0, 0.02);
+      border-bottom: 1px solid rgba(0, 0, 0, 0.06);
 
-    .sub-section-title {
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--text-primary);
-    }
+      .card-header-left {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
 
-    .sub-section-count {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      min-width: 20px;
-      height: 20px;
-      padding: 0 6px;
-      background: rgba(24, 144, 255, 0.1);
-      color: #1890ff;
-      border-radius: 10px;
-      font-size: 11px;
-      font-weight: 600;
-    }
+      .card-title {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text-primary);
+      }
 
-    .config-provider-btn {
-      padding: 4px 10px;
-      font-size: 11px;
-      font-weight: 500;
-      color: #1890ff;
-      background: rgba(24, 144, 255, 0.06);
-      border: 1px solid rgba(24, 144, 255, 0.2);
-      border-radius: 4px;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      white-space: nowrap;
-
-      &:hover {
+      .card-count {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 20px;
+        height: 20px;
+        padding: 0 6px;
         background: rgba(24, 144, 255, 0.1);
-        border-color: rgba(24, 144, 255, 0.4);
+        color: #1890ff;
+        border-radius: 10px;
+        font-size: 11px;
+        font-weight: 600;
+      }
+
+      .config-provider-btn {
+        padding: 4px 10px;
+        font-size: 11px;
+        font-weight: 500;
+        color: #1890ff;
+        background: rgba(24, 144, 255, 0.06);
+        border: 1px solid rgba(24, 144, 255, 0.2);
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        white-space: nowrap;
+
+        &:hover {
+          background: rgba(24, 144, 255, 0.1);
+          border-color: rgba(24, 144, 255, 0.4);
+        }
+      }
+    }
+
+    .card-body {
+      padding: 8px 12px;
+    }
+
+    .condition-item {
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+
+      &:last-child {
+        border-bottom: none;
+        padding-bottom: 0;
+      }
+
+      &:first-child {
+        padding-top: 0;
+      }
+
+      .condition-type {
+        font-size: 11px;
+        font-weight: 600;
+        color: #1890ff;
+        margin-bottom: 6px;
+      }
+
+      .condition-operands {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+
+      .operand-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 12px;
+
+        .operand-participant {
+          color: var(--text-secondary);
+        }
+
+        .operand-dataset {
+          color: var(--text-primary);
+          font-weight: 500;
+        }
+
+        .operand-fields {
+          color: var(--text-tertiary);
+          font-size: 11px;
+        }
       }
     }
   }
