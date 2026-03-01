@@ -457,7 +457,27 @@
             <p>暂无输入数据</p>
             <p class="empty-hint">从数据源节点拖拽连线到此任务</p>
           </div>
-          <div v-else class="input-providers-list">
+          <template v-else>
+            <!-- Join 类型冲突警告 -->
+            <div v-if="hasJoinTypeConflicts" class="alert alert-error">
+              <span class="alert-icon">❌</span>
+              <div class="alert-content">
+                <div v-for="(error, index) in joinTypeErrors" :key="index" class="alert-message">
+                  {{ error }}
+                </div>
+                <div class="alert-hint">请调整各数据源的 Join 类型以解决冲突</div>
+              </div>
+            </div>
+            <!-- Join 类型警告 -->
+            <div v-if="joinTypeWarnings.length > 0" class="alert alert-warning">
+              <span class="alert-icon">⚠️</span>
+              <div class="alert-content">
+                <div v-for="(warning, index) in joinTypeWarnings" :key="index" class="alert-message">
+                  {{ warning }}
+                </div>
+              </div>
+            </div>
+            <div class="input-providers-list">
             <div
               v-for="(provider, index) in inputProviders"
               :key="index"
@@ -467,6 +487,7 @@
                 <span class="provider-index">{{ index + 1 }}</span>
                 <span class="provider-name">{{ getEnterpriseDisplayName(provider.participantId) }}</span>
                 <span class="provider-dataset">{{ provider.dataset }}</span>
+                <span v-if="provider.joinType" class="provider-join-type">{{ getJoinTypeLabel(provider.joinType) }}</span>
                 <button class="config-provider-btn" @click="handleConfigProvider(provider)" title="配置字段">
                   ⚙️ 配置
                 </button>
@@ -483,12 +504,13 @@
                     :class="{ 'is-join': field.isJoinField }"
                   >
                     <span class="field-alias">{{ field.columnAlias || field.columnName }}</span>
-                    <span v-if="field.isJoinField" class="join-badge">{{ field.joinType }}</span>
+                    <span v-if="field.isJoinField" class="join-badge">{{ getJoinTypeLabel(field.joinType || 'INNER') }}</span>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
+            </div>
+          </template>
         </CollapsibleSection>
 
         <!-- Join 条件 -->
@@ -499,7 +521,7 @@
               :key="index"
               class="join-condition-card"
             >
-              <div class="condition-type">{{ condition.joinType }}</div>
+              <div class="condition-type">{{ getJoinTypeLabel(condition.joinType) }}</div>
               <div class="condition-operands">
                 <div
                   v-for="(operand, opIndex) in condition.operands"
@@ -512,6 +534,12 @@
                 </div>
               </div>
             </div>
+          </div>
+          <!-- Union 字段对齐配置按钮 -->
+          <div v-if="hasUnionProviders" class="union-align-config">
+            <button class="config-provider-btn" @click="openUnionAlignDialog" title="配置 Union 字段对齐">
+              ⚙️ 配置
+            </button>
           </div>
         </CollapsibleSection>
 
@@ -959,13 +987,21 @@
       @confirm="handleInputProviderConfigConfirm"
       @cancel="handleInputProviderConfigCancel"
     />
+
+    <!-- Union 字段对齐弹窗 -->
+    <UnionFieldAlignDialog
+      v-model="showUnionAlignDialog"
+      :providers="unionProviders"
+      @confirm="handleUnionAlignConfirm"
+      @cancel="handleUnionAlignCancel"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, watch, ref, onMounted, onUnmounted } from 'vue'
 import type { Node } from '@vue-flow/core'
-import type { NodeData, ComputeTaskNodeData, ModelParameterSignature, AvailableFieldOption, LocalQueryNodeData, InputProvider, ExpressionConfig, GroupByConfig, FieldInfo, FieldMapping, PIRTaskNodeData, FLTaskNodeData } from '@/types/nodes'
+import type { NodeData, ComputeTaskNodeData, ModelParameterSignature, AvailableFieldOption, LocalQueryNodeData, InputProvider, ExpressionConfig, GroupByConfig, FieldInfo, FieldMapping, PIRTaskNodeData, FLTaskNodeData, JoinType, UnionFieldMapping } from '@/types/nodes'
 import { ComputeTaskType } from '@/types/nodes'
 import type { ExportJson } from '@/types/export'
 import { NodeCategory, TechPath } from '@/types/nodes'
@@ -978,11 +1014,13 @@ import JsonPreviewPanel from './JsonPreviewPanel.vue'
 import ModelParamProgress from './ModelCard/ModelParamProgress.vue'
 import ModelParameterPreview from './ModelCard/ModelParameterPreview.vue'
 import InputProviderConfig from '@/components/Modals/InputProviderConfig.vue'
+import UnionFieldAlignDialog from '@/components/Modals/UnionFieldAlignDialog.vue'
 import AlgorithmSelector from '@/components/Algorithm/AlgorithmSelector.vue'
 import DynamicParamForm from '@/components/Algorithm/DynamicParamForm.vue'
 import { algorithmService } from '@/services/algorithmService'
 import type { Algorithm, TaskAlgorithmConfig, ParamValue } from '@/types/algorithm'
 import { useGraphState } from '@/composables/useGraphState'
+import { useJoinValidation } from '@/composables/useJoinValidation'
 
 // 使用共享的图状态管理
 const { nodes } = useGraphState()
@@ -1068,6 +1106,17 @@ const configProvider = ref<InputProvider | null>(null)
 const configProviderAvailableFields = ref<FieldInfo[]>([])
 const configProviderParticipantName = ref('')
 
+// Union 字段对齐弹窗状态
+const showUnionAlignDialog = ref(false)
+
+// Union 类型的数据源列表
+const unionProviders = computed(() => {
+  return inputProviders.value.filter(p => p.joinType === 'Union')
+})
+
+// 是否有 Union 类型的数据源
+const hasUnionProviders = computed(() => unionProviders.value.length > 0)
+
 /**
  * 加载企业数据
  */
@@ -1103,10 +1152,89 @@ function handleTestOpenInputProviderConfig(event: Event) {
   showInputProviderConfig.value = true
 }
 
+/**
+ * 处理测试用的设置 Union providers 事件
+ * 用于 E2E 测试中直接在 FlowDetailPanel 设置 Union 类型的输入源
+ */
+function handleTestSetUnionProviders(event: Event) {
+  const customEvent = event as CustomEvent
+  const { providers } = customEvent.detail
+
+  console.log('[FlowDetailPanel] test-set-union-providers event received', { providerCount: providers?.length })
+  logger.info('[FlowDetailPanel] test-set-union-providers event received', { providerCount: providers?.length })
+
+  if (!providers || providers.length === 0) {
+    console.log('[FlowDetailPanel] Invalid providers data')
+    logger.warn('[FlowDetailPanel] Invalid test-set-union-providers event data')
+    return
+  }
+
+  if (!isComputeTaskNode.value || !taskData.value) {
+    console.log('[FlowDetailPanel] Not a compute task node or no task data')
+    logger.warn('[FlowDetailPanel] Cannot set Union providers: not a compute task node')
+    return
+  }
+
+  // 设置 inputProviders
+  const newInputProviders = providers.map((p: any) => ({
+    sourceNodeId: p.sourceNodeId,
+    sourceType: 'dataSource' as const,
+    participantId: p.participantId,
+    dataset: p.dataset,
+    fields: p.fields,
+    joinType: 'Union' as const
+  }))
+
+  // 直接修改 taskData 的 inputProviders
+  taskData.value.inputProviders = newInputProviders
+  taskData.value.joinConditions = []
+
+  console.log('[FlowDetailPanel] Union providers set', { providerCount: newInputProviders.length })
+  logger.info('[FlowDetailPanel] Union providers set', { providerCount: newInputProviders.length })
+}
+
+/**
+ * 设置 Union providers 的函数（用于测试）
+ */
+function setUnionProvidersForTest(providers: any[]) {
+  console.log('[FlowDetailPanel] setUnionProvidersForTest called', { providerCount: providers?.length })
+
+  if (!providers || providers.length === 0) {
+    console.log('[FlowDetailPanel] Invalid providers data')
+    return false
+  }
+
+  if (!isComputeTaskNode.value || !taskData.value) {
+    console.log('[FlowDetailPanel] Not a compute task node or no task data')
+    return false
+  }
+
+  // 设置 inputProviders
+  const newInputProviders = providers.map((p: any) => ({
+    sourceNodeId: p.sourceNodeId,
+    sourceType: 'dataSource' as const,
+    participantId: p.participantId,
+    dataset: p.dataset,
+    fields: p.fields,
+    joinType: 'Union' as const
+  }))
+
+  // 直接修改 taskData 的 inputProviders
+  taskData.value.inputProviders = newInputProviders
+  taskData.value.joinConditions = []
+
+  console.log('[FlowDetailPanel] Union providers set successfully', { providerCount: newInputProviders.length })
+  return true
+}
+
 // 组件挂载时加载数据和注册事件监听器
 onMounted(() => {
   loadEnterprises()
   window.addEventListener('test-open-input-provider-config', handleTestOpenInputProviderConfig)
+  window.addEventListener('test-set-union-providers-direct', handleTestSetUnionProviders)
+  // 注册全局测试函数
+  ;(window as any).__setUnionProvidersForTest = setUnionProvidersForTest
+  console.log('[FlowDetailPanel] onMounted - __setUnionProvidersForTest registered')
 })
 
 /**
@@ -1206,7 +1334,13 @@ interface Emits {
   (e: 'configOutput', data: { outputIndex: number; taskId: string }): void  // 配置输出数据
   (e: 'configModelNode', data: { nodeId: string; modelType: string }): void  // 配置模型节点
   (e: 'editOutput', nodeId: string): void  // 编辑输出数据节点
-  (e: 'configInputProvider', data: { taskId: string; sourceNodeId: string; fields: any[] }): void  // 配置输入数据源
+  (e: 'configInputProvider', data: {
+    taskId: string
+    sourceNodeId: string
+    fields: any[]
+    joinType?: JoinType
+    unionFieldMappings?: UnionFieldMapping[]
+  }): void  // 配置输入数据源
   (e: 'config-pir-task', nodeId: string): void  // 配置 PIR 任务
   (e: 'config-fl-task', nodeId: string): void  // 配置 FL 任务
   (e: 'config-fl-output', data: { taskId: string; outputIndex: number }): void  // 配置 FL 特征工程输出
@@ -1464,6 +1598,13 @@ const joinConditions = computed(() => {
   return taskData.value?.joinConditions || []
 })
 
+// Join 类型兼容性校验
+const {
+  errors: joinTypeErrors,
+  warnings: joinTypeWarnings,
+  hasConflicts: hasJoinTypeConflicts
+} = useJoinValidation(inputProviders)
+
 // 计算模型列表
 const models = computed(() => {
   return taskData.value?.models || []
@@ -1673,6 +1814,19 @@ function getEnterpriseDisplayName(participantId: string): string {
     return `${enterprise.name} (${participantId})`
   }
   return participantId
+}
+
+/**
+ * 获取 Join 类型标签
+ */
+function getJoinTypeLabel(joinType: string): string {
+  const labels: Record<string, string> = {
+    'INNER': 'INNER(内连接)',
+    'CROSS': 'CROSS(交叉连接)',
+    'Union': 'Union(横向拼接)',
+    'NoAssoc': 'NoAssoc(无关联)'
+  }
+  return labels[joinType] || joinType
 }
 
 // 处理编辑按钮点击
@@ -1995,19 +2149,27 @@ function handleConfigProvider(provider: InputProvider) {
 /**
  * 处理输入数据源配置确认
  */
-function handleInputProviderConfigConfirm(data: { sourceNodeId: string; fields: FieldMapping[] }) {
+function handleInputProviderConfigConfirm(data: {
+  sourceNodeId: string
+  fields: FieldMapping[]
+  joinType?: JoinType
+  unionFieldMappings?: UnionFieldMapping[]
+}) {
   if (!props.selectedNode) return
 
   logger.info('[FlowDetailPanel] Input provider config confirmed', {
     sourceNodeId: data.sourceNodeId,
     taskId: props.selectedNode.id,
-    fieldCount: data.fields.length
+    fieldCount: data.fields.length,
+    joinType: data.joinType
   })
 
   emit('configInputProvider', {
     taskId: props.selectedNode.id,
     sourceNodeId: data.sourceNodeId,
-    fields: data.fields
+    fields: data.fields,
+    joinType: data.joinType,
+    unionFieldMappings: data.unionFieldMappings
   })
 
   showInputProviderConfig.value = false
@@ -2023,9 +2185,54 @@ function handleInputProviderConfigCancel() {
   configProvider.value = null
 }
 
+/**
+ * 打开 Union 字段对齐弹窗
+ */
+function openUnionAlignDialog() {
+  if (unionProviders.value.length === 0) {
+    logger.warn('[FlowDetailPanel] No Union providers to align')
+    return
+  }
+  logger.info('[FlowDetailPanel] Opening Union align dialog', {
+    providerCount: unionProviders.value.length
+  })
+  showUnionAlignDialog.value = true
+}
+
+/**
+ * 处理 Union 字段对齐确认
+ */
+function handleUnionAlignConfirm(data: { updatedProviders: InputProvider[] }) {
+  logger.info('[FlowDetailPanel] Union align confirmed', {
+    providerCount: data.updatedProviders.length
+  })
+
+  // 更新每个 provider 的字段配置
+  data.updatedProviders.forEach(updatedProvider => {
+    emit('configInputProvider', {
+      taskId: props.selectedNode!.id,
+      sourceNodeId: updatedProvider.sourceNodeId,
+      fields: updatedProvider.fields,
+      joinType: 'Union'
+    })
+  })
+
+  showUnionAlignDialog.value = false
+}
+
+/**
+ * 处理 Union 字段对齐取消
+ */
+function handleUnionAlignCancel() {
+  logger.info('[FlowDetailPanel] Union align cancelled')
+  showUnionAlignDialog.value = false
+}
+
 // 清理事件监听器
 onUnmounted(() => {
   window.removeEventListener('test-open-input-provider-config', handleTestOpenInputProviderConfig)
+  window.removeEventListener('test-set-union-providers-direct', handleTestSetUnionProviders)
+  delete (window as any).__setUnionProvidersForTest
 })
 
 // 监听选中节点变化
@@ -2516,6 +2723,15 @@ watch(() => props.selectedNode, (node) => {
     border-radius: 4px;
   }
 
+  .provider-join-type {
+    font-size: 11px;
+    color: #1890ff;
+    padding: 2px 8px;
+    background: rgba(24, 144, 255, 0.1);
+    border-radius: 4px;
+    white-space: nowrap;
+  }
+
   .config-provider-btn {
     padding: 4px 10px;
     font-size: 11px;
@@ -2532,6 +2748,51 @@ watch(() => props.selectedNode, (node) => {
       background: rgba(24, 144, 255, 0.1);
       border-color: rgba(24, 144, 255, 0.4);
     }
+  }
+}
+
+.alert {
+  display: flex;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 6px;
+  margin-bottom: 12px;
+  font-size: 13px;
+
+  .alert-icon {
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+
+  .alert-content {
+    flex: 1;
+  }
+
+  .alert-message {
+    margin-bottom: 4px;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+
+  .alert-hint {
+    font-size: 12px;
+    color: inherit;
+    opacity: 0.8;
+    margin-top: 4px;
+  }
+
+  &.alert-error {
+    background: #fff2f0;
+    border: 1px solid #ffccc7;
+    color: #cf1322;
+  }
+
+  &.alert-warning {
+    background: #fffbe6;
+    border: 1px solid #ffe58f;
+    color: #d48806;
   }
 }
 
@@ -2646,6 +2907,15 @@ watch(() => props.selectedNode, (node) => {
       font-size: 11px;
     }
   }
+}
+
+// Union 字段对齐配置
+.union-align-config {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 8px;
+  margin-top: 8px;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
 }
 
 // 计算模型列表

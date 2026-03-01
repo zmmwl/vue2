@@ -24,9 +24,11 @@
               <select v-model="globalJoinType" class="join-type-select">
                 <option value="INNER">INNER（内连接）</option>
                 <option value="CROSS">CROSS（交叉连接）</option>
+                <option value="Union">Union（横向拼接）</option>
+                <option value="NoAssoc">NoAssoc（无关联）</option>
               </select>
               <span class="join-type-hint">
-                {{ globalJoinType === 'INNER' ? '只保留匹配的数据行' : '保留所有数据行进行笛卡尔积' }}
+                {{ joinTypeHint }}
               </span>
             </div>
 
@@ -40,7 +42,7 @@
                     <th class="col-name">字段名</th>
                     <th class="col-type">类型</th>
                     <th class="col-alias">别名</th>
-                    <th class="col-join">Join键</th>
+                    <th class="col-join" :class="{ 'col-disabled': !needsJoinFields }">Join键</th>
                   </tr>
                 </thead>
                 <tbody ref="tableBody">
@@ -86,12 +88,12 @@
                       />
                       <span v-if="isAliasConflicted(field)" class="conflict-mark">*</span>
                     </td>
-                    <td class="col-join">
+                    <td class="col-join" :class="{ 'col-disabled': !needsJoinFields }">
                       <input
                         :id="`field-join-${index}`"
                         v-model="field.isJoinField"
                         type="checkbox"
-                        :disabled="!field.selected"
+                        :disabled="!field.selected || !needsJoinFields"
                         @change="onJoinFieldChange(field)"
                       />
                     </td>
@@ -106,8 +108,8 @@
               <span>检测到别名冲突：{{ Array.from(conflictedAliases).join(', ') }}</span>
             </div>
 
-            <!-- Join字段提示 -->
-            <div v-if="joinFieldCount === 0 && selectedCount > 0" class="alert alert-warning">
+            <!-- Join字段提示（仅 INNER 类型显示） -->
+            <div v-if="needsJoinFields && joinFieldCount === 0 && selectedCount > 0" class="alert alert-warning">
               <span class="alert-icon">⚠️</span>
               <span>建议至少选择一个字段作为Join键</span>
             </div>
@@ -117,10 +119,12 @@
               <span class="stat-item">
                 已选择 <strong>{{ selectedCount }}</strong> 个字段
               </span>
-              <span class="stat-item">
+              <span v-if="needsJoinFields" class="stat-item">
                 Join键 <strong>{{ joinFieldCount }}</strong> 个
               </span>
             </div>
+
+            <!-- Union 字段对齐配置已移至详情面板的 Join 条件 section -->
           </div>
 
           <div class="modal-footer">
@@ -137,8 +141,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, reactive } from 'vue'
-import type { FieldMapping, InputProvider, FieldInfo } from '@/types/nodes'
-
+import type { FieldMapping, InputProvider, FieldInfo, JoinType } from '@/types/nodes'
 // 内部使用的字段类型（扩展 FieldMapping 添加 selected 和排序属性）
 interface InternalField extends FieldMapping {
   selected: boolean
@@ -157,6 +160,7 @@ interface Emits {
   (e: 'confirm', data: {
     sourceNodeId: string
     fields: FieldMapping[]
+    joinType?: JoinType
   }): void
   (e: 'cancel'): void
 }
@@ -173,7 +177,7 @@ const dataset = computed(() => props.provider?.dataset || '')
 const participantName = computed(() => props.participantName || props.provider?.participantId || '')
 
 // 全局 Join 类型
-const globalJoinType = ref<'INNER' | 'CROSS'>('INNER')
+const globalJoinType = ref<JoinType>('INNER')
 
 // 字段列表（带选择状态）
 const fields = ref<InternalField[]>([])
@@ -201,11 +205,37 @@ const isValid = computed(() => {
   return selectedCount.value > 0 && conflictedAliases.value.size === 0
 })
 
+// Join 类型提示文本
+const joinTypeHint = computed(() => {
+  switch (globalJoinType.value) {
+    case 'INNER':
+      return '只保留匹配的数据行'
+    case 'CROSS':
+      return '保留所有数据行进行笛卡尔积'
+    case 'Union':
+      return '横向拼接多个数据源，需要字段对齐'
+    case 'NoAssoc':
+      return '独立处理，不参与关联'
+    default:
+      return ''
+  }
+})
+
+// 是否需要 join 字段（INNER 类型需要）
+const needsJoinFields = computed(() => {
+  return globalJoinType.value === 'INNER'
+})
+
 // 监听 modelValue 变化，初始化数据
 watch(() => props.modelValue, (newVal) => {
   if (newVal) {
     initializeFields()
   }
+})
+
+// 监听 joinType 变化
+watch(globalJoinType, () => {
+  // 切换类型时不需要特殊处理
 })
 
 /**
@@ -256,7 +286,9 @@ function initializeFields() {
     fields.value = [...configuredFields, ...unconfiguredFields]
 
     // 从已有配置中获取 Join 类型
-    if (props.provider.fields.length > 0 && props.provider.fields[0]?.joinType) {
+    if (props.provider.joinType) {
+      globalJoinType.value = props.provider.joinType
+    } else if (props.provider.fields.length > 0 && props.provider.fields[0]?.joinType) {
       globalJoinType.value = props.provider.fields[0].joinType
     }
   } else {
@@ -399,7 +431,8 @@ function handleConfirm() {
 
   emit('confirm', {
     sourceNodeId: props.provider.sourceNodeId,
-    fields: getSelectedFields()
+    fields: getSelectedFields(),
+    joinType: globalJoinType.value
   })
 
   handleClose()
@@ -579,6 +612,10 @@ function handleClose() {
       &.col-join {
         width: 60px;
         text-align: center;
+
+        &.col-disabled {
+          opacity: 0.5;
+        }
       }
     }
   }
@@ -612,6 +649,11 @@ function handleClose() {
         &.col-select,
         &.col-join {
           text-align: center;
+
+          &.col-disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+          }
         }
       }
     }

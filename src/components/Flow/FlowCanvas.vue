@@ -214,7 +214,7 @@ import { MiniMap } from '@vue-flow/minimap'
 import type { Node, Connection, EdgeChange, NodeChange, GraphNode } from '@vue-flow/core'
 import type { DroppedNodeData } from '@/types/graph'
 import { NodeCategory, ComputeTaskType, TechPath, ResourceTypePriority, ModelType, DataSourceType } from '@/types/nodes'
-import type { NodeData, AssetInfo, FieldInfo, FieldMapping, ComputeTaskNodeData, OutputDataNodeData, OutputField, ComputeModelConfig, ModelParameter, AvailableFieldOption, LocalQueryNodeData, ExpressionConfig, GroupByConfig as GroupByConfigType } from '@/types/nodes'
+import type { NodeData, AssetInfo, FieldInfo, FieldMapping, ComputeTaskNodeData, OutputDataNodeData, OutputField, ComputeModelConfig, ModelParameter, AvailableFieldOption, LocalQueryNodeData, ExpressionConfig, GroupByConfig as GroupByConfigType, JoinType, UnionFieldMapping, InputProvider } from '@/types/nodes'
 import { LocalTaskType } from '@/types/nodes'
 import DataSourceNode from '@/components/Nodes/DataSourceNode.vue'
 import ComputeTaskNode from '@/components/Nodes/ComputeTaskNode.vue'
@@ -2208,10 +2208,12 @@ function handleFieldSelected(selection: {
   participantId: string
   dataset: string
   fields: FieldMapping[]
+  joinType?: JoinType
 }) {
   logger.info('[FlowCanvas] Field selection confirmed', {
     sourceNodeId: selection.sourceNodeId,
-    fieldCount: selection.fields.length
+    fieldCount: selection.fields.length,
+    joinType: selection.joinType
   })
 
   if (!pendingConnection.value) {
@@ -2288,7 +2290,8 @@ function handleFieldSelected(selection: {
       participantId: selection.participantId,
       dataset: selection.dataset,
       fields: selection.fields,
-      isRealtime: isRealtimeSource  // 标记是否是实时数据源
+      isRealtime: isRealtimeSource,  // 标记是否是实时数据源
+      joinType: selection.joinType || 'INNER'  // Join 类型，默认 INNER
     }
 
     taskData.inputProviders.push(newInputProvider)
@@ -2300,7 +2303,8 @@ function handleFieldSelected(selection: {
       taskId: targetNode.id,
       inputProviderCount: taskData.inputProviders.length,
       joinConditionsCount: taskData.joinConditions.length,
-      isRealtime: isRealtimeSource
+      isRealtime: isRealtimeSource,
+      joinType: selection.joinType
     })
 
     // 更新 PIR 节点的特有数据（兼容旧逻辑）
@@ -3758,13 +3762,26 @@ function handleConfigModelNode(data: { nodeId: string; modelType: string }) {
 /**
  * 处理输入数据源配置事件（从 FlowDetailPanel 触发）
  */
-function handleConfigInputProvider(data: { taskId: string; sourceNodeId: string; fields: FieldMapping[] }) {
+function handleConfigInputProvider(data: {
+  taskId: string
+  sourceNodeId: string
+  fields: FieldMapping[]
+  joinType?: JoinType
+  unionFieldMappings?: UnionFieldMapping[]
+}) {
   logger.info('[FlowCanvas] Config input provider event received', data)
 
   // 查找计算任务节点
-  const taskNode = nodes.value.find(n => n.id === data.taskId)
-  if (!taskNode) {
+  const taskNodeIndex = nodes.value.findIndex(n => n.id === data.taskId)
+
+  if (taskNodeIndex === -1) {
     logger.warn('[FlowCanvas] Task node not found', { taskId: data.taskId })
+    return
+  }
+
+  const taskNode = nodes.value[taskNodeIndex]
+  if (!taskNode) {
+    logger.warn('[FlowCanvas] Task node is undefined', { taskId: data.taskId })
     return
   }
 
@@ -3782,6 +3799,16 @@ function handleConfigInputProvider(data: { taskId: string; sourceNodeId: string;
     // 更新字段配置
     taskData.inputProviders[providerIndex].fields = data.fields
 
+    // 更新 joinType
+    if (data.joinType) {
+      taskData.inputProviders[providerIndex].joinType = data.joinType
+    }
+
+    // 更新 unionFieldMappings
+    if (data.unionFieldMappings) {
+      taskData.inputProviders[providerIndex].unionFieldMappings = data.unionFieldMappings
+    }
+
     // 重新构建 Join 条件
     taskData.joinConditions = buildJoinConditions(taskData.inputProviders)
 
@@ -3789,14 +3816,46 @@ function handleConfigInputProvider(data: { taskId: string; sourceNodeId: string;
       taskId: data.taskId,
       sourceNodeId: data.sourceNodeId,
       fieldCount: data.fields.length,
+      joinType: data.joinType,
       joinConditionsCount: taskData.joinConditions.length
     })
   } else {
-    logger.warn('[FlowCanvas] Input provider not found', {
+    // Provider 不存在，创建新的 provider
+    const newProvider: InputProvider = {
+      sourceNodeId: data.sourceNodeId,
+      sourceType: 'dataSource',
+      participantId: 'test-participant',
+      dataset: '测试数据集',
+      fields: data.fields,
+      joinType: data.joinType || 'INNER'
+    }
+
+    taskData.inputProviders.push(newProvider)
+
+    // 重新构建 Join 条件
+    taskData.joinConditions = buildJoinConditions(taskData.inputProviders)
+
+    logger.info('[FlowCanvas] New input provider created', {
       taskId: data.taskId,
-      sourceNodeId: data.sourceNodeId
+      sourceNodeId: data.sourceNodeId,
+      fieldCount: data.fields.length,
+      joinType: data.joinType,
+      totalProviders: taskData.inputProviders.length
     })
   }
+
+  // 触发响应式更新 - 创建新的 nodes 数组
+  const newNodes = [...nodes.value]
+  const updatedNode = { ...taskNode, data: { ...taskData } }
+  if (updatedNode.id) {
+    newNodes[taskNodeIndex] = updatedNode as any
+    setNodes(newNodes)
+  }
+
+  logger.info('[FlowCanvas] Nodes updated, triggering reactivity', {
+    taskId: data.taskId,
+    totalProviders: taskData.inputProviders?.length || 0
+  })
 }
 
 /**
@@ -5461,6 +5520,66 @@ function handleTestDeleteNode(event: Event) {
 }
 
 /**
+ * 处理测试用的设置 Union providers 事件
+ * 用于 E2E 测试中直接设置 Union 类型的输入源
+ */
+function handleTestSetUnionProviders(event: Event) {
+  console.log('[FlowCanvas] test-set-union-providers event handler called')
+  const customEvent = event as CustomEvent
+  const { taskId, providers } = customEvent.detail
+
+  console.log('[FlowCanvas] test-set-union-providers event received', { taskId, providerCount: providers?.length })
+  logger.info('[FlowCanvas] test-set-union-providers event received', { taskId, providerCount: providers?.length })
+
+  if (!taskId || !providers || providers.length === 0) {
+    logger.warn('[FlowCanvas] Invalid test-set-union-providers event data')
+    return
+  }
+
+  // 查找计算任务节点的索引
+  const nodeIndex = nodes.value.findIndex(n => n.id === taskId)
+  if (nodeIndex === -1) {
+    logger.warn('[FlowCanvas] Task node not found for Union providers', { taskId })
+    return
+  }
+
+  const taskNode = nodes.value[nodeIndex]
+  if (!taskNode) {
+    logger.warn('[FlowCanvas] Task node is undefined', { taskId })
+    return
+  }
+
+  const taskData = taskNode.data as ComputeTaskNodeData
+
+  // 设置 inputProviders - 创建新对象以确保响应式更新
+  const newInputProviders = providers.map((p: any) => ({
+    sourceNodeId: p.sourceNodeId,
+    sourceType: 'dataSource' as const,
+    participantId: p.participantId,
+    dataset: p.dataset,
+    fields: p.fields,
+    joinType: 'Union' as const
+  }))
+
+  // 使用 setNodes 来触发 Vue 的响应式更新
+  const updatedNodes = [...nodes.value]
+  updatedNodes[nodeIndex] = {
+    ...taskNode,
+    data: {
+      ...taskData,
+      inputProviders: newInputProviders,
+      joinConditions: []
+    }
+  } as any
+  setNodes(updatedNodes)
+
+  logger.info('[FlowCanvas] Union providers set for task', {
+    taskId,
+    providerCount: newInputProviders.length
+  })
+}
+
+/**
  * 处理测试用的连接线删除事件
  * 用于 E2E 测试中直接删除连接线并验证级联删除
  */
@@ -5619,6 +5738,7 @@ function handleTestSelectNode(event: Event) {
 
 // 生命周期：注册全局事件监听器
 onMounted(() => {
+  console.log('[FlowCanvas] onMounted - registering event listeners')
   document.addEventListener('add-output', handleAddOutput)
   document.addEventListener('add-model', handleAddModel)
   document.addEventListener('add-compute', handleAddCompute)
@@ -5639,6 +5759,8 @@ onMounted(() => {
   window.addEventListener('test-delete-node', handleTestDeleteNode)
   window.addEventListener('test-delete-edge', handleTestDeleteEdge)
   window.addEventListener('test-select-node', handleTestSelectNode)
+  window.addEventListener('test-set-union-providers', handleTestSetUnionProviders)
+  console.log('[FlowCanvas] Event listeners registered, including test-set-union-providers')
 })
 
 onUnmounted(() => {
@@ -5661,6 +5783,7 @@ onUnmounted(() => {
   window.removeEventListener('test-delete-node', handleTestDeleteNode)
   window.removeEventListener('test-delete-edge', handleTestDeleteEdge)
   window.removeEventListener('test-select-node', handleTestSelectNode)
+  window.removeEventListener('test-set-union-providers', handleTestSetUnionProviders)
 })
 </script>
 

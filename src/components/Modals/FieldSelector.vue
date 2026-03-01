@@ -22,9 +22,11 @@
               <select v-model="globalJoinType" class="join-type-select">
                 <option value="INNER">INNER（内连接）</option>
                 <option value="CROSS">CROSS（交叉连接）</option>
+                <option value="Union">Union（横向拼接）</option>
+                <option value="NoAssoc">NoAssoc（无关联）</option>
               </select>
               <span class="join-type-hint">
-                {{ globalJoinType === 'INNER' ? '只保留匹配的数据行' : '保留所有数据行进行笛卡尔积' }}
+                {{ joinTypeHint }}
               </span>
             </div>
 
@@ -38,7 +40,7 @@
                     <th class="col-name">字段名</th>
                     <th class="col-type">类型</th>
                     <th class="col-alias">别名</th>
-                    <th class="col-join">Join</th>
+                    <th class="col-join" :class="{ 'col-disabled': !needsJoinFields }">Join键</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -84,12 +86,12 @@
                       />
                       <span v-if="isAliasConflicted(field)" class="conflict-mark">*</span>
                     </td>
-                    <td class="col-join">
+                    <td class="col-join" :class="{ 'col-disabled': !needsJoinFields }">
                       <input
                         :id="`field-join-${index}`"
                         v-model="field.isJoinField"
                         type="checkbox"
-                        :disabled="!field.selected"
+                        :disabled="!field.selected || !needsJoinFields"
                         @change="onJoinFieldChange(field)"
                       />
                     </td>
@@ -125,7 +127,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, reactive } from 'vue'
-import type { FieldInfo, FieldMapping } from '@/types/nodes'
+import type { FieldInfo, FieldMapping, JoinType } from '@/types/nodes'
 
 interface FieldMappingWithSelection extends FieldMapping {
   selected: boolean
@@ -151,6 +153,7 @@ interface Emits {
     participantId: string
     dataset: string
     fields: FieldMapping[]
+    joinType?: JoinType
   }): void
   (e: 'cancel'): void
 }
@@ -164,7 +167,28 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<Emits>()
 
 // 全局 Join 类型（整个数据源统一）
-const globalJoinType = ref<'INNER' | 'CROSS'>('INNER')
+const globalJoinType = ref<JoinType>('INNER')
+
+// Join 类型提示文本
+const joinTypeHint = computed(() => {
+  switch (globalJoinType.value) {
+    case 'INNER':
+      return '只保留匹配的数据行'
+    case 'CROSS':
+      return '保留所有数据行进行笛卡尔积'
+    case 'Union':
+      return '横向拼接多个数据源，需要字段对齐'
+    case 'NoAssoc':
+      return '数据源独立处理，不进行关联'
+    default:
+      return ''
+  }
+})
+
+// 是否需要 join 字段（INNER 类型需要）
+const needsJoinFields = computed(() => {
+  return globalJoinType.value === 'INNER'
+})
 
 // 字段列表（带选择状态）
 const fields = ref<FieldMappingWithSelection[]>([])
@@ -185,9 +209,11 @@ const joinFieldCount = computed(() => {
 // 冲突的别名集合
 const conflictedAliases = ref<Set<string>>(new Set())
 
-// 是否有效（至少选择一个字段且有Join字段）
+// 是否有效（至少选择一个字段；INNER 类型还需要至少一个 Join 字段）
 const isValid = computed(() => {
-  return selectedCount.value > 0 && joinFieldCount.value > 0
+  if (selectedCount.value === 0) return false
+  if (needsJoinFields.value && joinFieldCount.value === 0) return false
+  return true
 })
 
 // 监听 modelValue 变化
@@ -381,7 +407,8 @@ function handleConfirm() {
     sourceType: props.sourceType === 'data_source' ? 'dataSource' : 'outputData',
     participantId: props.participantId,
     dataset: props.dataset,
-    fields: getSelectedFields()
+    fields: getSelectedFields(),
+    joinType: globalJoinType.value
   })
 
   handleClose()
@@ -530,6 +557,11 @@ function handleClose() {
       &.col-join {
         width: 60px;
         text-align: center;
+
+        &.col-disabled {
+          opacity: 0.4;
+          color: #999;
+        }
       }
     }
   }

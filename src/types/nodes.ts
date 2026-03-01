@@ -268,13 +268,43 @@ export interface LocalTaskNodeData extends NodeData {
 
 // ========== 配置结构 ==========
 
+/**
+ * 连接类型
+ * - INNER: 内连接，需要指定 join 字段进行匹配
+ * - CROSS: 交叉连接，笛卡尔积，不需要 join 字段
+ * - Union: 横向拼接，需要字段对齐
+ * - NoAssoc: 无关联，独立处理
+ */
+export type JoinType = 'INNER' | 'CROSS' | 'Union' | 'NoAssoc'
+
 /** 字段映射 */
 export interface FieldMapping {
   columnName: string        // 原始字段名
   columnAlias: string       // 别名
   columnType: string        // varchar/int/bigint等
   isJoinField: boolean      // 是否为join字段
-  joinType?: 'INNER' | 'CROSS'  // join字段类型
+  joinType?: JoinType       // join字段类型（扩展支持四种类型）
+  mappingOrder?: number     // 字段映射顺序（Union 类型下使用）
+}
+
+/**
+ * Union 专用字段映射
+ * 用于记录不同数据源的字段如何映射到统一的输出字段
+ */
+export interface UnionFieldMapping {
+  /** 目标字段的统一别名 */
+  targetAlias: string
+  /** 目标字段的数据类型 */
+  targetType: string
+  /** 字段顺序 */
+  order: number
+  /**
+   * 各数据源对应的源字段
+   * key: `${participantId}.${dataset}`
+   * value: 源字段名（columnName）
+   * 如果某数据源没有对应字段，值为 null
+   */
+  sourceFields: Record<string, string | null>
 }
 
 /** 输入数据提供者 */
@@ -284,8 +314,12 @@ export interface InputProvider {
   participantId: string
   dataset: string
   fields: FieldMapping[]
+  /** 该数据源的连接类型，每个输入源独立设置，默认为 'INNER' */
+  joinType?: JoinType
   joinFields?: string[]     // 作为join条件的字段名
   isRealtime?: boolean      // 是否是实时数据源（PIR任务使用）
+  /** Union 专用字段映射 */
+  unionFieldMappings?: UnionFieldMapping[]
 }
 
 /** Join操作数 */
@@ -297,8 +331,8 @@ export interface JoinOperand {
 
 /** Join条件 */
 export interface JoinCondition {
-  joinType: 'INNER' | 'CROSS'
-  operands: JoinOperand[]   // 至少2个
+  joinType: JoinType        // 更新：使用新的联合类型
+  operands: JoinOperand[]   // Union/NoAssoc 下可为空数组
 }
 
 /** 计算模型配置 */
