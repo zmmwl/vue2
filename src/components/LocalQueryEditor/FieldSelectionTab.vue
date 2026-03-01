@@ -36,6 +36,8 @@
             >
               <option value="INNER">INNER（内连接）</option>
               <option value="CROSS">CROSS（交叉连接）</option>
+              <option value="Union">Union（横向拼接）</option>
+              <option value="NoAssoc">NoAssoc（无关联）</option>
             </select>
           </div>
 
@@ -115,7 +117,7 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import type { InputProvider, JoinCondition, FieldMapping } from '@/types/nodes'
+import type { InputProvider, JoinCondition, FieldMapping, JoinType } from '@/types/nodes'
 
 // 内部使用的字段类型（扩展 FieldMapping 添加 selected 属性）
 interface InternalField extends FieldMapping {
@@ -157,7 +159,7 @@ watch(() => props.inputProviders, (newVal) => {
 
 // 处理 Join 类型变化
 function handleJoinTypeChange(sourceNodeId: string, event: Event) {
-  const joinType = (event.target as HTMLSelectElement).value as 'INNER' | 'CROSS'
+  const joinType = (event.target as HTMLSelectElement).value as JoinType
   const provider = internalProviders.value.find(p => p.sourceNodeId === sourceNodeId)
   if (provider) {
     provider.fields.forEach(field => {
