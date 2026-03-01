@@ -510,37 +510,40 @@
               </div>
             </div>
             </div>
-          </template>
-        </CollapsibleSection>
-
-        <!-- Join 条件 -->
-        <CollapsibleSection v-if="joinConditions && joinConditions.length > 0" title="Join 条件" :count="joinConditions.length">
-          <div class="join-conditions-list">
-            <div
-              v-for="(condition, index) in joinConditions"
-              :key="index"
-              class="join-condition-card"
-            >
-              <div class="condition-type">{{ getJoinTypeLabel(condition.joinType) }}</div>
-              <div class="condition-operands">
+            <!-- Join 条件 (子 section) -->
+            <div v-if="joinConditions && joinConditions.length > 0" class="sub-section">
+              <div class="sub-section-header">
+                <span class="sub-section-title">Join 条件</span>
+                <span class="sub-section-count">{{ joinConditions.length }}</span>
+              </div>
+              <div class="join-conditions-list">
                 <div
-                  v-for="(operand, opIndex) in condition.operands"
-                  :key="opIndex"
-                  class="operand-item"
+                  v-for="(condition, index) in joinConditions"
+                  :key="index"
+                  class="join-condition-card"
                 >
-                  <span class="operand-participant">{{ getEnterpriseDisplayName(operand.participantId) }}</span>
-                  <span class="operand-dataset">{{ operand.dataset }}</span>
-                  <span class="operand-fields">{{ operand.columnNames.join(', ') }}</span>
+                  <div class="condition-type">{{ getJoinTypeLabel(condition.joinType) }}</div>
+                  <div class="condition-operands">
+                    <div
+                      v-for="(operand, opIndex) in condition.operands"
+                      :key="opIndex"
+                      class="operand-item"
+                    >
+                      <span class="operand-participant">{{ getEnterpriseDisplayName(operand.participantId) }}</span>
+                      <span class="operand-dataset">{{ operand.dataset }}</span>
+                      <span class="operand-fields">{{ operand.columnNames.join(', ') }}</span>
+                    </div>
+                  </div>
                 </div>
               </div>
+              <!-- Union 字段对齐配置按钮 -->
+              <div v-if="hasUnionProviders" class="union-align-config">
+                <button class="config-provider-btn" @click="openUnionAlignDialog" title="配置 Union 字段对齐">
+                  ⚙️ 配置
+                </button>
+              </div>
             </div>
-          </div>
-          <!-- Union 字段对齐配置按钮 -->
-          <div v-if="hasUnionProviders" class="union-align-config">
-            <button class="config-provider-btn" @click="openUnionAlignDialog" title="配置 Union 字段对齐">
-              ⚙️ 配置
-            </button>
-          </div>
+          </template>
         </CollapsibleSection>
 
         <!-- 计算模型 -->
@@ -2905,6 +2908,40 @@ watch(() => props.selectedNode, (node) => {
       color: var(--text-secondary);
       font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
       font-size: 11px;
+    }
+  }
+}
+
+// 子 section 样式 (Join 条件)
+.sub-section {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+
+  .sub-section-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+
+    .sub-section-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .sub-section-count {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 20px;
+      height: 20px;
+      padding: 0 6px;
+      background: rgba(24, 144, 255, 0.1);
+      color: #1890ff;
+      border-radius: 10px;
+      font-size: 11px;
+      font-weight: 600;
     }
   }
 }
