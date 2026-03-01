@@ -510,11 +510,16 @@
               </div>
             </div>
             </div>
-            <!-- Join 条件 (子 section) -->
+            <!-- 关联方式 (子 section) -->
             <div v-if="joinConditions && joinConditions.length > 0" class="sub-section">
               <div class="sub-section-header">
-                <span class="sub-section-title">Join 条件</span>
-                <span class="sub-section-count">{{ joinConditions.length }}</span>
+                <div class="sub-section-header-left">
+                  <span class="sub-section-title">关联方式</span>
+                  <span class="sub-section-count">{{ joinConditions.length }}</span>
+                </div>
+                <button v-if="hasUnionProviders" class="config-provider-btn" @click="openUnionAlignDialog" title="配置 Union 字段对齐">
+                  ⚙️ 配置
+                </button>
               </div>
               <div class="join-conditions-list">
                 <div
@@ -535,12 +540,6 @@
                     </div>
                   </div>
                 </div>
-              </div>
-              <!-- Union 字段对齐配置按钮 -->
-              <div v-if="hasUnionProviders" class="union-align-config">
-                <button class="config-provider-btn" @click="openUnionAlignDialog" title="配置 Union 字段对齐">
-                  ⚙️ 配置
-                </button>
               </div>
             </div>
           </template>
@@ -2921,8 +2920,14 @@ watch(() => props.selectedNode, (node) => {
   .sub-section-header {
     display: flex;
     align-items: center;
-    gap: 8px;
+    justify-content: space-between;
     margin-bottom: 12px;
+
+    .sub-section-header-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
 
     .sub-section-title {
       font-size: 13px;
@@ -2944,15 +2949,6 @@ watch(() => props.selectedNode, (node) => {
       font-weight: 600;
     }
   }
-}
-
-// Union 字段对齐配置
-.union-align-config {
-  display: flex;
-  justify-content: flex-end;
-  padding-top: 8px;
-  margin-top: 8px;
-  border-top: 1px solid rgba(0, 0, 0, 0.06);
 }
 
 // 计算模型列表
