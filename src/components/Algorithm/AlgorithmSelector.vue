@@ -14,8 +14,18 @@
       </div>
     </div>
 
-    <!-- 算法下拉列表 -->
-    <div v-if="showDropdown" class="algorithm-dropdown">
+    <!-- 算法下拉列表 - 使用 Teleport 渲染到 body -->
+    <Teleport to="body">
+      <div
+        v-if="showDropdown"
+        class="algorithm-dropdown"
+        :style="{
+          position: 'fixed',
+          top: dropdownPosition.top + 'px',
+          left: dropdownPosition.left + 'px',
+          width: dropdownPosition.width + 'px'
+        }"
+      >
       <div v-if="loadingList" class="dropdown-loading">
         加载中...
       </div>
@@ -38,6 +48,7 @@
         </div>
       </template>
     </div>
+    </Teleport>
 
     <!-- 无可用算法时显示空状态 -->
     <div v-if="!algorithm && !isLoading" class="algorithm-empty">
@@ -85,6 +96,21 @@ const selectorRef = ref<HTMLElement | null>(null)
 const showDropdown = ref(false)
 const loadingList = ref(false)
 const availableAlgorithms = ref<Algorithm[]>([])
+const dropdownPosition = ref({ top: 0, left: 0, width: 0 })
+
+/**
+ * 更新下拉菜单位置
+ */
+function updateDropdownPosition() {
+  if (selectorRef.value) {
+    const rect = selectorRef.value.getBoundingClientRect()
+    dropdownPosition.value = {
+      top: rect.bottom + 4,
+      left: rect.left,
+      width: rect.width
+    }
+  }
+}
 
 /**
  * 切换下拉列表
@@ -92,6 +118,7 @@ const availableAlgorithms = ref<Algorithm[]>([])
 function toggleDropdown() {
   showDropdown.value = !showDropdown.value
   if (showDropdown.value) {
+    updateDropdownPosition()
     loadAvailableAlgorithms()
   }
 }
@@ -109,6 +136,24 @@ function closeDropdown() {
 function handleClickOutside(event: MouseEvent) {
   if (selectorRef.value && !selectorRef.value.contains(event.target as Node)) {
     closeDropdown()
+  }
+}
+
+/**
+ * 滚动时更新下拉菜单位置
+ */
+function handleScroll() {
+  if (showDropdown.value) {
+    updateDropdownPosition()
+  }
+}
+
+/**
+ * 窗口大小变化时更新下拉菜单位置
+ */
+function handleResize() {
+  if (showDropdown.value) {
+    updateDropdownPosition()
   }
 }
 
@@ -244,10 +289,14 @@ watch(
 onMounted(() => {
   autoMatchAlgorithm()
   document.addEventListener('click', handleClickOutside)
+  window.addEventListener('scroll', handleScroll, true) // 使用捕获模式监听所有滚动
+  window.addEventListener('resize', handleResize)
 })
 
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
+  window.removeEventListener('scroll', handleScroll, true)
+  window.removeEventListener('resize', handleResize)
 })
 </script>
 
@@ -324,16 +373,11 @@ onUnmounted(() => {
 }
 
 .algorithm-dropdown {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
-  margin-top: 4px;
   background: #ffffff;
   border: 1px solid #e5e7eb;
   border-radius: 6px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  z-index: 100;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 9999;
   max-height: 240px;
   overflow-y: auto;
 }
