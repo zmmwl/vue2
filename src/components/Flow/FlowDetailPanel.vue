@@ -2852,22 +2852,26 @@ watch(() => props.selectedNode, (node) => {
 
 // 关联方式卡片样式
 .join-conditions-wrapper {
-  margin-top: 16px;
-  padding-top: 12px;
-  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  margin-top: 12px;
 
   .join-conditions-card {
     background: var(--glass-bg);
     border: 1px solid rgba(0, 0, 0, 0.06);
     border-radius: 8px;
-    overflow: hidden;
+    padding: 12px;
+    transition: all var(--transition-base) var(--easing-smooth);
+
+    &:hover {
+      border-color: rgba(14, 165, 233, 0.2);
+      box-shadow: 0 2px 8px rgba(14, 165, 233, 0.08);
+    }
 
     .card-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 10px 12px;
-      background: rgba(0, 0, 0, 0.02);
+      margin-bottom: 10px;
+      padding-bottom: 10px;
       border-bottom: 1px solid rgba(0, 0, 0, 0.06);
 
       .card-header-left {
@@ -2916,7 +2920,7 @@ watch(() => props.selectedNode, (node) => {
     }
 
     .card-body {
-      padding: 8px 12px;
+      // 不需要额外padding，因为父卡片已有padding: 12px
     }
 
     .condition-item {
