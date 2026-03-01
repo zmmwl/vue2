@@ -1695,7 +1695,7 @@ const onDrop = (event: DragEvent) => {
               mode: 'manual',
               fields: [
                 { name: 'id', dataType: 'STRING', description: 'ID字段' },
-                { name: 'timestamp', dataType: 'INT', description: '时间戳字段' },
+                { name: 'timestamp', dataType: 'INTEGER', description: '时间戳字段' },
                 { name: 'value', dataType: 'STRING', description: '值字段' }
               ]
             },
