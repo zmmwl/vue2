@@ -2698,10 +2698,13 @@ watch(() => props.selectedNode, (node) => {
   margin-bottom: 10px;
   padding-bottom: 10px;
   border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  min-width: 0; // 允许flex子元素收缩
 
   .provider-index {
+    flex-shrink: 0; // 防止收缩
     width: 24px;
     height: 24px;
+    min-width: 24px; // 确保最小宽度
     display: flex;
     align-items: center;
     justify-content: center;
@@ -2714,20 +2717,31 @@ watch(() => props.selectedNode, (node) => {
 
   .provider-name {
     flex: 1;
+    min-width: 0; // 允许文本截断
     font-size: 13px;
     font-weight: 600;
     color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .provider-dataset {
+    flex-shrink: 1; // 允许收缩
+    min-width: 0;
+    max-width: 120px;
     font-size: 12px;
     color: var(--text-secondary);
     padding: 2px 8px;
     background: rgba(0, 0, 0, 0.04);
     border-radius: 4px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .provider-join-type {
+    flex-shrink: 0;
     font-size: 11px;
     color: #1890ff;
     padding: 2px 8px;
@@ -2736,7 +2750,12 @@ watch(() => props.selectedNode, (node) => {
     white-space: nowrap;
   }
 
+  .realtime-badge {
+    flex-shrink: 0;
+  }
+
   .config-provider-btn {
+    flex-shrink: 0; // 防止收缩
     padding: 4px 10px;
     font-size: 11px;
     font-weight: 500;
