@@ -49,7 +49,9 @@
                     :key="field.columnName"
                     :class="{
                       selected: field.selected,
-                      dragging: dragState.index === index
+                      dragging: dragState.index === index,
+                      'drag-over-top': dragState.overIndex === index && dragState.index < index,
+                      'drag-over-bottom': dragState.overIndex === index && dragState.index > index
                     }"
                     :draggable="field.selected"
                     @dragstart="handleDragStart($event, index)"
@@ -195,7 +197,8 @@ const fields = ref<FieldMappingWithSelection[]>([])
 
 // 拖拽状态
 const dragState = reactive({
-  index: -1
+  index: -1,
+  overIndex: -1  // 拖拽悬停的目标位置
 })
 
 // 已选择的字段数量
@@ -349,16 +352,18 @@ function handleDragStart(event: DragEvent, index: number) {
  */
 function handleDragEnd() {
   dragState.index = -1
+  dragState.overIndex = -1
 }
 
 /**
  * 拖拽经过
  */
-function handleDragOver(event: DragEvent, _index: number) {
+function handleDragOver(event: DragEvent, index: number) {
   event.preventDefault()
   if (event.dataTransfer) {
     event.dataTransfer.dropEffect = 'move'
   }
+  dragState.overIndex = index
 }
 
 /**
@@ -443,9 +448,10 @@ function handleClose() {
   align-items: center;
   gap: 8px;
   padding: 12px 16px;
-  background-color: #f5f7fa;
+  background-color: #fafafa;
   border-radius: 6px;
   margin-bottom: 16px;
+  border: 1px solid #e8e8e8;
 
   .source-icon {
     font-size: 18px;
@@ -459,10 +465,11 @@ function handleClose() {
 
   .source-type {
     font-size: 12px;
-    color: #909399;
+    color: #606266;
     padding: 4px 10px;
-    background-color: #e4e7ed;
+    background-color: #fff;
     border-radius: 4px;
+    border: 1px solid #e8e8e8;
   }
 }
 
@@ -471,8 +478,8 @@ function handleClose() {
   align-items: center;
   gap: 12px;
   padding: 12px 16px;
-  background-color: #f0f7ff;
-  border: 1px solid #d6e4ff;
+  background-color: #fafafa;
+  border: 1px solid #e8e8e8;
   border-radius: 6px;
   margin-bottom: 16px;
 
@@ -569,7 +576,8 @@ function handleClose() {
   tbody {
     tr {
       border-bottom: 1px solid #f0f0f0;
-      transition: background-color 0.2s;
+      transition: all 0.2s;
+      position: relative;
 
       &:last-child {
         border-bottom: none;
@@ -579,13 +587,42 @@ function handleClose() {
         background-color: #fafafa;
       }
 
+      // 选中行 - 使用绿色边框代替蓝色底色
       &.selected {
-        background-color: #e6f7ff;
+        background-color: #fff;
+        border-left: 3px solid #52c41a;
       }
 
+      // 拖拽中的行
       &.dragging {
-        opacity: 0.5;
-        background-color: #bae7ff;
+        opacity: 0.4;
+        background-color: #f5f5f5;
+      }
+
+      // 拖拽指示线 - 上方
+      &.drag-over-top::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: #1890ff;
+        box-shadow: 0 0 6px rgba(24, 144, 255, 0.4);
+        z-index: 10;
+      }
+
+      // 拖拽指示线 - 下方
+      &.drag-over-bottom::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: #1890ff;
+        box-shadow: 0 0 6px rgba(24, 144, 255, 0.4);
+        z-index: 10;
       }
 
       td {
@@ -612,7 +649,7 @@ function handleClose() {
 
   &:hover {
     opacity: 1;
-    color: #1890ff;
+    color: #52c41a;
   }
 
   &:active {
