@@ -43,12 +43,16 @@
               @input="onEnterpriseSearch"
             />
           </div>
-          <div class="list-container">
+          <div class="list-container" ref="enterpriseListRef" role="listbox" aria-label="企业列表">
             <div
-              v-for="enterprise in filteredEnterprises"
+              v-for="(enterprise, index) in filteredEnterprises"
               :key="enterprise.participantId"
               :class="['list-item', { 'is-selected': selectedEnterprise?.participantId === enterprise.participantId }]"
+              role="option"
+              tabindex="0"
+              :aria-selected="selectedEnterprise?.participantId === enterprise.participantId"
               @click="selectEnterprise(enterprise)"
+              @keydown="handleEnterpriseKeydown($event, index)"
             >
               <div class="item-name">{{ enterprise.entityName }}</div>
               <div class="item-id">{{ enterprise.participantId }}</div>
@@ -70,12 +74,16 @@
               @input="onAssetSearch"
             />
           </div>
-          <div class="list-container">
+          <div class="list-container" ref="assetListRef" role="listbox" aria-label="数据资产列表">
             <div
-              v-for="asset in filteredAssets"
+              v-for="(asset, index) in filteredAssets"
               :key="asset.assetId"
               :class="['list-item', { 'is-selected': selectedAsset?.assetId === asset.assetId }]"
+              role="option"
+              tabindex="0"
+              :aria-selected="selectedAsset?.assetId === asset.assetId"
               @click="selectAsset(asset)"
+              @keydown="handleAssetKeydown($event, index)"
             >
               <div class="item-name">{{ asset.assetName }}</div>
               <div class="item-desc">{{ asset.intro || asset.assetEnName || '-' }}</div>
@@ -100,17 +108,22 @@
             <div v-if="loading" class="loading-state">
               <p>加载中...</p>
             </div>
-            <div v-else-if="filteredFields.length > 0" class="field-list">
+            <div v-else-if="filteredFields.length > 0" class="field-list" ref="fieldListRef" role="listbox" aria-label="字段列表">
               <div
-                v-for="field in filteredFields"
+                v-for="(field, index) in filteredFields"
                 :key="field.name"
                 :class="['field-item', { 'is-selected': selectedFields.has(field.name) }]"
+                role="option"
+                tabindex="0"
+                :aria-selected="selectedFields.has(field.name)"
                 @click="toggleField(field)"
+                @keydown="handleFieldKeydown($event, index, field)"
               >
                 <input
                   type="checkbox"
                   :checked="selectedFields.has(field.name)"
                   @click.stop="toggleField(field)"
+                  tabindex="-1"
                 />
                 <div class="field-name">{{ field.name }}</div>
                 <div class="field-type">{{ field.dataType }}</div>
@@ -192,6 +205,11 @@ const selectedEnterprise = ref<Enterprise | null>(null)
 const selectedAsset = ref<AssetInfo | null>(null)
 const selectedFields = ref<Set<string>>(new Set())
 const allFields = ref<FieldInfo[]>([])
+
+// 列表引用（用于键盘导航）
+const enterpriseListRef = ref<HTMLElement | null>(null)
+const assetListRef = ref<HTMLElement | null>(null)
+const fieldListRef = ref<HTMLElement | null>(null)
 
 // 搜索状态
 const enterpriseSearch = ref('')
@@ -405,6 +423,95 @@ function handleKeydown(event: KeyboardEvent) {
     } else if (currentStep.value === 2 && canConfirm.value) {
       handleConfirm()
     }
+  }
+}
+
+/**
+ * 获取列表项元素
+ */
+function getListItems(listRef: HTMLElement | null): HTMLElement[] {
+  if (!listRef) return []
+  return Array.from(listRef.querySelectorAll('.list-item, .field-item'))
+}
+
+/**
+ * 聚焦到指定索引的列表项
+ */
+function focusListItem(listRef: HTMLElement | null, index: number) {
+  const items = getListItems(listRef)
+  if (items[index]) {
+    items[index].focus()
+  }
+}
+
+/**
+ * 处理企业列表键盘事件
+ */
+function handleEnterpriseKeydown(event: KeyboardEvent, index: number) {
+  const items = getListItems(enterpriseListRef.value)
+
+  if (event.key === 'ArrowDown') {
+    event.preventDefault()
+    const nextIndex = index < items.length - 1 ? index + 1 : 0
+    focusListItem(enterpriseListRef.value, nextIndex)
+  } else if (event.key === 'ArrowUp') {
+    event.preventDefault()
+    const prevIndex = index > 0 ? index - 1 : items.length - 1
+    focusListItem(enterpriseListRef.value, prevIndex)
+  } else if (event.key === 'Enter' || event.key === ' ') {
+    event.preventDefault()
+    const enterprise = filteredEnterprises.value[index]
+    if (enterprise) {
+      selectEnterprise(enterprise)
+      // 自动跳到下一步
+      if (canNext.value) {
+        handleNext()
+      }
+    }
+  }
+}
+
+/**
+ * 处理资产列表键盘事件
+ */
+function handleAssetKeydown(event: KeyboardEvent, index: number) {
+  const items = getListItems(assetListRef.value)
+
+  if (event.key === 'ArrowDown') {
+    event.preventDefault()
+    const nextIndex = index < items.length - 1 ? index + 1 : 0
+    focusListItem(assetListRef.value, nextIndex)
+  } else if (event.key === 'ArrowUp') {
+    event.preventDefault()
+    const prevIndex = index > 0 ? index - 1 : items.length - 1
+    focusListItem(assetListRef.value, prevIndex)
+  } else if (event.key === 'Enter' || event.key === ' ') {
+    event.preventDefault()
+    selectAsset(filteredAssets.value[index])
+    // 自动跳到下一步
+    if (canNext.value) {
+      handleNext()
+    }
+  }
+}
+
+/**
+ * 处理字段列表键盘事件
+ */
+function handleFieldKeydown(event: KeyboardEvent, index: number, field: FieldInfo) {
+  const items = getListItems(fieldListRef.value)
+
+  if (event.key === 'ArrowDown') {
+    event.preventDefault()
+    const nextIndex = index < items.length - 1 ? index + 1 : 0
+    focusListItem(fieldListRef.value, nextIndex)
+  } else if (event.key === 'ArrowUp') {
+    event.preventDefault()
+    const prevIndex = index > 0 ? index - 1 : items.length - 1
+    focusListItem(fieldListRef.value, prevIndex)
+  } else if (event.key === 'Enter' || event.key === ' ') {
+    event.preventDefault()
+    toggleField(field)
   }
 }
 
@@ -791,6 +898,18 @@ watch(() => props.modelValue, async (isOpen) => {
     }
   }
 
+  &:focus-visible {
+    outline: 2px solid var(--datasource-blue);
+    outline-offset: 2px;
+    background: var(--list-item-hover-bg);
+    border-color: var(--datasource-blue);
+    box-shadow: 0 0 0 4px rgba(14, 165, 233, 0.15);
+
+    &::before {
+      transform: scaleY(1);
+    }
+  }
+
   &.is-selected {
     background: var(--list-item-selected-bg);
     border-color: var(--datasource-blue);
@@ -887,6 +1006,14 @@ watch(() => props.modelValue, async (isOpen) => {
   &:hover {
     background: var(--list-item-hover-bg);
     border-color: rgba(14, 165, 233, 0.2);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--datasource-blue);
+    outline-offset: 2px;
+    background: var(--list-item-hover-bg);
+    border-color: var(--datasource-blue);
+    box-shadow: 0 0 0 4px rgba(14, 165, 233, 0.15);
   }
 
   &.is-selected {

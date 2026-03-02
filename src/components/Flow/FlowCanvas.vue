@@ -5170,6 +5170,119 @@ function handleCreateTestConnection(event: Event) {
 }
 
 /**
+ * 处理键盘添加节点事件
+ * 从侧边栏通过键盘（Enter/Space）添加节点到画布
+ */
+function handleKeyboardAddNode(event: Event) {
+  const customEvent = event as CustomEvent
+  const template = customEvent.detail
+
+  logger.info('[FlowCanvas] Keyboard add node event received', { template })
+
+  // 计算节点位置：在画布中心附近添加
+  // 获取当前视口中心位置
+  const viewportElement = document.querySelector('.vue-flow__viewport')
+  let position = { x: 100, y: 100 }
+
+  if (viewportElement) {
+    const rect = viewportElement.getBoundingClientRect()
+    const centerX = rect.width / 2
+    const centerY = rect.height / 2
+
+    // 使用 project 函数将屏幕坐标转换为画布坐标
+    const projected = project({ x: centerX, y: centerY })
+    position = {
+      x: projected.x - 100,
+      y: projected.y - 30
+    }
+  }
+
+  // 现有节点的最大 Y 坐标，用于错开新节点位置
+  const maxY = nodes.value.reduce((max, node) => Math.max(max, node.position?.y || 0), 0)
+  position.y = Math.max(position.y, maxY + 80)
+
+  pendingNodePosition.value = position
+
+  // 处理不同类型的节点 - 复用 onDrop 的逻辑
+  if (template.category === NodeCategory.DATA_SOURCE) {
+    // 数据源节点
+    if (template.sourceType === DataSourceType.REALTIME) {
+      // 实时数据源 - 直接创建
+      const nodeData: import('@/types/nodes').RealtimeDataSourceNodeData = {
+        label: template.label,
+        category: NodeCategory.DATA_SOURCE,
+        sourceType: DataSourceType.REALTIME,
+        icon: template.icon,
+        color: template.color,
+        description: template.description,
+        realtimeConfig: {
+          mode: 'manual',
+          fields: []
+        }
+      }
+      // 直接创建实时数据源节点
+      const realtimeNode: Node = {
+        id: `realtime_${Date.now()}`,
+        type: 'realtime_data_source',
+        position,
+        data: nodeData
+      }
+      nodes.value.push(realtimeNode)
+    } else {
+      // 普通数据源 - 打开统一资源选择器
+      showUnifiedSelector.value = true
+      selectorResourceType.value = 'data'
+    }
+  } else if (template.type === 'fl_task' && template.flTask) {
+    // 联邦学习任务节点
+    createFLTaskNode(template)
+  } else if (template.category === NodeCategory.COMPUTE_TASK) {
+    // 计算任务节点 - 打开技术路径选择对话框
+    pendingNodeData.value = template
+    pendingComputeType.value = template.taskType || ComputeTaskType.PSI
+    showTechPathDialog.value = true
+  } else if (template.category === 'model') {
+    // 模型节点 - 需要拖到计算任务上，键盘操作时显示提示
+    logger.info('[FlowCanvas] Model nodes need to be added to a compute task, opening selector')
+    showUnifiedSelector.value = true
+    selectorResourceType.value = 'model'
+    selectorModelTypeFilter.value = template.modelType
+  } else if (template.category === 'computeResource') {
+    // 算力资源节点 - 需要拖到计算任务上
+    logger.info('[FlowCanvas] Compute resource nodes need to be added to a compute task, opening selector')
+    showUnifiedSelector.value = true
+    selectorResourceType.value = 'compute'
+  } else if (template.type === 'localTask' || template.category === 'localTask') {
+    // 本地任务节点
+    const localTaskNode: Node = {
+      id: `localTask_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      type: 'localTask',
+      position,
+      data: {
+        label: template.label || '本地结果处理',
+        category: 'localTask',
+        icon: template.icon || '🔄',
+        color: template.color || '#722ED1',
+        description: template.description || '拼接多个任务的输出结果'
+      }
+    }
+    nodes.value.push(localTaskNode)
+  } else {
+    // 其他类型 - 使用通用创建方法
+    const newNode: Node = {
+      id: `node-${Date.now()}`,
+      type: template.type || 'default',
+      position,
+      data: {
+        label: template.label,
+        ...template
+      }
+    }
+    nodes.value.push(newNode)
+  }
+}
+
+/**
  * 处理测试用的模型节点拖放事件
  * 用于 E2E 测试中模拟拖拽模型节点到计算任务节点上
  */
@@ -5837,6 +5950,8 @@ onMounted(() => {
   document.addEventListener('edit-local-query', handleEditLocalQuery)
   document.addEventListener('add-fl-output', handleAddFLOutputEvent)
   document.addEventListener('add-fl-model-output', handleAddFLModelOutputEvent)
+  // 键盘添加节点事件
+  document.addEventListener('keyboard-add-node', handleKeyboardAddNode as EventListener)
   // 监听 window 上的事件，与测试中的 window.dispatchEvent 匹配
   window.addEventListener('create-test-node', handleCreateTestNode)
   window.addEventListener('create-test-task-with-output', handleCreateTestTaskWithOutput)
@@ -5862,6 +5977,7 @@ onUnmounted(() => {
   document.removeEventListener('edit-local-query', handleEditLocalQuery)
   document.removeEventListener('add-fl-output', handleAddFLOutputEvent)
   document.removeEventListener('add-fl-model-output', handleAddFLModelOutputEvent)
+  document.removeEventListener('keyboard-add-node', handleKeyboardAddNode as EventListener)
   window.removeEventListener('create-test-node', handleCreateTestNode)
   window.removeEventListener('create-test-task-with-output', handleCreateTestTaskWithOutput)
   window.removeEventListener('create-test-task-with-model', handleCreateTestTaskWithModel)

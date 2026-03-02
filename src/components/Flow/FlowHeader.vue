@@ -13,15 +13,27 @@
 
       <!-- 设置下拉菜单 -->
       <div class="settings-dropdown" ref="dropdownRef">
-        <button class="header-btn" @click="toggleDropdown">
+        <button
+          class="header-btn"
+          @click="toggleDropdown"
+          @keydown="handleDropdownKeydown"
+          :aria-expanded="isDropdownOpen"
+          aria-haspopup="true"
+        >
           设置
           <span class="dropdown-arrow" :class="{ open: isDropdownOpen }">▼</span>
         </button>
-        <div class="dropdown-menu" v-show="isDropdownOpen">
-          <div class="dropdown-item" @click="handleAlgorithmManager">
+        <div class="dropdown-menu" v-show="isDropdownOpen" role="menu">
+          <button
+            class="dropdown-item"
+            role="menuitem"
+            tabindex="0"
+            @click="handleAlgorithmManager"
+            @keydown="handleMenuItemKeydown"
+          >
             <span class="item-icon">⚙️</span>
             <span class="item-text">算法管理</span>
-          </div>
+          </button>
         </div>
       </div>
     </div>
@@ -29,7 +41,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 
 interface Emits {
@@ -67,6 +79,45 @@ function closeDropdown() {
 function handleAlgorithmManager() {
   closeDropdown()
   router.push('/algorithm-manager')
+}
+
+/**
+ * 处理下拉菜单键盘事件
+ */
+function handleDropdownKeydown(event: KeyboardEvent) {
+  if (event.key === 'Enter' || event.key === ' ') {
+    event.preventDefault()
+    toggleDropdown()
+    // 打开后聚焦到第一个菜单项
+    if (isDropdownOpen.value) {
+      nextTick(() => {
+        const firstItem = dropdownRef.value?.querySelector('.dropdown-item') as HTMLElement
+        firstItem?.focus()
+      })
+    }
+  } else if (event.key === 'Escape') {
+    closeDropdown()
+  } else if (event.key === 'ArrowDown' && isDropdownOpen.value) {
+    event.preventDefault()
+    const firstItem = dropdownRef.value?.querySelector('.dropdown-item') as HTMLElement
+    firstItem?.focus()
+  }
+}
+
+/**
+ * 处理菜单项键盘事件
+ */
+function handleMenuItemKeydown(event: KeyboardEvent) {
+  if (event.key === 'Escape') {
+    event.preventDefault()
+    closeDropdown()
+    // 将焦点返回到下拉按钮
+    const btn = dropdownRef.value?.querySelector('.header-btn') as HTMLElement
+    btn?.focus()
+  } else if (event.key === 'Enter' || event.key === ' ') {
+    event.preventDefault()
+    handleAlgorithmManager()
+  }
 }
 
 // 点击外部关闭下拉菜单
@@ -193,9 +244,21 @@ onUnmounted(() => {
   padding: 10px 16px;
   cursor: pointer;
   transition: background 0.2s ease;
+  width: 100%;
+  border: none;
+  background: transparent;
+  text-align: left;
+  font-size: inherit;
 
-  &:hover {
+  &:hover,
+  &:focus {
     background: #f5f5f5;
+  }
+
+  &:focus-visible {
+    outline: 2px solid #1890ff;
+    outline-offset: -2px;
+    background: #e6f7ff;
   }
 
   .item-icon {

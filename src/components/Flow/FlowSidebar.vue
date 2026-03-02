@@ -11,8 +11,12 @@
           :key="template.label"
           class="palette-node"
           draggable="true"
+          tabindex="0"
+          role="button"
+          :aria-label="`添加${template.label}节点`"
           :data-testid="`palette-node-${template.label.replace(/\s+/g, '-').toLowerCase()}`"
           @dragstart="onDragStart($event, template)"
+          @keydown="handleNodeKeydown($event, template)"
         >
           <div class="palette-node-icon" :style="{ color: template.color }">
             {{ template.icon }}
@@ -37,8 +41,12 @@
           :key="template.label"
           class="palette-node"
           draggable="true"
+          tabindex="0"
+          role="button"
+          :aria-label="`添加${template.label}节点`"
           :data-testid="`palette-node-${template.label.replace(/\s+/g, '-').toLowerCase()}`"
           @dragstart="onDragStart($event, template)"
+          @keydown="handleNodeKeydown($event, template)"
         >
           <div class="palette-node-icon" :style="{ color: template.color }">
             {{ template.icon }}
@@ -56,9 +64,15 @@
           class="palette-node fl-trigger-card"
           :class="{ 'is-expanded': flCardExpanded }"
           ref="flCardRef"
+          tabindex="0"
+          role="button"
+          aria-haspopup="true"
+          :aria-expanded="flCardExpanded"
+          aria-label="联邦学习节点选项"
           @mouseenter="handleFLCardEnter"
           @mouseleave="handleFLCardLeave"
           @click="toggleFLCard"
+          @keydown="handleFLCardKeydown"
         >
           <div class="palette-node-icon" style="color: #EB2F96">
             🔐
@@ -82,8 +96,12 @@
           class="palette-node"
           :class="{ 'is-highlight': highlightType === 'models' }"
           draggable="true"
+          tabindex="0"
+          role="button"
+          :aria-label="`添加${template.label}节点`"
           :data-testid="`palette-node-${template.label.replace(/\s+/g, '-').toLowerCase()}`"
           @dragstart="onDragStartModel($event, template)"
+          @keydown="handleModelKeydown($event, template)"
         >
           <div class="palette-node-icon" :style="{ color: template.color }">
             {{ template.icon }}
@@ -108,8 +126,12 @@
           class="palette-node"
           :class="{ 'is-highlight': highlightType === 'computes' }"
           draggable="true"
+          tabindex="0"
+          role="button"
+          :aria-label="`添加${template.label}节点`"
           :data-testid="`palette-node-${template.label.replace(/\s+/g, '-').toLowerCase()}`"
           @dragstart="onDragStartResource($event, template)"
+          @keydown="handleResourceKeydown($event, template)"
         >
           <div class="palette-node-icon" :style="{ color: template.color }">
             {{ template.icon }}
@@ -131,8 +153,12 @@
         <div
           class="palette-node"
           draggable="true"
+          tabindex="0"
+          role="button"
+          aria-label="添加本地结果处理节点"
           data-testid="palette-node-local-result-task"
           @dragstart="onDragStartLocalTask"
+          @keydown="handleLocalTaskKeydown"
         >
           <div class="palette-node-icon" style="color: #722ED1">
             🔄
@@ -147,8 +173,12 @@
           :key="template.label"
           class="palette-node"
           draggable="true"
+          tabindex="0"
+          role="button"
+          :aria-label="`添加${template.label}节点`"
           :data-testid="`palette-node-${template.label.replace(/\s+/g, '-').toLowerCase()}`"
           @dragstart="onDragStart($event, template)"
+          @keydown="handleNodeKeydown($event, template)"
         >
           <div class="palette-node-icon" :style="{ color: template.color }">
             {{ template.icon }}
@@ -175,11 +205,15 @@
           @mouseleave="handleFLSubmenuLeave"
         >
           <!-- 模式切换 Tab -->
-          <div class="fl-mode-tabs">
+          <div class="fl-mode-tabs" role="tablist">
             <div
               class="fl-mode-tab"
               :class="{ 'is-active': activeFLMode === FLMode.TRAINING }"
+              role="tab"
+              tabindex="0"
+              :aria-selected="activeFLMode === FLMode.TRAINING"
               @click="activeFLMode = FLMode.TRAINING"
+              @keydown="handleFLModeKeydown($event, FLMode.TRAINING)"
             >
               <span class="tab-icon">🎓</span>
               <span>训练</span>
@@ -187,7 +221,11 @@
             <div
               class="fl-mode-tab"
               :class="{ 'is-active': activeFLMode === FLMode.INFERENCE }"
+              role="tab"
+              tabindex="0"
+              :aria-selected="activeFLMode === FLMode.INFERENCE"
               @click="activeFLMode = FLMode.INFERENCE"
+              @keydown="handleFLModeKeydown($event, FLMode.INFERENCE)"
             >
               <span class="tab-icon">🔮</span>
               <span>推断</span>
@@ -195,14 +233,19 @@
           </div>
 
           <!-- 任务类别卡片 -->
-          <div class="fl-category-cards">
+          <div class="fl-category-cards" role="menu">
             <div
               v-for="category in currentFLCategories"
               :key="category.category"
               class="fl-category-card"
               :class="{ 'is-hovered': hoveredCategory === category.category }"
+              role="menuitem"
+              tabindex="0"
+              :aria-label="category.name"
               @mouseenter="handleCategoryEnter(category.category)"
               @mouseleave="handleCategoryLeave"
+              @focus="handleCategoryEnter(category.category)"
+              @keydown="handleCategoryKeydown($event, category.category)"
             >
               <div class="category-card-header" :style="{ borderColor: getFLCategoryColor(category.category) }">
                 <span class="category-icon">{{ category.icon }}</span>
@@ -228,13 +271,17 @@
             <span class="header-title">{{ currentHoveredCategoryInfo?.name }}</span>
             <span class="header-badge">{{ activeFLMode === FLMode.TRAINING ? '训练' : '推断' }}</span>
           </div>
-          <div class="task-card-list">
+          <div class="task-card-list" role="menu">
             <div
               v-for="task in currentHoveredTasks"
               :key="task.taskName"
               class="task-item"
               draggable="true"
+              role="menuitem"
+              tabindex="0"
+              :aria-label="task.name"
               @dragstart="onDragStartFLTask($event, task, currentHoveredCategoryInfo?.category, activeFLMode)"
+              @keydown="handleFLTaskKeydown($event, task, currentHoveredCategoryInfo?.category, activeFLMode)"
             >
               <div class="task-icon">{{ task.icon }}</div>
               <div class="task-content">
@@ -556,6 +603,179 @@ const onDragStart = (event: DragEvent, template: NodeTemplate) => {
 }
 
 /**
+ * 模拟拖拽到画布（键盘触发）
+ */
+const simulateDropToCanvas = (template: any) => {
+  // 触发自定义事件，让画布监听并添加节点
+  const event = new CustomEvent('keyboard-add-node', {
+    detail: template,
+    bubbles: true
+  })
+  document.dispatchEvent(event)
+}
+
+/**
+ * 处理节点键盘事件
+ */
+const handleNodeKeydown = (event: KeyboardEvent, template: NodeTemplate) => {
+  if (event.key === 'Enter' || event.key === ' ') {
+    event.preventDefault()
+    simulateDropToCanvas(template)
+  }
+}
+
+/**
+ * 处理模型键盘事件
+ */
+const handleModelKeydown = (event: KeyboardEvent, template: NodeTemplate) => {
+  if (event.key === 'Enter' || event.key === ' ') {
+    event.preventDefault()
+    // 复用 onDragStartModel 的逻辑
+    let modelType = 'CodeBin-V2'
+    if (template.label.includes('表达式')) {
+      modelType = 'expression'
+    } else if (template.label.includes('SPDZ')) {
+      modelType = 'SPDZ'
+    } else if (template.isCodeBin) {
+      modelType = 'codebin-select'
+    } else if (template.modelType === 'GROUP_STAT') {
+      modelType = 'GROUP_STAT'
+    }
+    simulateDropToCanvas({ ...template, modelType })
+  }
+}
+
+/**
+ * 处理资源键盘事件
+ */
+const handleResourceKeydown = (event: KeyboardEvent, template: NodeTemplate) => {
+  if (event.key === 'Enter' || event.key === ' ') {
+    event.preventDefault()
+    simulateDropToCanvas(template)
+  }
+}
+
+/**
+ * 处理本地任务键盘事件
+ */
+const handleLocalTaskKeydown = (event: KeyboardEvent) => {
+  if (event.key === 'Enter' || event.key === ' ') {
+    event.preventDefault()
+    const localTaskTemplate: NodeTemplate = {
+      type: 'localTask',
+      label: '本地结果处理',
+      category: 'localTask' as any,
+      icon: '🔄',
+      color: '#722ED1',
+      description: '拼接多个任务的输出结果'
+    }
+    simulateDropToCanvas(localTaskTemplate)
+  }
+}
+
+/**
+ * 处理 FL 卡片键盘事件
+ */
+const handleFLCardKeydown = (event: KeyboardEvent) => {
+  if (event.key === 'Enter' || event.key === ' ') {
+    event.preventDefault()
+    if (!flCardExpanded.value) {
+      updateFLCardSubmenuPosition()
+    }
+    flCardExpanded.value = true
+    // 聚焦到第一个模式选项
+    nextTick(() => {
+      const firstTab = document.querySelector('.fl-mode-tab') as HTMLElement
+      firstTab?.focus()
+    })
+  } else if (event.key === 'Escape') {
+    flCardExpanded.value = false
+    hoveredCategory.value = null
+  }
+}
+
+/**
+ * 处理 FL 模式切换键盘事件
+ */
+const handleFLModeKeydown = (event: KeyboardEvent, mode: FLMode) => {
+  if (event.key === 'Enter' || event.key === ' ') {
+    event.preventDefault()
+    activeFLMode.value = mode
+  } else if (event.key === 'Tab') {
+    // Tab 键导航到类别卡片
+    if (!event.shiftKey) {
+      event.preventDefault()
+      const firstCategory = document.querySelector('.fl-category-card') as HTMLElement
+      firstCategory?.focus()
+    }
+  } else if (event.key === 'Escape') {
+    flCardExpanded.value = false
+    hoveredCategory.value = null
+  }
+}
+
+/**
+ * 处理类别卡片键盘事件
+ */
+const handleCategoryKeydown = (event: KeyboardEvent, category: FLTaskCategory) => {
+  if (event.key === 'Enter' || event.key === ' ') {
+    event.preventDefault()
+    hoveredCategory.value = category
+    nextTick(() => {
+      updateFLTaskCardPosition()
+      const firstTask = document.querySelector('.fl-task-card .task-item') as HTMLElement
+      firstTask?.focus()
+    })
+  } else if (event.key === 'Escape') {
+    flCardExpanded.value = false
+    hoveredCategory.value = null
+  }
+}
+
+/**
+ * 处理 FL 任务键盘事件
+ */
+const handleFLTaskKeydown = (
+  event: KeyboardEvent,
+  task: FLTaskMenuItem,
+  category: FLTaskCategory | undefined,
+  mode: FLMode
+) => {
+  if (event.key === 'Enter' || event.key === ' ') {
+    event.preventDefault()
+    if (!category) return
+
+    const flTaskTemplate: NodeTemplate = {
+      type: 'fl_task',
+      label: task.name,
+      category: NodeCategory.COMPUTE_TASK,
+      taskType: ComputeTaskType.FL,
+      icon: task.icon,
+      color: getFLCategoryColor(category),
+      description: task.description
+    }
+    const data = {
+      ...flTaskTemplate,
+      flTask: {
+        taskName: task.taskName,
+        taskDisplayName: task.name,
+        category,
+        mode
+      }
+    }
+    simulateDropToCanvas(data)
+    // 关闭子菜单
+    flCardExpanded.value = false
+    hoveredCategory.value = null
+  } else if (event.key === 'Escape') {
+    hoveredCategory.value = null
+    // 返回焦点到类别卡片
+    const categoryCard = document.querySelector('.fl-category-card.is-hovered') as HTMLElement
+    categoryCard?.focus()
+  }
+}
+
+/**
  * 处理 FL 任务拖拽开始事件
  */
 const onDragStartFLTask = (
@@ -788,6 +1008,18 @@ const onDragStartLocalTask = (event: DragEvent) => {
     }
   }
 
+  &:focus-visible {
+    outline: 2px solid var(--color-primary, #1890ff);
+    outline-offset: 2px;
+    background: var(--list-item-hover-bg);
+    border-color: var(--datasource-blue);
+    box-shadow: 0 0 0 4px rgba(24, 144, 255, 0.15);
+
+    &::before {
+      transform: scaleY(1);
+    }
+  }
+
   &:active {
     cursor: grabbing;
     transform: translateX(2px) scale(0.98);
@@ -966,6 +1198,12 @@ const onDragStartLocalTask = (event: DragEvent) => {
     color: rgba(0, 0, 0, 0.75);
   }
 
+  &:focus-visible {
+    outline: 2px solid #1890ff;
+    outline-offset: -2px;
+    background: rgba(255, 255, 255, 0.5);
+  }
+
   &.is-active {
     color: #1890ff;
     background: rgba(255, 255, 255, 0.6);
@@ -992,6 +1230,12 @@ const onDragStartLocalTask = (event: DragEvent) => {
   &.is-hovered {
     background: rgba(24, 144, 255, 0.12);
     box-shadow: inset 0 0 0 1px rgba(24, 144, 255, 0.2);
+  }
+
+  &:focus-visible {
+    outline: 2px solid #1890ff;
+    outline-offset: -2px;
+    background: rgba(24, 144, 255, 0.15);
   }
 
   .category-card-header {
@@ -1137,6 +1381,13 @@ const onDragStartLocalTask = (event: DragEvent) => {
     box-shadow:
       0 4px 12px rgba(24, 144, 255, 0.15),
       inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  }
+
+  &:focus-visible {
+    outline: 2px solid #1890ff;
+    outline-offset: -2px;
+    background: rgba(24, 144, 255, 0.2);
+    border-color: rgba(24, 144, 255, 0.4);
   }
 
   &:active {

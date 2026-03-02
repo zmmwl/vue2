@@ -25,29 +25,23 @@ html, body {
 // 节点基础样式
 .vue-flow__node {
   cursor: grab;
-  outline: none !important;  // 强制移除所有 outline
 
   &:active {
     cursor: grabbing;
   }
 
-  // 移除浏览器默认的焦点边框
-  &:focus {
-    outline: none !important;
-  }
-
+  // 键盘焦点样式 - 使用明显的蓝色光环
   &:focus-visible {
-    outline: none !important;
-  }
-
-  &:focus-within {
-    outline: none !important;
+    outline: 3px solid var(--color-primary, #1890ff) !important;
+    outline-offset: 2px !important;
+    box-shadow: 0 0 0 6px rgba(24, 144, 255, 0.2) !important;
   }
 }
 
 // 选中状态
 .vue-flow__node.selected {
-  outline: none !important;
+  outline: 2px solid var(--color-primary, #1890ff);
+  outline-offset: 2px;
 }
 
 // 连接线样式
@@ -66,13 +60,12 @@ html, body {
   stroke-width: 3px;
 }
 
-// 移除连接线焦点时的默认边框
+// 连接线焦点样式
 .vue-flow__edge {
-  outline: none !important;
-
-  &:focus,
+  // 键盘焦点样式
   &:focus-visible {
-    outline: none !important;
+    outline: 2px solid var(--color-primary, #1890ff) !important;
+    outline-offset: 2px !important;
   }
 }
 
@@ -367,4 +360,30 @@ html, body {
 
 .animate-spin {
   animation: spin 1s linear infinite;
+}
+
+// ========== 键盘可访问性焦点样式 ==========
+// 注意：保留必要的焦点样式，但避免过度干扰 VueFlow 等第三方库的行为
+
+// 按钮焦点样式 - 仅对显式使用 .btn 类的按钮
+.btn:focus-visible {
+  outline: 2px solid var(--color-primary, #1890ff);
+  outline-offset: 2px;
+}
+
+// 跳过导航链接（无障碍）
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 0;
+  background: var(--color-primary, #1890ff);
+  color: white;
+  padding: 8px 16px;
+  z-index: 9999;
+  text-decoration: none;
+  border-radius: 0 0 4px 0;
+
+  &:focus {
+    top: 0;
+  }
 }

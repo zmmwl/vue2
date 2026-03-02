@@ -1,7 +1,15 @@
 <template>
   <div class="collapsible-section">
     <div class="section-wrapper" :class="{ 'is-collapsed': !isExpanded }">
-      <div class="section-header" @click="toggle">
+      <div
+        class="section-header"
+        role="button"
+        :aria-expanded="isExpanded"
+        :aria-controls="sectionId"
+        tabindex="0"
+        @click="toggle"
+        @keydown="handleKeydown"
+      >
         <h4 class="section-title">
           {{ title }}
           <span v-if="count !== undefined" class="section-count">({{ count }})</span>
@@ -12,7 +20,13 @@
           </svg>
         </div>
       </div>
-      <div v-show="isExpanded" class="section-content">
+      <div
+        v-show="isExpanded"
+        :id="sectionId"
+        class="section-content"
+        role="region"
+        :aria-labelledby="sectionId + '-header'"
+      >
         <slot></slot>
       </div>
     </div>
@@ -34,8 +48,21 @@ const props = withDefaults(defineProps<Props>(), {
 
 const isExpanded = ref(props.defaultExpanded)
 
+// 生成唯一 ID 用于 aria 关联
+const sectionId = `section-${Math.random().toString(36).slice(2, 9)}`
+
 function toggle() {
   isExpanded.value = !isExpanded.value
+}
+
+/**
+ * 处理键盘事件
+ */
+function handleKeydown(event: KeyboardEvent) {
+  if (event.key === 'Enter' || event.key === ' ') {
+    event.preventDefault()
+    toggle()
+  }
 }
 </script>
 
@@ -73,9 +100,20 @@ function toggle() {
   border-bottom: 1px solid rgba(0, 0, 0, 0.06);
   margin-bottom: 12px;
   transition: border-color var(--transition-base) var(--easing-smooth);
+  border-radius: 4px;
+  margin-left: -4px;
+  margin-right: -4px;
+  padding-left: 4px;
+  padding-right: 4px;
 
   &:hover {
     border-bottom-color: rgba(14, 165, 233, 0.15);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-primary, #1890ff);
+    outline-offset: 2px;
+    border-bottom-color: rgba(14, 165, 233, 0.3);
   }
 }
 
