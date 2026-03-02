@@ -49,6 +49,7 @@
       :participant-id="pendingParticipantId || ''"
       :dataset="pendingDataset || ''"
       :available-fields="pendingAvailableFields || []"
+      :target-task-type="pendingTargetTaskType || ''"
       @confirm="handleFieldSelected"
       @cancel="handleFieldSelectorCancel"
     />
@@ -329,6 +330,9 @@ const pendingAvailableFields = ref<FieldInfo[]>([])
 const showUnionAlignDialog = ref(false)
 const pendingUnionProviders = ref<InputProvider[]>([])
 const pendingUnionTargetNodeId = ref<string>('')
+
+// 字段选择时的目标任务类型
+const pendingTargetTaskType = ref<string>('')
 
 // 错误提示状态
 const showErrorToast = ref(false)
@@ -2369,6 +2373,7 @@ function clearFieldSelectorState() {
   pendingParticipantId.value = ''
   pendingDataset.value = ''
   pendingAvailableFields.value = []
+  pendingTargetTaskType.value = ''
   showFieldSelectorDialog.value = false
 }
 
@@ -5074,6 +5079,10 @@ function handleCreateTestConnection(event: Event) {
   pendingConnection.value = connection
   pendingConnectionSource.value = connection.source
   pendingSourceType.value = sourceData.category === NodeCategory.DATA_SOURCE ? 'dataSource' : 'outputData'
+
+  // 获取目标任务类型（用于限制连接类型选择）
+  const targetTaskData = targetData as any
+  pendingTargetTaskType.value = targetTaskData.taskType || ''
 
   // 获取源节点的字段信息
   if (sourceData.category === NodeCategory.DATA_SOURCE && sourceData.assetInfo) {

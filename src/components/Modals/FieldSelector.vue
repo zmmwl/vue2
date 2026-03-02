@@ -25,14 +25,15 @@
               <!-- Join类型选择 -->
               <div class="config-row join-type-selector">
                 <span class="config-label">连接类型</span>
-                <select v-model="globalJoinType" class="join-type-select">
+                <select v-model="globalJoinType" class="join-type-select" :disabled="isJoinTypeRestricted">
                   <option value="INNER">INNER（内连接）</option>
-                  <option value="CROSS">CROSS（交叉连接）</option>
-                  <option value="Union">UNION（横向拼接）</option>
-                  <option value="NoAssoc">NOASSOC（无关联）</option>
+                  <option value="CROSS" :disabled="isJoinTypeRestricted">CROSS（交叉连接）</option>
+                  <option value="Union" :disabled="isJoinTypeRestricted">UNION（横向拼接）</option>
+                  <option value="NoAssoc" :disabled="isJoinTypeRestricted">NOASSOC（无关联）</option>
                 </select>
                 <span class="join-type-hint">
                   {{ joinTypeHint }}
+                  <template v-if="isJoinTypeRestricted">（PSI任务仅支持内连接）</template>
                 </span>
               </div>
             </div>
@@ -152,6 +153,7 @@ interface Props {
   availableFields?: FieldInfo[]
   initialSelection?: FieldMapping[]
   closeOnOverlay?: boolean
+  targetTaskType?: string  // 目标任务类型，用于限制连接类型选择
 }
 
 interface Emits {
@@ -170,7 +172,8 @@ interface Emits {
 const props = withDefaults(defineProps<Props>(), {
   availableFields: () => [],
   initialSelection: () => [],
-  closeOnOverlay: true
+  closeOnOverlay: true,
+  targetTaskType: ''
 })
 
 const emit = defineEmits<Emits>()
@@ -197,6 +200,11 @@ const joinTypeHint = computed(() => {
 // 是否需要 join 字段（INNER 类型需要）
 const needsJoinFields = computed(() => {
   return globalJoinType.value === 'INNER'
+})
+
+// 是否限制只能选择INNER（PSI任务）
+const isJoinTypeRestricted = computed(() => {
+  return props.targetTaskType === 'PSI'
 })
 
 // 字段列表（带选择状态）
