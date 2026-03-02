@@ -53,6 +53,14 @@
       @cancel="handleFieldSelectorCancel"
     />
 
+    <!-- Union 字段对齐配置对话框 -->
+    <UnionFieldAlignDialog
+      v-model="showUnionAlignDialog"
+      :providers="pendingUnionProviders"
+      @confirm="handleUnionAlignConfirm"
+      @cancel="handleUnionAlignCancel"
+    />
+
     <!-- 输出配置对话框 -->
     <OutputConfig
       v-model="showOutputConfigDialog"
@@ -245,6 +253,7 @@ import LocalQueryEditor from '@/components/Modals/LocalQueryEditor.vue'
 import RealtimeDataSourceConfig from '@/components/Modals/RealtimeDataSourceConfig.vue'
 import RealtimeDataSourceNodeConfig from '@/components/Modals/RealtimeDataSourceNodeConfig.vue'
 import FLTaskConfig from '@/components/Modals/FLTaskConfig.vue'
+import UnionFieldAlignDialog from '@/components/Modals/UnionFieldAlignDialog.vue'
 import { MODEL_TEMPLATES, RESOURCE_TEMPLATES } from '@/utils/node-templates'
 import { createUniqueEdge } from '@/utils/edge-utils'
 import { layoutGraph } from '@/utils/layout-utils'
@@ -315,6 +324,11 @@ const pendingSourceType = ref<string>('')
 const pendingParticipantId = ref<string>('')
 const pendingDataset = ref<string>('')
 const pendingAvailableFields = ref<FieldInfo[]>([])
+
+// Union 字段对齐弹窗状态
+const showUnionAlignDialog = ref(false)
+const pendingUnionProviders = ref<InputProvider[]>([])
+const pendingUnionTargetNodeId = ref<string>('')
 
 // 错误提示状态
 const showErrorToast = ref(false)
@@ -2284,7 +2298,7 @@ function handleFieldSelected(selection: {
     }
 
     // 添加新的输入提供者
-    const newInputProvider = {
+    const newInputProvider: InputProvider = {
       sourceNodeId: selection.sourceNodeId,
       sourceType: selection.sourceType,
       participantId: selection.participantId,
@@ -2310,6 +2324,23 @@ function handleFieldSelected(selection: {
     // 更新 PIR 节点的特有数据（兼容旧逻辑）
     if (targetNode.type === 'pir_task' || (taskData as any).taskType === ComputeTaskType.PIR) {
       updatePIRNodeData(pendingConnection.value.source, pendingConnection.value.target, 'data-input')
+    }
+
+    // 检查是否需要打开 Union 字段对齐弹窗
+    // 条件：连接类型是 Union，且这是第二个及之后的数据源
+    if (selection.joinType === 'Union' && taskData.inputProviders.length >= 2) {
+      logger.info('[FlowCanvas] Union connection detected, opening align dialog', {
+        providerCount: taskData.inputProviders.length
+      })
+
+      // 保存当前状态用于 Union 对齐
+      pendingUnionProviders.value = [...taskData.inputProviders]
+      pendingUnionTargetNodeId.value = targetNode.id
+
+      // 关闭字段选择弹窗，打开 Union 对齐弹窗
+      showFieldSelectorDialog.value = false
+      showUnionAlignDialog.value = true
+      return
     }
   }
 
@@ -2339,6 +2370,54 @@ function clearFieldSelectorState() {
   pendingDataset.value = ''
   pendingAvailableFields.value = []
   showFieldSelectorDialog.value = false
+}
+
+/**
+ * 处理 Union 字段对齐确认
+ */
+function handleUnionAlignConfirm(data: { updatedProviders: InputProvider[] }) {
+  logger.info('[FlowCanvas] Union align confirmed', {
+    providerCount: data.updatedProviders.length
+  })
+
+  // 更新目标节点的 inputProviders
+  const targetNode = nodes.value.find(n => n.id === pendingUnionTargetNodeId.value)
+  if (targetNode) {
+    const taskData = targetNode.data as ComputeTaskNodeData
+    taskData.inputProviders = data.updatedProviders
+    // 重新构建 Join 条件
+    taskData.joinConditions = buildJoinConditions(taskData.inputProviders)
+  }
+
+  // 清理状态
+  clearUnionAlignState()
+}
+
+/**
+ * 处理 Union 字段对齐取消
+ */
+function handleUnionAlignCancel() {
+  logger.info('[FlowCanvas] Union align cancelled')
+
+  // 取消时也需要清理状态，但保留已添加的连接
+  clearUnionAlignState()
+}
+
+/**
+ * 清理 Union 对齐弹窗状态
+ */
+function clearUnionAlignState() {
+  showUnionAlignDialog.value = false
+  pendingUnionProviders.value = []
+  pendingUnionTargetNodeId.value = ''
+  // 同时清理字段选择器状态
+  pendingConnection.value = null
+  pendingConnectionSource.value = ''
+  pendingSourceName.value = ''
+  pendingSourceType.value = ''
+  pendingParticipantId.value = ''
+  pendingDataset.value = ''
+  pendingAvailableFields.value = []
 }
 
 /**
