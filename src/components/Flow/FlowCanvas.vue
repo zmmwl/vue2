@@ -1250,6 +1250,10 @@ const onConnect = (connection: Connection) => {
     pendingConnectionSource.value = correctedConnection.source
     pendingSourceType.value = sourceData.category === NodeCategory.DATA_SOURCE ? 'dataSource' : 'outputData'
 
+    // 获取目标任务类型（用于限制连接类型选择）
+    const targetTaskData = targetData as any
+    pendingTargetTaskType.value = targetTaskData.taskType || ''
+
     // 获取源节点的字段信息
     if (sourceData.category === NodeCategory.DATA_SOURCE && sourceData.assetInfo) {
       // 普通数据源节点
