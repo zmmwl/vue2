@@ -2,6 +2,11 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## 重要准则
+- **不要自动commit|push**
+- 修改调试完毕后，不要帮我启动服务，我自己来启动
+- 启动服务尽量永远使用5172端口，除非端口已经被占用，否则不要改变端口
+
 ## 项目概述
 
 这是一个基于 Vue 3 + TypeScript + Vite 的隐私计算流程编辑器，使用 @vue-flow/core 库实现可视化流程图编辑功能。
@@ -105,7 +110,3 @@ src/
 ## Recent Changes
 - 001-data-asset-select: Added TypeScript 5.9.3, Vue 3.5.24 + @vue-flow/core 1.48.1, Vite 7.2.4, Sass 1.97.2, Playwright 1.57.0
 
-## 重要准则
-- coding、building完成后，不要主动启动服务
-- 如果启动服务，使用原来的端口，不要随意修改端口，如果旧的服务仍在运行，就停掉
-- **绝对不要自动推送改动**：可以自动提交，但不要自动推送，切记切记切记！！！
