@@ -589,9 +589,9 @@ function handleClose() {
         background-color: #fafafa;
       }
 
-      // 选中行 - 使用浅色背景
+      // 选中行 - 无特殊背景
       &.selected {
-        background-color: #f6ffed;
+        // 无背景色
       }
 
       // 拖拽中的行
@@ -600,32 +600,14 @@ function handleClose() {
         background-color: #f5f5f5;
       }
 
-      // 拖拽指示线 - 上方
-      &.drag-over-top::before {
-        content: '';
-        position: absolute;
-        top: -1px;
-        left: 8px;
-        right: 8px;
-        height: 2px;
-        background: #1890ff;
-        box-shadow: 0 0 6px rgba(24, 144, 255, 0.4);
-        z-index: 10;
-        pointer-events: none;
+      // 拖拽指示线 - 上方（使用box-shadow避免影响布局）
+      &.drag-over-top {
+        box-shadow: inset 0 2px 0 #1890ff;
       }
 
-      // 拖拽指示线 - 下方
-      &.drag-over-bottom::after {
-        content: '';
-        position: absolute;
-        bottom: -1px;
-        left: 8px;
-        right: 8px;
-        height: 2px;
-        background: #1890ff;
-        box-shadow: 0 0 6px rgba(24, 144, 255, 0.4);
-        z-index: 10;
-        pointer-events: none;
+      // 拖拽指示线 - 下方（使用box-shadow避免影响布局）
+      &.drag-over-bottom {
+        box-shadow: inset 0 -2px 0 #1890ff;
       }
 
       td {
