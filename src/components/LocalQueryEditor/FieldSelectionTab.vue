@@ -36,8 +36,8 @@
             >
               <option value="INNER">INNER（内连接）</option>
               <option value="CROSS">CROSS（交叉连接）</option>
-              <option value="Union">Union（横向拼接）</option>
-              <option value="NoAssoc">NoAssoc（无关联）</option>
+              <option value="Union">UNION（横向拼接）</option>
+              <option value="NoAssoc">NOASSOC（无关联）</option>
             </select>
           </div>
 

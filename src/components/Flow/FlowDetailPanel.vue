@@ -510,12 +510,12 @@
               </div>
             </div>
             </div>
-            <!-- 关联方式 (子 section) -->
+            <!-- 连接类型 (子 section) -->
             <div v-if="joinConditions && joinConditions.length > 0" class="join-conditions-wrapper">
               <div class="join-conditions-card">
                 <div class="card-header">
                   <div class="card-header-left">
-                    <span class="card-title">关联方式</span>
+                    <span class="card-title">连接类型</span>
                     <span class="card-count">{{ joinConditions.length }}</span>
                   </div>
                   <button v-if="hasUnionProviders" class="config-provider-btn" @click="openUnionAlignDialog" title="配置 Union 字段对齐">
@@ -2850,7 +2850,7 @@ watch(() => props.selectedNode, (node) => {
   }
 }
 
-// 关联方式卡片样式
+// 连接类型卡片样式
 .join-conditions-wrapper {
   margin-top: 12px;
 
