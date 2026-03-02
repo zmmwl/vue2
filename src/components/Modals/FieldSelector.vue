@@ -446,30 +446,32 @@ function handleClose() {
 .source-info {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 12px 16px;
-  background-color: #fafafa;
+  gap: 12px;
+  padding: 10px 16px;
+  background-color: #fff;
   border-radius: 6px;
-  margin-bottom: 16px;
-  border: 1px solid #e8e8e8;
+  margin-bottom: 12px;
+  border: none;
 
   .source-icon {
-    font-size: 18px;
+    font-size: 16px;
+    opacity: 0.7;
   }
 
   .source-name {
     flex: 1;
     font-weight: 600;
+    font-size: 14px;
     color: #303133;
   }
 
   .source-type {
-    font-size: 12px;
-    color: #606266;
-    padding: 4px 10px;
-    background-color: #fff;
-    border-radius: 4px;
-    border: 1px solid #e8e8e8;
+    font-size: 11px;
+    color: #8c8c8c;
+    padding: 2px 8px;
+    background-color: #f5f5f5;
+    border-radius: 3px;
+    border: none;
   }
 }
 
@@ -477,11 +479,11 @@ function handleClose() {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 16px;
-  background-color: #fafafa;
-  border: 1px solid #e8e8e8;
+  padding: 10px 16px;
+  background-color: #fff;
+  border: none;
   border-radius: 6px;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 
   .join-type-label {
     font-size: 13px;
@@ -587,10 +589,9 @@ function handleClose() {
         background-color: #fafafa;
       }
 
-      // 选中行 - 使用绿色边框代替蓝色底色
+      // 选中行 - 使用浅色背景
       &.selected {
-        background-color: #fff;
-        border-left: 3px solid #52c41a;
+        background-color: #f6ffed;
       }
 
       // 拖拽中的行
@@ -603,26 +604,28 @@ function handleClose() {
       &.drag-over-top::before {
         content: '';
         position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
+        top: -1px;
+        left: 8px;
+        right: 8px;
         height: 2px;
         background: #1890ff;
         box-shadow: 0 0 6px rgba(24, 144, 255, 0.4);
         z-index: 10;
+        pointer-events: none;
       }
 
       // 拖拽指示线 - 下方
       &.drag-over-bottom::after {
         content: '';
         position: absolute;
-        bottom: 0;
-        left: 0;
-        right: 0;
+        bottom: -1px;
+        left: 8px;
+        right: 8px;
         height: 2px;
         background: #1890ff;
         box-shadow: 0 0 6px rgba(24, 144, 255, 0.4);
         z-index: 10;
+        pointer-events: none;
       }
 
       td {
