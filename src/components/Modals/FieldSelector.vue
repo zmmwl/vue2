@@ -9,25 +9,32 @@
           </div>
 
           <div class="modal-body">
-            <!-- 数据源信息 -->
-            <div class="source-info">
-              <span class="source-icon">🗄️</span>
-              <span class="source-name">{{ sourceName }}</span>
-              <span class="source-type">{{ sourceType }}</span>
-            </div>
+            <!-- 配置区域卡片 -->
+            <div class="config-card">
+              <!-- 数据源信息 -->
+              <div class="config-row source-info">
+                <span class="config-label">数据源</span>
+                <span class="source-icon">🗄️</span>
+                <span class="source-name">{{ sourceName }}</span>
+                <span class="source-type">{{ sourceType }}</span>
+              </div>
 
-            <!-- Join类型选择 -->
-            <div class="join-type-selector">
-              <label class="join-type-label">Join 连接类型：</label>
-              <select v-model="globalJoinType" class="join-type-select">
-                <option value="INNER">INNER（内连接）</option>
-                <option value="CROSS">CROSS（交叉连接）</option>
-                <option value="Union">Union（横向拼接）</option>
-                <option value="NoAssoc">NoAssoc（无关联）</option>
-              </select>
-              <span class="join-type-hint">
-                {{ joinTypeHint }}
-              </span>
+              <!-- 分隔线 -->
+              <div class="config-divider"></div>
+
+              <!-- Join类型选择 -->
+              <div class="config-row join-type-selector">
+                <span class="config-label">连接类型</span>
+                <select v-model="globalJoinType" class="join-type-select">
+                  <option value="INNER">INNER（内连接）</option>
+                  <option value="CROSS">CROSS（交叉连接）</option>
+                  <option value="Union">Union（横向拼接）</option>
+                  <option value="NoAssoc">NoAssoc（无关联）</option>
+                </select>
+                <span class="join-type-hint">
+                  {{ joinTypeHint }}
+                </span>
+              </div>
             </div>
 
             <!-- 字段表格 -->
@@ -443,16 +450,36 @@ function handleClose() {
   max-width: 900px;
 }
 
-.source-info {
+// 配置卡片容器
+.config-card {
+  background-color: #fafafa;
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  overflow: hidden;
+}
+
+.config-row {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 10px 16px;
-  background-color: #fff;
-  border-radius: 6px;
-  margin-bottom: 12px;
-  border: none;
+  padding: 12px 16px;
+}
 
+.config-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #606266;
+  min-width: 60px;
+}
+
+.config-divider {
+  height: 1px;
+  background-color: #e8e8e8;
+  margin: 0 16px;
+}
+
+.source-info {
   .source-icon {
     font-size: 16px;
     opacity: 0.7;
@@ -460,7 +487,7 @@ function handleClose() {
 
   .source-name {
     flex: 1;
-    font-weight: 600;
+    font-weight: 500;
     font-size: 14px;
     color: #303133;
   }
@@ -469,37 +496,22 @@ function handleClose() {
     font-size: 11px;
     color: #8c8c8c;
     padding: 2px 8px;
-    background-color: #f5f5f5;
+    background-color: #fff;
+    border: 1px solid #e8e8e8;
     border-radius: 3px;
-    border: none;
   }
 }
 
 .join-type-selector {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 16px;
-  background-color: #fff;
-  border: none;
-  border-radius: 6px;
-  margin-bottom: 12px;
-
-  .join-type-label {
-    font-size: 13px;
-    font-weight: 600;
-    color: #303133;
-    white-space: nowrap;
-  }
-
   .join-type-select {
     padding: 6px 12px;
     border: 1px solid #d9d9d9;
     border-radius: 4px;
     font-size: 13px;
-    background-color: #ffffff;
+    background-color: #fff;
     cursor: pointer;
     transition: all 0.2s;
+    min-width: 180px;
 
     &:focus {
       outline: none;
@@ -514,7 +526,7 @@ function handleClose() {
 
   .join-type-hint {
     font-size: 12px;
-    color: #606266;
+    color: #909399;
   }
 }
 
