@@ -63,8 +63,9 @@
       <span>+</span>
     </button>
 
-    <!-- 右侧"添加算力"按钮 -->
+    <!-- 右侧"添加算力"按钮（只有硬件TEE技术路径才显示） -->
     <button
+      v-if="showAddComputeButton"
       class="add-compute-btn"
       @click="() => handleAddCompute(id)"
       @mouseenter="handleHighlightComputes"
@@ -157,6 +158,12 @@ const algorithmInfo = computed(() => {
 const showAddModelButton = computed(() => {
   const taskData = props.data as ComputeTaskNodeData
   return taskData.taskType !== 'PSI' as ComputeTaskType
+})
+
+// 是否显示"添加算力"按钮（只有硬件TEE技术路径才显示）
+const showAddComputeButton = computed(() => {
+  const taskData = props.data as ComputeTaskNodeData
+  return taskData.techPath === 'tee'
 })
 </script>
 

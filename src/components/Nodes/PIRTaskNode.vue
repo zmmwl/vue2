@@ -59,8 +59,9 @@
       <span>+</span>
     </button>
 
-    <!-- 右侧"添加算力"按钮 -->
+    <!-- 右侧"添加算力"按钮（只有硬件TEE技术路径才显示） -->
     <button
+      v-if="showAddComputeButton"
       class="add-compute-btn"
       @click="() => handleAddCompute(id)"
       @mouseenter="handleHighlightComputes"
@@ -155,6 +156,11 @@ const isDataInputVisible = computed(() =>
 const isOutputVisible = computed(() =>
   outputsCount.value > 0 || hasOutputConnection.value
 )
+
+// 是否显示"添加算力"按钮（只有硬件TEE技术路径才显示）
+const showAddComputeButton = computed(() => {
+  return pirData.value.techPath === 'tee'
+})
 </script>
 
 <style scoped lang="scss">
