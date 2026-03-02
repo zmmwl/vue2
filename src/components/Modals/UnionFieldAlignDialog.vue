@@ -13,7 +13,7 @@
             <div class="providers-info">
               <span class="info-label">已连接数据源：</span>
               <span v-for="(provider, index) in providers" :key="provider.sourceNodeId" class="provider-badge">
-                {{ index + 1 }}. {{ getProviderLabel(provider) }}
+                {{ index + 1}}. {{ getProviderLabel(provider) }}
               </span>
             </div>
 
@@ -22,97 +22,78 @@
               <button class="btn btn-secondary" @click="autoAlignByName" title="以第一个数据源为基准，对齐其他数据源中相同名称的字段">
                 🔗 自动对齐相同名称
               </button>
-              <button class="btn btn-secondary" @click="autoGenerateAliases" title="根据对齐的字段自动生成别名">
+              <button class="btn btn-secondary" @click="autoGenerateAliases" title="根据数据源1的字段自动生成别名">
                 ✏️ 自动生成别名
               </button>
             </div>
 
-            <!-- 字段对齐表格 -->
-            <div class="align-table-container">
-              <table class="align-table">
-                <thead>
-                  <tr>
-                    <th class="col-index">#</th>
-                    <th class="col-alias">统一别名</th>
-                    <th
-                      v-for="(provider, pIndex) in providers"
-                      :key="provider.sourceNodeId"
-                      class="col-source"
-                    >
-                      数据源 {{ pIndex + 1 }}
-                      <span class="source-name">({{ getProviderShortLabel(provider) }})</span>
-                    </th>
-                    <th class="col-actions">操作</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr
-                    v-for="(row, rowIndex) in alignRows"
-                    :key="rowIndex"
-                    class="align-row"
-                    :class="{ 'row-warning': !isRowComplete(rowIndex) }"
+            <!-- 独立列表格布局 -->
+            <div class="align-tables-container">
+              <!-- 统一别名列 -->
+              <div class="align-column alias-column">
+                <div class="column-header">
+                  <span class="header-title">统一别名</span>
+                  <span class="header-count">({{ aliasList.length }})</span>
+                </div>
+                <div class="column-body">
+                  <div
+                    v-for="(_alias, index) in aliasList"
+                    :key="index"
+                    class="column-row alias-row"
                   >
-                    <td class="col-index">{{ rowIndex + 1 }}</td>
-                    <td class="col-alias">
-                      <input
-                        v-model="row.alias"
-                        type="text"
-                        class="alias-input"
-                        placeholder="输入别名"
-                        @input="handleAliasChange"
-                      />
-                    </td>
-                    <td
-                      v-for="(provider, pIndex) in providers"
-                      :key="provider.sourceNodeId"
-                      class="col-source"
-                    >
-                      <div class="field-cell">
-                        <select
-                          v-model="row.fieldIndices[pIndex]"
-                          class="field-select"
-                          @change="handleFieldChange"
-                        >
-                          <option :value="null">-- 选择字段 --</option>
-                          <option
-                            v-for="field in getAvailableFieldsForSlot(pIndex, rowIndex)"
-                            :key="field.columnName"
-                            :value="field.columnName"
-                          >
-                            {{ field.columnName }} ({{ field.columnType }})
-                          </option>
-                        </select>
-                        <div class="field-actions">
-                          <button
-                            class="move-btn"
-                            :disabled="rowIndex === 0"
-                            @click="moveRowUp(rowIndex)"
-                            title="上移"
-                          >↑</button>
-                          <button
-                            class="move-btn"
-                            :disabled="rowIndex === alignRows.length - 1"
-                            @click="moveRowDown(rowIndex)"
-                            title="下移"
-                          >↓</button>
-                        </div>
-                      </div>
-                    </td>
-                    <td class="col-actions">
-                      <button class="delete-btn" @click="removeRow(rowIndex)" title="删除此行">
+                    <div class="row-index">{{ index + 1 }}</div>
+                    <input
+                      v-model="aliasList[index]"
+                      type="text"
+                      class="alias-input"
+                      placeholder="输入别名"
+                      @input="handleAliasChange"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <!-- 数据源列 -->
+              <div
+                v-for="(provider, pIndex) in providers"
+                :key="provider.sourceNodeId"
+                class="align-column source-column"
+              >
+                <div class="column-header">
+                  <span class="header-title">数据源 {{ pIndex + 1 }}</span>
+                  <span class="header-sub">({{ getProviderShortLabel(provider) }})</span>
+                </div>
+                <div class="column-body">
+                  <div
+                    v-for="(field, index) in providerFieldLists[pIndex]"
+                    :key="field.key"
+                    class="column-row field-row"
+                    :class="{ dragging: dragState.isDragging && dragState.sourceProviderIndex === pIndex && dragState.sourceFieldIndex === index }"
+                    draggable="true"
+                    @dragstart="handleDragStart($event, pIndex, index)"
+                    @dragover.prevent="handleDragOver($event, pIndex, index)"
+                    @drop="handleDrop($event, pIndex, index)"
+                    @dragend="handleDragEnd"
+                  >
+                    <div class="drag-handle" title="拖拽排序">⋮⋮</div>
+                    <div class="row-index">{{ index + 1 }}</div>
+                    <div class="field-info">
+                      <span class="field-name">{{ field.columnName }}</span>
+                      <span class="field-type">{{ field.columnType }}</span>
+                    </div>
+                    <div class="row-actions">
+                      <button class="row-action-btn delete-btn" @click="removeField(pIndex, index)" title="删除">
                         ✕
                       </button>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            <!-- 添加行按钮 -->
-            <div class="add-row-section">
-              <button class="add-row-btn" @click="addRow">
-                + 添加字段行
-              </button>
+                    </div>
+                  </div>
+                  <!-- 添加字段按钮 -->
+                  <div class="add-field-row" @click="openFieldSelector(pIndex)">
+                    <span class="add-icon">+</span>
+                    <span class="add-text">添加字段</span>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <!-- 状态提示 -->
@@ -121,7 +102,10 @@
                 {{ isAllRowsComplete ? '✓' : '○' }} 所有字段已配置
               </span>
               <span class="status-item">
-                字段数：{{ alignRows.length }}
+                别名数：{{ aliasList.length }}
+              </span>
+              <span class="status-item">
+                数据源数：{{ providers.length }}
               </span>
             </div>
           </div>
@@ -135,12 +119,23 @@
         </div>
       </div>
     </Transition>
+
+    <!-- 字段选择弹窗 -->
+    <AddFieldSelector
+      v-if="showFieldSelector"
+      :model-value="showFieldSelector"
+      :provider="currentProvider"
+      :excluded-fields="excludedFields"
+      @update:model-value="showFieldSelector = false"
+      @confirm="handleFieldSelectConfirm"
+    />
   </Teleport>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, reactive } from 'vue'
 import type { InputProvider, FieldMapping } from '@/types/nodes'
+import AddFieldSelector from './AddFieldSelector.vue'
 
 interface Props {
   modelValue: boolean
@@ -160,14 +155,34 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<Emits>()
 
-// 对齐行数据结构
-interface AlignRow {
-  alias: string
-  fieldIndices: (string | null)[]  // 每个数据源选中的字段名
+// 内部字段列表结构（带唯一key用于拖拽）
+interface InternalField {
+  columnName: string
+  columnType: string
+  key: string  // 唯一标识，用于拖拽
 }
 
-// 本地对齐行数据
-const alignRows = ref<AlignRow[]>([])
+// 统一别名列表
+const aliasList = ref<string[]>([])
+
+// 各数据源的字段列表（独立管理）
+const providerFieldLists = ref<InternalField[][]>([])
+
+// 拖拽状态
+const dragState = reactive({
+  isDragging: false,
+  sourceProviderIndex: -1,
+  sourceFieldIndex: -1
+})
+
+// 字段选择器状态
+const showFieldSelector = ref(false)
+const currentProviderIndex = ref(-1)
+const currentProvider = computed(() => props.providers[currentProviderIndex.value])
+const excludedFields = computed(() => {
+  if (currentProviderIndex.value < 0) return []
+  return providerFieldLists.value[currentProviderIndex.value]?.map(f => f.columnName) || []
+})
 
 // 获取数据源标签
 function getProviderLabel(provider: InputProvider): string {
@@ -178,44 +193,48 @@ function getProviderShortLabel(provider: InputProvider): string {
   return provider.dataset || provider.participantId
 }
 
-// 获取某个槽位可用的字段列表
-function getAvailableFieldsForSlot(providerIndex: number, rowIndex: number): FieldMapping[] {
-  const provider = props.providers[providerIndex]
-  if (!provider?.fields) return []
+// 生成唯一key
+function generateKey(): string {
+  return `field_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+}
 
-  // 获取当前行已选择的字段
-  const currentSelected = alignRows.value[rowIndex]?.fieldIndices[providerIndex]
+// 初始化数据
+function initializeData() {
+  if (!props.providers || props.providers.length === 0) {
+    aliasList.value = []
+    providerFieldLists.value = []
+    return
+  }
 
-  // 获取其他行已选择的字段
-  const otherSelected = new Set<string>()
-  alignRows.value.forEach((row, idx) => {
-    if (idx !== rowIndex && row.fieldIndices[providerIndex]) {
-      otherSelected.add(row.fieldIndices[providerIndex]!)
-    }
+  // 获取数据源1的字段作为基准
+  const firstProvider = props.providers[0]
+  const firstProviderFields = firstProvider?.fields || []
+
+  // 初始化统一别名列表（与数据源1一致）
+  aliasList.value = firstProviderFields.map(f => f.columnAlias || f.columnName)
+
+  // 初始化各数据源的字段列表
+  providerFieldLists.value = props.providers.map(provider => {
+    return (provider.fields || []).map(f => ({
+      columnName: f.columnName,
+      columnType: f.columnType || 'STRING',
+      key: generateKey()
+    }))
   })
-
-  // 返回未被其他行选择的字段（当前行已选择的也要包含）
-  return provider.fields.filter(f =>
-    !otherSelected.has(f.columnName) || f.columnName === currentSelected
-  )
 }
 
-// 检查行是否完整（所有数据源都选择了字段）
-function isRowComplete(rowIndex: number): boolean {
-  const row = alignRows.value[rowIndex]
-  if (!row) return false
-  return row.fieldIndices.every(f => f !== null)
-}
-
-// 是否所有行都完整
+// 检查是否所有行都完整（每个数据源都有对应字段）
 const isAllRowsComplete = computed(() => {
-  if (alignRows.value.length === 0) return false
-  return alignRows.value.every((_, idx) => isRowComplete(idx))
+  if (aliasList.value.length === 0) return false
+  // 检查每个数据源是否都有字段
+  return providerFieldLists.value.every(list => list.length > 0)
 })
 
-// 是否有效（至少有一行完整的配置）
+// 是否有效
 const isValid = computed(() => {
-  return alignRows.value.length > 0 && isAllRowsComplete.value
+  return aliasList.value.length > 0 &&
+         aliasList.value.every(a => a.trim() !== '') &&
+         isAllRowsComplete.value
 })
 
 // 处理别名变化
@@ -223,125 +242,128 @@ function handleAliasChange() {
   // 别名变化不需要特殊处理
 }
 
-// 处理字段选择变化
-function handleFieldChange() {
-  // 字段变化不需要特殊处理
-}
+// 拖拽开始
+function handleDragStart(event: DragEvent, providerIndex: number, fieldIndex: number) {
+  dragState.isDragging = true
+  dragState.sourceProviderIndex = providerIndex
+  dragState.sourceFieldIndex = fieldIndex
 
-// 添加新行
-function addRow() {
-  alignRows.value.push({
-    alias: '',
-    fieldIndices: props.providers.map(() => null)
-  })
-}
-
-// 删除行
-function removeRow(rowIndex: number) {
-  alignRows.value.splice(rowIndex, 1)
-}
-
-// 上移行
-function moveRowUp(rowIndex: number) {
-  if (rowIndex <= 0) return
-  const rows = alignRows.value
-  const temp = rows[rowIndex]
-  const prevTemp = rows[rowIndex - 1]
-  if (temp && prevTemp) {
-    rows[rowIndex] = prevTemp
-    rows[rowIndex - 1] = temp
+  if (event.dataTransfer) {
+    event.dataTransfer.effectAllowed = 'move'
+    event.dataTransfer.setData('text/plain', `${providerIndex}-${fieldIndex}`)
   }
 }
 
-// 下移行
-function moveRowDown(rowIndex: number) {
-  if (rowIndex >= alignRows.value.length - 1) return
-  const rows = alignRows.value
-  const temp = rows[rowIndex]
-  const nextTemp = rows[rowIndex + 1]
-  if (temp && nextTemp) {
-    rows[rowIndex] = nextTemp
-    rows[rowIndex + 1] = temp
+// 拖拽悬停
+function handleDragOver(event: DragEvent, _providerIndex: number, _fieldIndex: number) {
+  event.preventDefault()
+  if (event.dataTransfer) {
+    event.dataTransfer.dropEffect = 'move'
   }
 }
 
-// 自动对齐相同名称
+// 放置
+function handleDrop(event: DragEvent, targetProviderIndex: number, targetFieldIndex: number) {
+  event.preventDefault()
+
+  if (!dragState.isDragging) return
+  if (dragState.sourceProviderIndex !== targetProviderIndex) return // 只允许同一数据源内拖拽
+
+  const sourceIndex = dragState.sourceFieldIndex
+  if (sourceIndex === targetFieldIndex) return
+
+  const list = providerFieldLists.value[targetProviderIndex]
+  if (!list) return
+
+  // 移动元素
+  const movedItems = list.splice(sourceIndex, 1)
+  const movedItem = movedItems[0]
+  if (movedItem) {
+    list.splice(targetFieldIndex, 0, movedItem)
+  }
+}
+
+// 拖拽结束
+function handleDragEnd() {
+  dragState.isDragging = false
+  dragState.sourceProviderIndex = -1
+  dragState.sourceFieldIndex = -1
+}
+
+// 删除字段
+function removeField(providerIndex: number, fieldIndex: number) {
+  providerFieldLists.value[providerIndex]?.splice(fieldIndex, 1)
+}
+
+// 打开字段选择器
+function openFieldSelector(providerIndex: number) {
+  currentProviderIndex.value = providerIndex
+  showFieldSelector.value = true
+}
+
+// 处理字段选择确认
+function handleFieldSelectConfirm(data: { selectedFields: FieldMapping[] }) {
+  if (currentProviderIndex.value < 0) return
+
+  const newFields: InternalField[] = data.selectedFields.map(f => ({
+    columnName: f.columnName,
+    columnType: f.columnType || 'STRING',
+    key: generateKey()
+  }))
+
+  // 添加新字段到对应数据源
+  const currentList = providerFieldLists.value[currentProviderIndex.value]
+  if (!currentList) {
+    providerFieldLists.value[currentProviderIndex.value] = []
+  }
+  providerFieldLists.value[currentProviderIndex.value]?.push(...newFields)
+
+  showFieldSelector.value = false
+  currentProviderIndex.value = -1
+}
+
+// 自动对齐相同名称（都向数据源1对齐）
 function autoAlignByName() {
-  if (props.providers.length < 2) return
+  if (props.providers.length < 1) return
 
-  const baseProvider = props.providers[0]
-  if (!baseProvider?.fields) return
+  const firstProviderFields = providerFieldLists.value[0]
+  if (!firstProviderFields || firstProviderFields.length === 0) return
 
-  // 清空现有行
-  alignRows.value = []
+  // 对其他数据源进行对齐
+  for (let pIndex = 1; pIndex < providerFieldLists.value.length; pIndex++) {
+    const currentList = providerFieldLists.value[pIndex]
+    if (!currentList) continue
 
-  // 以第一个数据源为基准
-  baseProvider.fields.forEach(baseField => {
-    const row: AlignRow = {
-      alias: baseField.columnAlias || baseField.columnName,
-      fieldIndices: [baseField.columnName]
-    }
+    const originalFields = [...currentList] // 保存原始字段
 
-    // 在其他数据源中查找同名字段
-    for (let i = 1; i < props.providers.length; i++) {
-      const provider = props.providers[i]
-      const matchingField = provider?.fields?.find(
-        f => f.columnName === baseField.columnName
-      )
-      row.fieldIndices.push(matchingField ? matchingField.columnName : null)
-    }
+    // 创建新的对齐后的列表
+    const alignedList: InternalField[] = []
 
-    alignRows.value.push(row)
-  })
-}
-
-// 自动生成别名
-function autoGenerateAliases() {
-  alignRows.value.forEach(row => {
-    if (!row.alias) {
-      // 找到第一个非空的字段名作为别名
-      const firstFieldName = row.fieldIndices.find(f => f !== null)
-      if (firstFieldName) {
-        row.alias = firstFieldName
+    // 按数据源1的顺序对齐
+    for (const baseField of firstProviderFields) {
+      const matchingFieldIndex = originalFields.findIndex(f => f.columnName === baseField.columnName)
+      const matchingField = originalFields[matchingFieldIndex]
+      if (matchingFieldIndex >= 0 && matchingField) {
+        alignedList.push(matchingField)
+        // 从原始列表中移除已匹配的字段
+        originalFields.splice(matchingFieldIndex, 1)
       }
     }
-  })
+
+    // 将未匹配的字段添加到末尾
+    alignedList.push(...originalFields)
+
+    providerFieldLists.value[pIndex] = alignedList
+  }
 }
 
-// 初始化数据
-function initializeData() {
-  if (!props.providers || props.providers.length === 0) {
-    alignRows.value = []
-    return
-  }
+// 自动生成别名（从数据源1复制）
+function autoGenerateAliases() {
+  const firstProviderFields = providerFieldLists.value[0]
+  if (!firstProviderFields || firstProviderFields.length === 0) return
 
-  // 检查是否已有对齐数据（通过检查所有 provider 的字段顺序是否一致）
-  const firstProvider = props.providers[0]
-  if (!firstProvider?.fields?.length) {
-    alignRows.value = []
-    return
-  }
-
-  // 初始化对齐行
-  const rows: AlignRow[] = []
-  const maxFields = Math.max(...props.providers.map(p => p.fields?.length || 0))
-
-  for (let i = 0; i < maxFields; i++) {
-    const row: AlignRow = {
-      alias: '',
-      fieldIndices: props.providers.map(p => p.fields?.[i]?.columnName || null)
-    }
-
-    // 如果第一个数据源有这个字段，设置别名
-    const firstProviderField = firstProvider.fields?.[i]
-    if (firstProviderField) {
-      row.alias = firstProviderField.columnAlias || firstProviderField.columnName
-    }
-
-    rows.push(row)
-  }
-
-  alignRows.value = rows
+  // 别名的数量和名称都从数据源1复制
+  aliasList.value = firstProviderFields.map(f => f.columnName)
 }
 
 // 监听弹窗显示
@@ -364,19 +386,20 @@ function handleConfirm() {
   // 构建更新后的 providers
   const updatedProviders = props.providers.map((provider, pIndex) => ({
     ...provider,
-    fields: alignRows.value
-      .filter(row => row.fieldIndices[pIndex] !== null)
-      .map(row => {
-        const fieldName = row.fieldIndices[pIndex]!
-        const originalField = provider.fields?.find(f => f.columnName === fieldName)
-        return {
-          ...(originalField || {}),
-          columnName: fieldName,
-          columnAlias: row.alias || fieldName,
-          columnType: originalField?.columnType || 'STRING',
-          isJoinField: false
-        } as FieldMapping
-      })
+    fields: (providerFieldLists.value[pIndex] || []).map((field, fIndex) => {
+      // 查找原始字段信息
+      const originalField = provider.fields?.find(f => f.columnName === field.columnName)
+      // 获取对应的别名（如果有的话）
+      const alias = aliasList.value[fIndex] || field.columnName
+
+      return {
+        ...(originalField || {}),
+        columnName: field.columnName,
+        columnAlias: alias,
+        columnType: field.columnType || 'STRING',
+        isJoinField: false
+      } as FieldMapping
+    })
   }))
 
   emit('confirm', { updatedProviders })
@@ -402,8 +425,8 @@ function handleConfirm() {
   background: white;
   border-radius: 8px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-  width: 90%;
-  max-width: 900px;
+  width: 95%;
+  max-width: 1200px;
   max-height: 85vh;
   display: flex;
   flex-direction: column;
@@ -473,150 +496,230 @@ function handleConfirm() {
   margin-bottom: 16px;
 }
 
-.align-table-container {
+// 独立列表格布局
+.align-tables-container {
+  display: flex;
+  gap: 12px;
   overflow-x: auto;
-  border: 1px solid #e8e8e8;
-  border-radius: 4px;
+  padding-bottom: 12px;
+  min-height: 300px;
 }
 
-.align-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 13px;
+.align-column {
+  flex-shrink: 0;
+  min-width: 180px;
+  border: 1px solid #e8e8e8;
+  border-radius: 6px;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
 
-  th, td {
-    padding: 10px 12px;
-    border: 1px solid #e8e8e8;
-    text-align: left;
+  &.alias-column {
+    .column-header {
+      background: #f6ffed;
+      border-color: #b7eb8f;
+    }
   }
+}
 
-  th {
-    background: #fafafa;
-    font-weight: 600;
+.column-header {
+  padding: 10px 12px;
+  background: #fafafa;
+  border-bottom: 1px solid #e8e8e8;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+
+  .header-title {
     color: #303133;
-    white-space: nowrap;
-
-    .source-name {
-      font-weight: 400;
-      color: #909399;
-      font-size: 11px;
-    }
   }
 
-  .col-index {
-    width: 40px;
-    text-align: center;
+  .header-sub {
+    font-weight: 400;
+    color: #909399;
+    font-size: 12px;
   }
 
-  .col-alias {
-    width: 140px;
+  .header-count {
+    font-weight: 400;
+    color: #909399;
+    font-size: 12px;
+  }
+}
+
+.column-body {
+  flex: 1;
+  overflow-y: auto;
+  max-height: 350px;
+}
+
+.column-row {
+  display: flex;
+  align-items: center;
+  padding: 8px 10px;
+  border-bottom: 1px solid #f0f0f0;
+  gap: 8px;
+  min-height: 42px;
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.drag-handle {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #bfbfbf;
+  font-size: 14px;
+  cursor: grab;
+  flex-shrink: 0;
+  opacity: 0.4;
+  transition: all 0.2s;
+
+  &:hover {
+    opacity: 1;
+    color: #1890ff;
   }
 
-  .col-source {
-    min-width: 180px;
+  &:active {
+    cursor: grabbing;
   }
+}
 
-  .col-actions {
-    width: 60px;
-    text-align: center;
-  }
+.row-index {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f0f0f0;
+  border-radius: 4px;
+  font-size: 12px;
+  color: #666;
+  flex-shrink: 0;
+}
 
-  .align-row {
-    &.row-warning {
-      background: #fffbe6;
-    }
-  }
+.alias-row {
+  background: #fafafa;
 
   .alias-input {
-    width: 100%;
-    padding: 6px 8px;
-    border: 1px solid #d9d9d9;
-    border-radius: 4px;
-    font-size: 13px;
-
-    &:focus {
-      border-color: #1890ff;
-      outline: none;
-    }
-  }
-
-  .field-cell {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .field-select {
     flex: 1;
-    padding: 6px 8px;
+    padding: 4px 8px;
     border: 1px solid #d9d9d9;
     border-radius: 4px;
     font-size: 13px;
-    min-width: 120px;
 
     &:focus {
       border-color: #1890ff;
       outline: none;
+      box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
     }
   }
+}
 
-  .field-actions {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
+.field-row {
+  cursor: grab;
+  transition: all 0.2s;
+
+  &:hover {
+    background: #e6f7ff;
   }
 
-  .move-btn {
-    padding: 2px 6px;
-    border: 1px solid #d9d9d9;
-    background: #fff;
+  &:active {
+    cursor: grabbing;
+  }
+
+  &.dragging {
+    opacity: 0.5;
+    background: #f0f0f0;
+  }
+}
+
+.field-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+
+  .field-name {
+    font-size: 13px;
+    color: #303133;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .field-type {
+    font-size: 11px;
+    color: #8c8c8c;
+    background: #f5f5f5;
+    padding: 1px 4px;
     border-radius: 2px;
-    font-size: 10px;
-    cursor: pointer;
-    line-height: 1;
-
-    &:hover:not(:disabled) {
-      background: #f0f0f0;
-    }
-
-    &:disabled {
-      opacity: 0.4;
-      cursor: not-allowed;
-    }
+    width: fit-content;
   }
+}
 
-  .delete-btn {
-    padding: 4px 8px;
-    border: none;
-    background: #ff4d4f;
-    color: white;
-    border-radius: 4px;
-    font-size: 12px;
-    cursor: pointer;
+.row-actions {
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.2s;
+
+  .field-row:hover & {
+    opacity: 1;
+  }
+}
+
+.row-action-btn {
+  padding: 2px 6px;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.2s;
+
+  &.delete-btn {
+    background: transparent;
+    color: #ff4d4f;
 
     &:hover {
-      background: #ff7875;
+      background: #fff1f0;
     }
   }
 }
 
-.add-row-section {
-  margin-top: 12px;
-}
-
-.add-row-btn {
-  padding: 8px 16px;
+.add-field-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px;
   border: 1px dashed #d9d9d9;
-  background: #fafafa;
+  margin: 8px;
   border-radius: 4px;
-  font-size: 13px;
-  color: #606266;
   cursor: pointer;
-  width: 100%;
+  color: #8c8c8c;
+  transition: all 0.2s;
 
   &:hover {
     border-color: #1890ff;
     color: #1890ff;
+    background: #e6f7ff;
+  }
+
+  .add-icon {
+    font-size: 16px;
+    font-weight: 500;
+  }
+
+  .add-text {
+    font-size: 13px;
   }
 }
 
