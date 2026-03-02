@@ -45,8 +45,9 @@
       </div>
     </div>
 
-    <!-- 左侧"添加模型"按钮 -->
+    <!-- 左侧"添加模型"按钮（PSI 节点不显示） -->
     <button
+      v-if="showAddModelButton"
       class="add-model-btn"
       @click="() => handleAddModel(id)"
       @mouseenter="handleHighlightModels"
@@ -97,7 +98,7 @@
 import { computed } from 'vue'
 import { Handle, Position } from '@vue-flow/core'
 import type { NodeProps } from '@vue-flow/core'
-import type { NodeData, ComputeTaskNodeData } from '@/types/nodes'
+import type { NodeData, ComputeTaskNodeData, ComputeTaskType } from '@/types/nodes'
 import { useHandleVisibility } from '@/composables/useHandleVisibility'
 import { useNodeEvents } from '@/composables/useNodeEvents'
 import { getTechPathLabel } from '@/utils/task-utils'
@@ -150,6 +151,12 @@ const algorithmInfo = computed(() => {
     return `${config.algorithmName} (${config.algorithmVersion})`
   }
   return null
+})
+
+// 是否显示"添加模型"按钮（PSI 节点不显示）
+const showAddModelButton = computed(() => {
+  const taskData = props.data as ComputeTaskNodeData
+  return taskData.taskType !== 'PSI' as ComputeTaskType
 })
 </script>
 
