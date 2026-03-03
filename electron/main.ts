@@ -16,15 +16,17 @@ function createWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
+      webSecurity: false,
     },
     autoHideMenuBar: true,
   })
 
-  const appPath = app.isPackaged ? app.getAppPath() : join(__dirname, '..')
+  const appPath = app.isPackaged ? join(__dirname, '..') : join(__dirname, '..')
   const indexPath = join(appPath, 'dist', 'index.html')
-  const fileUrl = `file://${indexPath.replace(/\\/g, '/')}`
 
-  mainWindow.loadURL(fileUrl)
+  mainWindow.loadFile(indexPath).catch(err => {
+    console.error('加载失败:', err)
+  })
 
   mainWindow.on('closed', () => {})
 }
