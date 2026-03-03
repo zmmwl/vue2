@@ -29,22 +29,81 @@
                     </div>
                   </div>
                 </div>
-                <!-- 可选择企业 -->
-                <div v-else class="enterprise-display">
-                  <div class="enterprise-card" @click="showEnterpriseSelector = true">
+                <!-- 可选择企业（新交互：快捷选择 + 搜索） -->
+                <div v-else class="enterprise-selector">
+                  <!-- 已选择的企业 -->
+                  <div v-if="selectedEnterpriseId" class="selected-enterprise">
                     <div class="enterprise-icon">
                       {{ selectedEnterpriseName?.charAt(0) || '?' }}
                     </div>
                     <div class="enterprise-info">
-                      <div class="enterprise-name">
-                        {{ selectedEnterpriseName || '请选择企业' }}
-                      </div>
-                      <div v-if="selectedEnterpriseId" class="enterprise-id">
-                        {{ selectedEnterpriseId }}
-                      </div>
-                      <div v-else class="enterprise-hint">点击选择</div>
+                      <div class="enterprise-name">{{ selectedEnterpriseName }}</div>
+                      <div class="enterprise-id">{{ selectedEnterpriseId }}</div>
                     </div>
-                    <span class="arrow-icon">→</span>
+                    <button class="clear-btn" @click="clearEnterpriseSelection" title="清除选择">×</button>
+                  </div>
+
+                  <!-- 快捷选择区：画布中的企业 -->
+                  <div v-if="canvasEnterprises.length > 0" class="quick-select-section">
+                    <div class="section-label">
+                      {{ selectedEnterpriseId ? '更换企业 · 画布中的企业' : '快捷选择 · 画布中的企业' }}
+                    </div>
+                    <div class="enterprise-cards-scroll">
+                      <div
+                        v-for="enterprise in canvasEnterprises"
+                        :key="enterprise.id"
+                        class="enterprise-card-mini"
+                        :class="{ 'is-selected': selectedEnterpriseId === enterprise.id }"
+                        @click="selectEnterprise(enterprise.id)"
+                      >
+                        <div class="card-icon">{{ enterprise.name?.charAt(0) || '?' }}</div>
+                        <div class="card-info">
+                          <div class="card-name">{{ enterprise.name }}</div>
+                          <div class="card-id">{{ enterprise.id }}</div>
+                        </div>
+                        <span v-if="selectedEnterpriseId === enterprise.id" class="check-icon">✓</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- 搜索框 -->
+                  <div class="search-section">
+                    <div class="search-box">
+                      <span class="search-icon">🔍</span>
+                      <input
+                        v-model="searchKeyword"
+                        type="text"
+                        class="search-input"
+                        :placeholder="canvasEnterprises.length > 0 ? '搜索其他企业...' : '搜索企业...'"
+                        @focus="isSearchFocused = true"
+                        @blur="handleSearchBlur"
+                      />
+                      <button v-if="searchKeyword" class="clear-search" @click="clearSearch">×</button>
+                    </div>
+
+                    <!-- 搜索结果 -->
+                    <div v-if="showSearchResults" class="search-results">
+                      <div class="results-label">搜索结果</div>
+                      <div v-if="filteredEnterprises.length === 0" class="no-results">
+                        未找到匹配的企业
+                      </div>
+                      <div v-else class="enterprise-cards-scroll">
+                        <div
+                          v-for="enterprise in filteredEnterprises"
+                          :key="enterprise.id"
+                          class="enterprise-card-mini"
+                          :class="{ 'is-selected': selectedEnterpriseId === enterprise.id }"
+                          @click="selectEnterprise(enterprise.id)"
+                        >
+                          <div class="card-icon">{{ enterprise.name?.charAt(0) || '?' }}</div>
+                          <div class="card-info">
+                            <div class="card-name">{{ enterprise.name }}</div>
+                            <div class="card-id">{{ enterprise.id }}</div>
+                          </div>
+                          <span v-if="selectedEnterpriseId === enterprise.id" class="check-icon">✓</span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -134,18 +193,10 @@
       </div>
     </Transition>
   </Teleport>
-
-  <!-- 企业选择器弹窗 -->
-  <EnterpriseSelector
-    v-model="showEnterpriseSelector"
-    :enterprises="enterprises"
-    @confirm="handleEnterpriseSelected"
-  />
 </template>
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import EnterpriseSelector from './EnterpriseSelector.vue'
 import type { EnterpriseOption, OutputField, ExpressionConfig, GroupByConfig } from '@/types/nodes'
 
 interface AvailableField {
@@ -201,6 +252,8 @@ interface Props {
   groupByConfig?: GroupByConfig
   // 新增：源节点类型
   sourceNodeType?: string
+  // 新增：画布节点列表（用于提取画布中的企业）
+  canvasNodes?: any[]
 }
 
 interface Emits {
@@ -221,13 +274,16 @@ const props = withDefaults(defineProps<Props>(), {
   fixedEnterpriseName: undefined,
   expressions: () => [],
   groupByConfig: undefined,
-  sourceNodeType: undefined
+  sourceNodeType: undefined,
+  canvasNodes: () => []
 })
 
 const emit = defineEmits<Emits>()
 
-// 企业选择器显示状态
-const showEnterpriseSelector = ref(false)
+// 搜索关键词
+const searchKeyword = ref<string>('')
+// 搜索框是否聚焦
+const isSearchFocused = ref<boolean>(false)
 
 // 选中的企业 ID
 const selectedEnterpriseId = ref<string>('')
@@ -249,6 +305,78 @@ const hasGroupByConfig = computed(() => {
     return true
   }
   return false
+})
+
+// 从画布节点中提取企业列表（去重）
+const canvasEnterprises = computed<EnterpriseOption[]>(() => {
+  const enterpriseMap = new Map<string, EnterpriseOption>()
+
+  // 从输入字段中提取企业信息
+  props.inputFields.forEach(field => {
+    if (field.participantId && field.source) {
+      // 从 source 中提取企业名称（格式可能是 "企业名称" 或 "企业名称 (ID)"）
+      const enterpriseName = field.source.split(' (')[0] || field.source
+      if (!enterpriseMap.has(field.participantId)) {
+        enterpriseMap.set(field.participantId, {
+          id: field.participantId,
+          name: enterpriseName,
+          resourceType: 0
+        })
+      }
+    }
+  })
+
+  // 从画布节点中提取企业信息
+  if (props.canvasNodes && props.canvasNodes.length > 0) {
+    props.canvasNodes.forEach((node: any) => {
+      // 数据源节点
+      if (node.data?.assetInfo?.holderCompany) {
+        const holder = node.data.assetInfo.holderCompany
+        if (holder.participantId && !enterpriseMap.has(holder.participantId)) {
+          enterpriseMap.set(holder.participantId, {
+            id: holder.participantId,
+            name: holder.entityName || holder.participantId,
+            resourceType: 0
+          })
+        }
+      }
+      // 输出节点、模型节点、算力节点
+      if (node.data?.participantId && !enterpriseMap.has(node.data.participantId)) {
+        enterpriseMap.set(node.data.participantId, {
+          id: node.data.participantId,
+          name: node.data.entityName || node.data.participantId,
+          resourceType: 0
+        })
+      }
+    })
+  }
+
+  return Array.from(enterpriseMap.values())
+})
+
+// 搜索过滤后的企业列表（排除已在画布中的企业）
+const filteredEnterprises = computed<EnterpriseOption[]>(() => {
+  if (!searchKeyword.value.trim()) {
+    return []
+  }
+
+  const keyword = searchKeyword.value.toLowerCase().trim()
+  const canvasEnterpriseIds = new Set(canvasEnterprises.value.map(e => e.id))
+
+  return props.enterprises.filter(enterprise => {
+    // 排除已在画布中的企业
+    if (canvasEnterpriseIds.has(enterprise.id)) {
+      return false
+    }
+    // 匹配名称或 ID
+    return enterprise.name.toLowerCase().includes(keyword) ||
+           enterprise.id.toLowerCase().includes(keyword)
+  })
+})
+
+// 是否显示搜索结果
+const showSearchResults = computed(() => {
+  return isSearchFocused.value || searchKeyword.value.trim().length > 0
 })
 
 // 所有可用字段
@@ -537,10 +665,36 @@ function clearAllInGroup(group: FieldGroup) {
 }
 
 /**
- * 处理企业选择确认
+ * 选择企业
  */
-function handleEnterpriseSelected(enterpriseId: string) {
+function selectEnterprise(enterpriseId: string) {
   selectedEnterpriseId.value = enterpriseId
+  // 选择后清空搜索
+  searchKeyword.value = ''
+  isSearchFocused.value = false
+}
+
+/**
+ * 清除企业选择
+ */
+function clearEnterpriseSelection() {
+  selectedEnterpriseId.value = ''
+}
+
+/**
+ * 清除搜索
+ */
+function clearSearch() {
+  searchKeyword.value = ''
+}
+
+/**
+ * 处理搜索框失焦（延迟关闭搜索结果，允许点击结果项）
+ */
+function handleSearchBlur() {
+  setTimeout(() => {
+    isSearchFocused.value = false
+  }, 200)
 }
 
 /**
@@ -597,6 +751,8 @@ function handleClose() {
   selectedEnterpriseId.value = ''
   datasetName.value = ''
   selectedFieldIds.value.clear()
+  searchKeyword.value = ''
+  isSearchFocused.value = false
 }
 </script>
 
@@ -733,6 +889,266 @@ function handleClose() {
     .arrow-icon {
       flex-shrink: 0;
       color: #c0c4cc;
+    }
+  }
+
+  // 新的企业选择器样式
+  .enterprise-selector {
+    .selected-enterprise {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      background: #f0f9ff;
+      border: 2px solid #409eff;
+      border-radius: 8px;
+      margin-bottom: 16px;
+
+      .enterprise-icon {
+        flex-shrink: 0;
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #409eff, #66b1ff);
+        color: white;
+        border-radius: 8px;
+        font-size: 18px;
+        font-weight: 600;
+      }
+
+      .enterprise-info {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .enterprise-name {
+        font-size: 14px;
+        font-weight: 600;
+        color: #303133;
+      }
+
+      .enterprise-id {
+        font-size: 11px;
+        color: #909399;
+        font-family: 'Monaco', 'Menlo', monospace;
+        padding: 2px 6px;
+        background: rgba(0, 0, 0, 0.03);
+        border-radius: 4px;
+        display: inline-block;
+        margin-top: 2px;
+      }
+
+      .clear-btn {
+        flex-shrink: 0;
+        width: 24px;
+        height: 24px;
+        border: none;
+        background: #e4e7ed;
+        color: #606266;
+        border-radius: 50%;
+        cursor: pointer;
+        font-size: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+
+        &:hover {
+          background: #f56c6c;
+          color: white;
+        }
+      }
+    }
+
+    .quick-select-section {
+      margin-bottom: 12px;
+
+      .section-label {
+        font-size: 12px;
+        color: #909399;
+        margin-bottom: 8px;
+      }
+    }
+
+    .enterprise-cards-scroll {
+      display: flex;
+      gap: 10px;
+      overflow-x: auto;
+      padding: 4px 0;
+      padding-bottom: 8px;
+
+      // 自定义滚动条
+      &::-webkit-scrollbar {
+        height: 4px;
+      }
+
+      &::-webkit-scrollbar-track {
+        background: #f5f7fa;
+        border-radius: 2px;
+      }
+
+      &::-webkit-scrollbar-thumb {
+        background: #dcdfe6;
+        border-radius: 2px;
+
+        &:hover {
+          background: #c0c4cc;
+        }
+      }
+    }
+
+    .enterprise-card-mini {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px;
+      background: #ffffff;
+      border: 2px solid #e4e7ed;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      position: relative;
+      min-width: 160px;
+
+      &:hover {
+        border-color: #409eff;
+        background: #f5f9ff;
+      }
+
+      &.is-selected {
+        border-color: #409eff;
+        background: #f0f9ff;
+      }
+
+      .card-icon {
+        flex-shrink: 0;
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #e6f4ff, #bae0ff);
+        color: #1890ff;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 600;
+      }
+
+      .card-info {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .card-name {
+        font-size: 13px;
+        font-weight: 500;
+        color: #303133;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .card-id {
+        font-size: 10px;
+        color: #909399;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .check-icon {
+        position: absolute;
+        top: 4px;
+        right: 4px;
+        width: 16px;
+        height: 16px;
+        background: #409eff;
+        color: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 10px;
+      }
+    }
+
+    .search-section {
+      .search-box {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 14px;
+        background: #f5f7fa;
+        border: 2px solid #e4e7ed;
+        border-radius: 8px;
+        transition: all 0.2s;
+
+        &:focus-within {
+          border-color: #409eff;
+          background: #ffffff;
+        }
+
+        .search-icon {
+          font-size: 14px;
+          color: #909399;
+        }
+
+        .search-input {
+          flex: 1;
+          border: none;
+          background: transparent;
+          font-size: 14px;
+          color: #303133;
+          outline: none;
+
+          &::placeholder {
+            color: #c0c4cc;
+          }
+        }
+
+        .clear-search {
+          flex-shrink: 0;
+          width: 18px;
+          height: 18px;
+          border: none;
+          background: #e4e7ed;
+          color: #909399;
+          border-radius: 50%;
+          cursor: pointer;
+          font-size: 12px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.2s;
+
+          &:hover {
+            background: #c0c4cc;
+            color: #606266;
+          }
+        }
+      }
+
+      .search-results {
+        margin-top: 12px;
+
+        .results-label {
+          font-size: 12px;
+          color: #909399;
+          margin-bottom: 8px;
+        }
+
+        .no-results {
+          padding: 20px;
+          text-align: center;
+          color: #909399;
+          font-size: 13px;
+          background: #f5f7fa;
+          border-radius: 8px;
+        }
+      }
     }
   }
 

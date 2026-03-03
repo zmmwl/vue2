@@ -75,6 +75,7 @@
       :expressions="pendingOutputLocalQueryData?.expressions"
       :group-by-config="pendingOutputLocalQueryData?.groupByConfig"
       :source-node-type="pendingOutputSourceType"
+      :canvas-nodes="nodes"
       @confirm="handleOutputConfigConfirmed"
       @cancel="handleOutputConfigCancelled"
     />
