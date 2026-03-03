@@ -87,6 +87,10 @@
                       <span class="group-icon">{{ group.icon }}</span>
                       <span class="group-title">{{ group.title }}</span>
                       <span class="group-count">({{ group.fields.length }})</span>
+                      <div class="group-actions">
+                        <button class="group-action-btn" @click.stop="selectAllInGroup(group)">全选</button>
+                        <button class="group-action-btn" @click.stop="clearAllInGroup(group)">清除</button>
+                      </div>
                     </div>
                     <!-- 分组字段列表 -->
                     <div class="group-fields">
@@ -511,6 +515,28 @@ function toggleField(fieldId: string) {
 }
 
 /**
+ * 全选某个分组中的所有字段
+ */
+function selectAllInGroup(group: FieldGroup) {
+  group.fields.forEach(field => {
+    selectedFieldIds.value.add(field.id)
+  })
+  // 强制更新响应式
+  selectedFieldIds.value = new Set(selectedFieldIds.value)
+}
+
+/**
+ * 清除某个分组中的所有字段选择
+ */
+function clearAllInGroup(group: FieldGroup) {
+  group.fields.forEach(field => {
+    selectedFieldIds.value.delete(field.id)
+  })
+  // 强制更新响应式
+  selectedFieldIds.value = new Set(selectedFieldIds.value)
+}
+
+/**
  * 处理企业选择确认
  */
 function handleEnterpriseSelected(enterpriseId: string) {
@@ -799,6 +825,28 @@ function handleClose() {
         background: rgba(0, 0, 0, 0.04);
         border-radius: 10px;
         font-weight: 500;
+      }
+
+      .group-actions {
+        margin-left: auto;
+        display: flex;
+        gap: 6px;
+      }
+
+      .group-action-btn {
+        font-size: 12px;
+        padding: 3px 10px;
+        border: 1px solid #d9d9d9;
+        border-radius: 4px;
+        background: #fff;
+        color: #606266;
+        cursor: pointer;
+        transition: all 0.2s;
+
+        &:hover {
+          color: #409eff;
+          border-color: #409eff;
+        }
       }
     }
 
