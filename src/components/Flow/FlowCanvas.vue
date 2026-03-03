@@ -1143,7 +1143,14 @@ const isValidConnection = (
     return false
   }
 
-  // 规则 2: 连接到 PIR 任务节点时，统一使用 data-input handle
+  // 规则 2: PSI 任务节点不允许连接模型节点
+  const targetTaskData = targetData as ComputeTaskNodeData
+  if (targetTaskData.taskType === ComputeTaskType.PSI && sourceData.category === NodeCategory.MODEL) {
+    console.warn('⚠️ 连接被拒绝：PSI 任务节点不允许连接模型')
+    return false
+  }
+
+  // 规则 3: 连接到 PIR 任务节点时，统一使用 data-input handle
   if (targetNode.type === 'pir_task' || (targetData as ComputeTaskNodeData).taskType === ComputeTaskType.PIR) {
     // PIR 任务现在使用统一的 data-input handle（和 MPC 任务一样）
     ;(connection as any).targetHandle = 'data-input'
