@@ -4224,6 +4224,17 @@ function handleParamConfigConfirm(parameters: ModelParameter[]) {
     }
   }
 
+  // 同步更新模型节点本身的 parameters
+  if (model.modelNodeId) {
+    const modelNode = nodes.value.find(n => n.id === model.modelNodeId)
+    if (modelNode) {
+      (modelNode.data as any).parameters = parameters
+      logger.info('[FlowCanvas] Model node parameters updated', {
+        modelNodeId: model.modelNodeId
+      })
+    }
+  }
+
   paramConfigVisible.value = false
 }
 
