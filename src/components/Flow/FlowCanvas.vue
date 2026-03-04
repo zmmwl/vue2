@@ -1151,11 +1151,28 @@ const isValidConnection = (
     return false
   }
 
-  // 规则 3: 连接到 PIR 任务节点时，统一使用 data-input handle
+  // 规则 3: 连接到 PIR 任务节点时，根据源节点类型自动修正 targetHandle
   if (targetNode.type === 'pir_task' || (targetData as ComputeTaskNodeData).taskType === ComputeTaskType.PIR) {
-    // PIR 任务现在使用统一的 data-input handle（和 MPC 任务一样）
-    ;(connection as any).targetHandle = 'data-input'
-    logger.info('[FlowCanvas] PIR connection: datasource -> data-input')
+    // 根据源节点类型确定正确的 targetHandle
+    let correctHandle: string
+    // 判断源节点是否是 FL 任务节点（预处理任务可以作为数据源）
+    const isFLTaskAsDataSource = sourceData.category === NodeCategory.COMPUTE_TASK &&
+      (sourceData as ComputeTaskNodeData).taskType === ComputeTaskType.FL
+    if (sourceData.category === NodeCategory.DATA_SOURCE || sourceData.category === NodeCategory.OUTPUT_DATA || isFLTaskAsDataSource) {
+      correctHandle = 'data-input' // 顶部
+    } else if (sourceData.category === NodeCategory.MODEL) {
+      correctHandle = 'input' // 左侧
+    } else if (sourceData.category === NodeCategory.COMPUTE_RESOURCE) {
+      correctHandle = 'compute-input' // 右侧
+    } else {
+      correctHandle = connection.targetHandle || 'data-input'
+    }
+
+    // 直接修改 connection 对象的 targetHandle
+    if (connection.targetHandle !== correctHandle) {
+      ;(connection as any).targetHandle = correctHandle
+    }
+    logger.info('[FlowCanvas] PIR connection: auto-selected targetHandle', { correctHandle })
   }
   // 规则 3: 连接到其他计算任务节点或本地任务节点时，根据源节点类型自动修正 targetHandle
   else if (targetData.category === NodeCategory.COMPUTE_TASK || targetData.category === NodeCategory.LOCAL_TASK) {
