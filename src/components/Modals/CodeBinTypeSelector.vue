@@ -29,15 +29,15 @@
               <div class="type-description">
                 <div v-if="selectedType === 'CodeBin-V2'" class="description-item">
                   <span class="description-icon">📦</span>
-                  <span>CodeBin-V2：PSI 求交模型，支持隐私集合求交计算</span>
+                  <span>CodeBin-V2：算术表达式模型，支持二代 TEE 计算板卡</span>
                 </div>
                 <div v-else-if="selectedType === 'CodeBin-V3-1'" class="description-item">
                   <span class="description-icon">📊</span>
-                  <span>CodeBin-V3.1：MPC 统计模型，支持多方安全统计计算</span>
+                  <span>CodeBin-V3.1：算术表达式模型，支持三代计算板卡</span>
                 </div>
                 <div v-else-if="selectedType === 'CodeBin-V3-2'" class="description-item">
                   <span class="description-icon">🤖</span>
-                  <span>CodeBin-V3.2：联邦学习模型，支持机器学习训练</span>
+                  <span>CodeBin-V3.2：算术表达式模型，支持三代计算板卡</span>
                 </div>
                 <div v-else class="description-placeholder">
                   请从下拉框中选择模型类型
