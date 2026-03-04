@@ -35,7 +35,10 @@
             v-for="item in paramItems"
             :key="item.fid"
             class="param-card"
-            :class="{ 'has-error': item.isEncrypt === 1 && !item.isConfigured }"
+            :class="{
+              'is-required': item.isEncrypt === 1,
+              'has-error': item.isEncrypt === 1 && !item.isConfigured
+            }"
           >
             <!-- 参数头部 -->
             <div class="param-header">
@@ -476,9 +479,17 @@ watch(() => props.modelValue, (newVal) => {
   padding: 16px;
   transition: all 0.2s;
 
+  // 必填参数样式 - 始终显示左侧红色标记
+  &.is-required {
+    border-left: 3px solid #ff7875;
+    background: #fffbfb;
+  }
+
+  // 必填且未配置 - 显示完整红色背景
   &.has-error {
     border-color: #ff4d4f;
     background: #fff2f0;
+    border-left: 3px solid #ff4d4f;
   }
 
   &:hover {
