@@ -57,8 +57,18 @@ export async function getEnterprisesByResourceType(resourceType: 'data' | 'model
     // 有数据资产的企业
     return enterprises.filter(ent => ent.enterpriseAssetList && ent.enterpriseAssetList.length > 0)
   } else if (resourceType === 'model') {
-    // 有模型的企业 - 当前 Mock 数据中 ent_003 是模型提供商
-    return enterprises.filter(ent => ent.participantId === 'ent_003')
+    // 有模型的企业 - 包括所有提供 CodeBin 模型的企业
+    const modelProviderIds = [
+      'ent_bank_001', 'ent_bank_002', 'ent_bank_003',
+      'ent_insurance_001',
+      'ent_fintech_001', 'ent_fintech_002',
+      'ent_microloan_001',
+      'ent_tax_001', 'ent_tax_002',
+      'ent_gov_001', 'ent_gov_002', 'ent_gov_003', 'ent_gov_004',
+      'ent_auction_001',
+      'ent_003' // SPDZ 模型
+    ]
+    return enterprises.filter(ent => modelProviderIds.includes(ent.participantId))
   } else if (resourceType === 'compute') {
     // 有算力的企业 - 当前 Mock 数据中 ent_004 是算力提供商
     return enterprises.filter(ent => ent.participantId === 'ent_004')

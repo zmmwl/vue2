@@ -54,6 +54,77 @@ export const MOCK_ENTERPRISES: Enterprise[] = [
     participantId: 'ent_004',
     entityName: '算力提供商D',
     enterpriseAssetList: []
+  },
+  // 新增模型提供企业
+  {
+    participantId: 'ent_bank_001',
+    entityName: '工商银行',
+    enterpriseAssetList: []
+  },
+  {
+    participantId: 'ent_bank_002',
+    entityName: '建设银行',
+    enterpriseAssetList: []
+  },
+  {
+    participantId: 'ent_bank_003',
+    entityName: '招商银行',
+    enterpriseAssetList: []
+  },
+  {
+    participantId: 'ent_insurance_001',
+    entityName: '中国人寿保险',
+    enterpriseAssetList: []
+  },
+  {
+    participantId: 'ent_fintech_001',
+    entityName: '蚂蚁金服',
+    enterpriseAssetList: []
+  },
+  {
+    participantId: 'ent_fintech_002',
+    entityName: '京东数科',
+    enterpriseAssetList: []
+  },
+  {
+    participantId: 'ent_microloan_001',
+    entityName: '微粒贷科技',
+    enterpriseAssetList: []
+  },
+  {
+    participantId: 'ent_tax_001',
+    entityName: '国家税务总局',
+    enterpriseAssetList: []
+  },
+  {
+    participantId: 'ent_tax_002',
+    entityName: '航天信息股份',
+    enterpriseAssetList: []
+  },
+  {
+    participantId: 'ent_gov_001',
+    entityName: '民政部',
+    enterpriseAssetList: []
+  },
+  {
+    participantId: 'ent_gov_002',
+    entityName: '人力资源社会保障部',
+    enterpriseAssetList: []
+  },
+  {
+    participantId: 'ent_gov_003',
+    entityName: '住房和城乡建设部',
+    enterpriseAssetList: []
+  },
+  {
+    participantId: 'ent_gov_004',
+    entityName: '医疗保障局',
+    enterpriseAssetList: []
+  },
+  {
+    participantId: 'ent_auction_001',
+    entityName: '中国拍卖行业协会',
+    enterpriseAssetList: []
   }
 ]
 
@@ -223,54 +294,83 @@ export const MOCK_ASSET_DETAILS: Record<string, AssetInfo> = {
 
 // ========== Mock 计算模型 ==========
 
-/** Mock 计算模型 */
+/** Mock 计算模型 - CodeBin V2/V3.1/V3.2 算术表达式和业务逻辑模型 */
 export const MOCK_MODELS: Record<string, Array<{ id: string; name: string; type: string }>> = {
+  // 工商银行 - 3个模型
+  'ent_bank_001': [
+    { id: 'v2_credit_score_icbc', name: '个人信用评分卡模型', type: 'CodeBin-V2' },
+    { id: 'v31_sme_credit_score', name: '中小企业信用评分模型', type: 'CodeBin-V3-1' },
+    { id: 'v32_debt_ratio_calc', name: '负债率计算模型', type: 'CodeBin-V3-2' }
+  ],
+  // 建设银行 - 2个模型
+  'ent_bank_002': [
+    { id: 'v31_mortgage_score', name: '房贷审批评分模型', type: 'CodeBin-V3-1' },
+    { id: 'v32_overdue_risk_score', name: '逾期风险预警模型', type: 'CodeBin-V3-2' }
+  ],
+  // 招商银行 - 2个模型
+  'ent_bank_003': [
+    { id: 'v31_card_limit_calc', name: '信用卡额度测算模型', type: 'CodeBin-V3-1' },
+    { id: 'v32_car_loan_score', name: '车贷审批评分模型', type: 'CodeBin-V3-2' }
+  ],
+  // 蚂蚁金服 - 2个模型
+  'ent_fintech_001': [
+    { id: 'v2_antifraud_score', name: '反欺诈风险评分模型', type: 'CodeBin-V2' },
+    { id: 'v31_marketing_response', name: '营销响应评分模型', type: 'CodeBin-V3-1' }
+  ],
+  // 京东数科 - 2个模型
+  'ent_fintech_002': [
+    { id: 'v31_user_value_score', name: '用户价值分层模型', type: 'CodeBin-V3-1' },
+    { id: 'v32_churn_prediction_score', name: '客户流失风险评分模型', type: 'CodeBin-V3-2' }
+  ],
+  // 微粒贷科技 - 2个模型
+  'ent_microloan_001': [
+    { id: 'v2_loan_risk_score', name: '小额贷款风险评分模型', type: 'CodeBin-V2' },
+    { id: 'v32_collection_priority', name: '催收优先级评分模型', type: 'CodeBin-V3-2' }
+  ],
+  // 中国人寿保险 - 3个模型
+  'ent_insurance_001': [
+    { id: 'v2_insurance_claim_calc', name: '保险理赔金额计算模型', type: 'CodeBin-V2' },
+    { id: 'v31_premium_calculation', name: '保费精算模型', type: 'CodeBin-V3-1' },
+    { id: 'v32_claim_fraud_detect', name: '理赔欺诈风险评分模型', type: 'CodeBin-V3-2' }
+  ],
+  // 国家税务总局 - 3个模型
+  'ent_tax_001': [
+    { id: 'v2_tax_credit_rating', name: '纳税信用评级模型', type: 'CodeBin-V2' },
+    { id: 'v2_enterprise_tax_risk', name: '企业税务风险评估模型', type: 'CodeBin-V2' },
+    { id: 'v32_vat_refund_calc', name: '增值税退税计算模型', type: 'CodeBin-V3-2' }
+  ],
+  // 航天信息股份 - 1个模型
+  'ent_tax_002': [
+    { id: 'v2_invoice_verify', name: '发票真伪核验模型', type: 'CodeBin-V2' }
+  ],
+  // 民政部 - 2个模型
+  'ent_gov_001': [
+    { id: 'v2_social_aid_eligibility', name: '社会救助资格评估模型', type: 'CodeBin-V2' },
+    { id: 'v31_disaster_aid_calc', name: '灾害救助金计算模型', type: 'CodeBin-V3-1' }
+  ],
+  // 人力资源社会保障部 - 3个模型
+  'ent_gov_002': [
+    { id: 'v2_subsidy_calculation', name: '社保补贴计算模型', type: 'CodeBin-V2' },
+    { id: 'v31_pension_calculation', name: '养老金计算模型', type: 'CodeBin-V3-1' },
+    { id: 'v32_unemployment_calc', name: '失业金计算模型', type: 'CodeBin-V3-2' }
+  ],
+  // 住房和城乡建设部 - 2个模型
+  'ent_gov_003': [
+    { id: 'v2_housing_qualified', name: '公租房资格评分模型', type: 'CodeBin-V2' },
+    { id: 'v32_property_tax_calc', name: '房产税计算模型', type: 'CodeBin-V3-2' }
+  ],
+  // 医疗保障局 - 2个模型
+  'ent_gov_004': [
+    { id: 'v31_medical_reimburse', name: '医保报销计算模型', type: 'CodeBin-V3-1' },
+    { id: 'v32_medical_assistance', name: '医疗救助资格评估模型', type: 'CodeBin-V3-2' }
+  ],
+  // 中国拍卖行业协会 - 1个模型
+  'ent_auction_001': [
+    { id: 'v31_auction_reserve', name: '拍卖保留价估算模型', type: 'CodeBin-V3-1' }
+  ],
+  // SPDZ 模型
   'ent_003': [
-    {
-      id: 'codebin_v2_001',
-      name: 'PSI求交模型V2',
-      type: 'CodeBin-V2'
-    },
-    {
-      id: 'codebin_v2_data_clean',
-      name: '数据清洗模型',
-      type: 'CodeBin-V2'
-    },
-    {
-      id: 'codebin_v2_dp_noise',
-      name: '差分隐私噪声模型',
-      type: 'CodeBin-V2'
-    },
-    {
-      id: 'codebin_v3_1_001',
-      name: 'MPC统计模型V3.1',
-      type: 'CodeBin-V3-1'
-    },
-    {
-      id: 'codebin_v3_1_feature',
-      name: '特征工程模型',
-      type: 'CodeBin-V3-1'
-    },
-    {
-      id: 'codebin_v3_1_sql_agg',
-      name: 'SQL聚合计算模型',
-      type: 'CodeBin-V3-1'
-    },
-    {
-      id: 'codebin_v3_2_001',
-      name: '联邦学习模型V3.2',
-      type: 'CodeBin-V3-2'
-    },
-    {
-      id: 'codebin_v3_2_joint_train',
-      name: '联合建模训练模型',
-      type: 'CodeBin-V3-2'
-    },
-    {
-      id: 'spdz_001',
-      name: 'SPDZ计算模型',
-      type: 'SPDZ'
-    }
+    { id: 'spdz_001', name: 'SPDZ计算模型', type: 'SPDZ' }
   ]
 }
 
