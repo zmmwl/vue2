@@ -966,7 +966,15 @@
           <div v-else class="params-list">
             <div v-for="param in modelNodeData?.parameters" :key="param.name" class="param-item">
               <span class="param-name">{{ param.name }}</span>
-              <span class="param-value">{{ param.value || '-' }}</span>
+              <span class="param-value">
+                <span v-if="param.bindingType === 'field'" class="param-binding field-binding">
+                  🔗 {{ formatFieldRef(param.fieldRef) }}
+                </span>
+                <span v-else-if="param.bindingType === 'fixed'" class="param-binding fixed-binding">
+                  📝 {{ param.fixedValue || '-' }}
+                </span>
+                <span v-else class="param-binding empty">-</span>
+              </span>
             </div>
           </div>
           <button class="config-params-btn" @click="handleConfigModelNode">
@@ -1818,6 +1826,22 @@ function getEnterpriseDisplayName(participantId: string): string {
     return `${enterprise.name} (${participantId})`
   }
   return participantId
+}
+
+/**
+ * 格式化字段引用显示
+ * fieldRef 格式: participantId.dataset.fieldName
+ */
+function formatFieldRef(fieldRef: string | undefined): string {
+  if (!fieldRef) return '-'
+  // 解析字段引用，提取关键信息
+  const parts = fieldRef.split('.')
+  if (parts.length >= 3) {
+    const fieldName = parts[parts.length - 1]
+    const dataset = parts[parts.length - 2]
+    return `${dataset}.${fieldName}`
+  }
+  return fieldRef
 }
 
 /**
@@ -3715,6 +3739,29 @@ watch(() => props.selectedNode, (node) => {
       font-size: 12px;
       color: #666;
       font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    }
+
+    .param-binding {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 12px;
+      padding: 2px 6px;
+      border-radius: 3px;
+
+      &.field-binding {
+        color: #1890ff;
+        background: rgba(24, 144, 255, 0.1);
+      }
+
+      &.fixed-binding {
+        color: #52c41a;
+        background: rgba(82, 196, 26, 0.1);
+      }
+
+      &.empty {
+        color: #999;
+      }
     }
   }
 }
