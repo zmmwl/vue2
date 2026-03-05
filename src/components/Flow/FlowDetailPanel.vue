@@ -50,14 +50,15 @@
       </template>
 
       <!-- 节点详情模式 -->
-      <!-- 未选中节点 -->
-      <div v-if="!selectedNode" class="empty-state">
-        <div class="empty-icon">📋</div>
-        <p>请选择一个节点查看详情</p>
-      </div>
+      <template v-else>
+        <!-- 未选中节点 -->
+        <div v-if="!selectedNode" class="empty-state">
+          <div class="empty-icon">📋</div>
+          <p>请选择一个节点查看详情</p>
+        </div>
 
-      <!-- 数据源节点 - 未配置 -->
-      <div v-else-if="isDataSourceNode && !isConfigured" class="empty-state">
+        <!-- 数据源节点 - 未配置 -->
+        <div v-else-if="isDataSourceNode && !isConfigured" class="empty-state">
         <div class="empty-icon">⚠️</div>
         <p>该节点尚未配置数据资产</p>
         <button class="btn btn-primary" @click="handleEdit">
@@ -988,6 +989,7 @@
         <div class="empty-icon">ℹ️</div>
         <p>该节点类型暂不支持详情查看</p>
       </div>
+      </template>
     </div>
 
     <!-- 输入数据源配置弹窗 -->
