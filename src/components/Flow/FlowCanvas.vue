@@ -69,6 +69,7 @@
       :enterprises="availableEnterprises"
       :input-fields="availableInputFields"
       :model-output-fields="availableModelFields"
+      :task-data="pendingOutputTaskData"
       :initial-config="pendingOutputConfig"
       :fixed-enterprise-id="pendingOutputFixedEnterprise?.id"
       :fixed-enterprise-name="pendingOutputFixedEnterprise?.name"
@@ -367,6 +368,13 @@ const pendingOutputLocalQueryData = ref<{
   groupByConfig?: GroupByConfigType
 } | undefined>(undefined)
 const pendingOutputSourceType = ref<string>('')
+
+// 获取当前正在配置输出的任务节点数据
+const pendingOutputTaskData = computed(() => {
+  if (!pendingOutputTaskId.value) return null
+  const taskNode = nodes.value.find(n => n.id === pendingOutputTaskId.value)
+  return taskNode?.data || null
+})
 
 // 企业选择对话框状态（用于模型和算力）
 const showEnterpriseDialog = ref(false)
