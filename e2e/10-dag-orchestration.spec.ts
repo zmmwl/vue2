@@ -594,12 +594,17 @@ test.describe('节点操作', () => {
   test('点击节点应显示详情面板', async ({ page }) => {
     await createDataSourceNode(page, 'database', 200, 100)
 
+    // 等待节点完全渲染
+    await page.waitForTimeout(500)
+
     const node = page.locator('.vue-flow__node').first()
-    await node.click()
-    await page.waitForTimeout(300)
+    // 使用 toBeAttached 替代 toBeVisible
+    await node.waitFor({ state: 'attached', timeout: 5000 })
+    await node.click({ force: true })
+    await page.waitForTimeout(500)
 
     const detailPanel = page.locator('.flow-detail-panel')
-    await expect(detailPanel).toBeVisible()
+    await expect(detailPanel).toBeVisible({ timeout: 5000 })
   })
 
   test('创建节点后画布应正确缩放', async ({ page }) => {

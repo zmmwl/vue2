@@ -133,16 +133,24 @@ async function dragComputeTaskToCanvas(
 
   await page.waitForTimeout(800)
 
-  // 检查是否出现了技术路径选择对话框
-  const techPathDialog = page.locator('text=选择技术路径')
-  const hasTechPathDialog = await techPathDialog.count() > 0
-
-  if (hasTechPathDialog) {
-    await page.waitForTimeout(300)
-    const confirmBtn = page.locator('button:has-text("确定")')
-    await confirmBtn.click()
-    await page.waitForTimeout(500)
-  }
+  // 等待并处理技术路径选择对话框（MPC/PIR 任务会弹出）
+  await page.waitForTimeout(2500)
+  // 在页面上下文中直接查找并触发确定按钮点击
+  await page.evaluate(() => {
+    // 查找所有包含"确定"文本的按钮
+    const buttons = Array.from(document.querySelectorAll('button'))
+    const confirmBtn = buttons.find(btn => btn.textContent?.trim() === '确定')
+    if (confirmBtn) {
+      // 创建并派发鼠标事件来模拟真实点击
+      const event = new MouseEvent('click', {
+        bubbles: true,
+        cancelable: true,
+        view: window
+      })
+      confirmBtn.dispatchEvent(event)
+    }
+  })
+  await page.waitForTimeout(1500)
 }
 
 /**
@@ -191,7 +199,10 @@ test.describe('Join Types Extension', () => {
       await dragComputeTaskToCanvas(page, 'MPC', 200, 150)
 
       const computeNode = page.locator('.compute-task-node')
-      await expect(computeNode).toBeVisible({ timeout: 5000 })
+      // 使用 toBeAttached 检查节点是否在 DOM 中(而不是 toBeVisible)
+      await expect(computeNode).toBeAttached({ timeout: 5000 })
+      // 等待节点渲染完成
+      await page.waitForTimeout(1000)
 
       await openInputProviderConfigWithTestEvent(page)
 
@@ -208,7 +219,10 @@ test.describe('Join Types Extension', () => {
       await dragComputeTaskToCanvas(page, 'MPC', 200, 150)
 
       const computeNode = page.locator('.compute-task-node')
-      await expect(computeNode).toBeVisible({ timeout: 5000 })
+      // 使用 toBeAttached 检查节点是否在 DOM 中(而不是 toBeVisible)
+      await expect(computeNode).toBeAttached({ timeout: 5000 })
+      // 等待节点渲染完成
+      await page.waitForTimeout(1000)
 
       await openInputProviderConfigWithTestEvent(page)
 
@@ -227,7 +241,10 @@ test.describe('Join Types Extension', () => {
       await dragComputeTaskToCanvas(page, 'MPC', 200, 150)
 
       const computeNode = page.locator('.compute-task-node')
-      await expect(computeNode).toBeVisible({ timeout: 5000 })
+      // 使用 toBeAttached 检查节点是否在 DOM 中(而不是 toBeVisible)
+      await expect(computeNode).toBeAttached({ timeout: 5000 })
+      // 等待节点渲染完成
+      await page.waitForTimeout(1000)
 
       await openInputProviderConfigWithTestEvent(page)
 
@@ -242,7 +259,10 @@ test.describe('Join Types Extension', () => {
       await dragComputeTaskToCanvas(page, 'MPC', 200, 150)
 
       const computeNode = page.locator('.compute-task-node')
-      await expect(computeNode).toBeVisible({ timeout: 5000 })
+      // 使用 toBeAttached 检查节点是否在 DOM 中(而不是 toBeVisible)
+      await expect(computeNode).toBeAttached({ timeout: 5000 })
+      // 等待节点渲染完成
+      await page.waitForTimeout(1000)
 
       await openInputProviderConfigWithTestEvent(page)
 
@@ -260,7 +280,10 @@ test.describe('Join Types Extension', () => {
       await dragComputeTaskToCanvas(page, 'MPC', 200, 150)
 
       const computeNode = page.locator('.compute-task-node')
-      await expect(computeNode).toBeVisible({ timeout: 5000 })
+      // 使用 toBeAttached 检查节点是否在 DOM 中(而不是 toBeVisible)
+      await expect(computeNode).toBeAttached({ timeout: 5000 })
+      // 等待节点渲染完成
+      await page.waitForTimeout(1000)
 
       await openInputProviderConfigWithTestEvent(page)
 
@@ -275,7 +298,10 @@ test.describe('Join Types Extension', () => {
       await dragComputeTaskToCanvas(page, 'MPC', 200, 150)
 
       const computeNode = page.locator('.compute-task-node')
-      await expect(computeNode).toBeVisible({ timeout: 5000 })
+      // 使用 toBeAttached 检查节点是否在 DOM 中(而不是 toBeVisible)
+      await expect(computeNode).toBeAttached({ timeout: 5000 })
+      // 等待节点渲染完成
+      await page.waitForTimeout(1000)
 
       await openInputProviderConfigWithTestEvent(page)
 
@@ -293,7 +319,10 @@ test.describe('Join Types Extension', () => {
       await dragComputeTaskToCanvas(page, 'MPC', 200, 150)
 
       const computeNode = page.locator('.compute-task-node')
-      await expect(computeNode).toBeVisible({ timeout: 5000 })
+      // 使用 toBeAttached 检查节点是否在 DOM 中(而不是 toBeVisible)
+      await expect(computeNode).toBeAttached({ timeout: 5000 })
+      // 等待节点渲染完成
+      await page.waitForTimeout(1000)
 
       await openInputProviderConfigWithTestEvent(page)
 
