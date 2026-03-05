@@ -2,7 +2,7 @@
   "$schema": "https://raw.githubusercontent.com/electron-userland/electron-builder/master/packages/app-builder-lib/scheme.json",
   "appId": "com.privacy.flow-editor",
   "productName": "隐私计算流程编辑器",
-  "asar": false,
+  "asar": true,
   "directories": {
     "output": "release"
   },
@@ -17,7 +17,8 @@
         "arch": ["x64"]
       }
     ],
-    "icon": "electron/icon.png"
+    "forceCodeSigning": false,
+    "signAndEditExecutable": false
   },
   "mac": {
     "target": [
