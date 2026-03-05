@@ -381,15 +381,12 @@ const showSearchResults = computed(() => {
 
 // 所有可用字段
 const availableFields = computed(() => {
-  // 如果有分组统计配置，只返回分组统计的字段
-  if (hasGroupByConfig.value) {
-    return getGroupByFields()
-  }
+  const allFields: AvailableField[] = []
 
-  // 否则返回输入字段、模型字段和表达式字段
-  const allFields: AvailableField[] = [...props.inputFields, ...props.modelOutputFields]
+  // 添加输入字段和模型字段
+  allFields.push(...props.inputFields, ...props.modelOutputFields)
 
-  // 添加表达式字段（新增：用于本地Query任务）
+  // 添加表达式字段（用于本地Query任务）
   if (props.expressions && props.expressions.length > 0) {
     props.expressions.forEach(expr => {
       if (expr.resultAlias) {
@@ -407,16 +404,21 @@ const availableFields = computed(() => {
     })
   }
 
+  // 添加分组统计字段（如果有）
+  if (hasGroupByConfig.value) {
+    allFields.push(...getGroupByFields())
+  }
+
   return allFields
 })
 
 /**
- * 获取分组统计字段（用于本地Query任务）
+ * 获取分组统计字段（用于本地Query任务和计算任务的分组统计模型）
  */
 function getGroupByFields(): AvailableField[] {
   const fields: AvailableField[] = []
 
-  // 优先使用 props.groupByConfig
+  // 方式1：从 props.groupByConfig 获取（本地Query任务）
   const config = props.groupByConfig
   if (config) {
     // 添加分组字段
@@ -439,6 +441,43 @@ function getGroupByFields(): AvailableField[] {
           type: inferAggregationType(stat.functionType),
           source: `统计: ${stat.functionType}`,
           sourceType: 'statistic'
+        })
+      }
+    })
+  }
+
+  // 方式2：从 taskData.models 获取分组统计模型（计算任务）
+  if (props.taskData?.models) {
+    const groupStatModels = props.taskData.models.filter((m: any) => m.type === 'GROUP_STAT')
+    groupStatModels.forEach((model: any) => {
+      if (model.groupByConfig) {
+        const modelConfig = model.groupByConfig
+        const modelId = model.id
+
+        // 添加分组字段
+        modelConfig.groupByFields.forEach((field: any) => {
+          fields.push({
+            id: `groupby-${modelId}-${field.fieldId}`,
+            name: field.fieldAlias || field.fieldName,
+            type: field.fieldType,
+            source: `${model.name || '分组统计'} - 分组字段`,
+            sourceType: 'groupby',
+            modelId: modelId
+          })
+        })
+
+        // 添加统计字段
+        modelConfig.statistics.forEach((stat: any) => {
+          if (stat.fieldId) {
+            fields.push({
+              id: `stat-${modelId}-${stat.id}`,
+              name: stat.resultAlias,
+              type: inferAggregationType(stat.functionType),
+              source: `${model.name || '分组统计'} - ${stat.functionType}`,
+              sourceType: 'statistic',
+              modelId: modelId
+            })
+          }
         })
       }
     })
@@ -469,38 +508,11 @@ function inferAggregationType(func: string): string {
  * 将字段按来源分组
  * 1. 输入数据源字段：按数据源分组
  * 2. 模型输出字段：按模型分组
- * 3. 分组统计字段：单独一个分组
+ * 3. 分组统计字段：单独一个或多个分组（按模型分组）
  * 4. 表达式字段：单独一个分组
  */
 const fieldGroups = computed<FieldGroup[]>(() => {
   const groups: FieldGroup[] = []
-
-  // 如果有分组统计配置，按分组字段和统计字段分组
-  if (hasGroupByConfig.value) {
-    // 分组字段
-    const groupByFields = availableFields.value.filter(f => f.sourceType === 'groupby')
-    if (groupByFields.length > 0) {
-      groups.push({
-        id: 'groupby-fields',
-        title: '分组字段',
-        icon: '📊',
-        fields: groupByFields
-      })
-    }
-    // 统计字段
-    const statFields = availableFields.value.filter(f => f.sourceType === 'statistic')
-    if (statFields.length > 0) {
-      groups.push({
-        id: 'stat-fields',
-        title: '统计结果',
-        icon: '📈',
-        fields: statFields
-      })
-    }
-    return groups
-  }
-
-  // 原有逻辑：按数据源和模型分组
 
   // 处理输入数据源字段 - 按数据源分组
   const dataSourceGroups = new Map<string, AvailableField[]>()
@@ -549,7 +561,7 @@ const fieldGroups = computed<FieldGroup[]>(() => {
     }
   })
 
-  // 添加表达式分组（新增：用于本地Query任务）
+  // 添加表达式分组（用于本地Query任务）
   const exprFields = availableFields.value.filter(f => f.sourceType === 'expression')
   if (exprFields.length > 0) {
     groups.push({
@@ -557,6 +569,48 @@ const fieldGroups = computed<FieldGroup[]>(() => {
       title: '表达式结果',
       icon: '📝',
       fields: exprFields
+    })
+  }
+
+  // 处理分组统计字段 - 按模型分组
+  const groupByFields = availableFields.value.filter(f => f.sourceType === 'groupby')
+  const statFields = availableFields.value.filter(f => f.sourceType === 'statistic')
+
+  // 如果有分组统计字段，按 modelId 分组显示
+  if (groupByFields.length > 0 || statFields.length > 0) {
+    // 按 modelId 分组
+    const groupStatGroups = new Map<string, { groupBy: AvailableField[], stats: AvailableField[] }>()
+
+    groupByFields.forEach(field => {
+      const key = field.modelId || 'default'
+      if (!groupStatGroups.has(key)) {
+        groupStatGroups.set(key, { groupBy: [], stats: [] })
+      }
+      groupStatGroups.get(key)!.groupBy.push(field)
+    })
+
+    statFields.forEach(field => {
+      const key = field.modelId || 'default'
+      if (!groupStatGroups.has(key)) {
+        groupStatGroups.set(key, { groupBy: [], stats: [] })
+      }
+      groupStatGroups.get(key)!.stats.push(field)
+    })
+
+    // 为每个分组统计模型创建分组
+    groupStatGroups.forEach((fields, key) => {
+      const allModelFields = [...fields.groupBy, ...fields.stats]
+      if (allModelFields.length > 0) {
+        // 从第一个字段获取模型名称
+        const firstField = allModelFields[0]
+        const sourceName = firstField?.source?.split(' - ')[0] || '分组统计'
+        groups.push({
+          id: `groupstat-${key}`,
+          title: sourceName,
+          icon: '📊',
+          fields: allModelFields
+        })
+      }
     })
   }
 
