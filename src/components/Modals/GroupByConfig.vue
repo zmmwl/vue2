@@ -27,6 +27,17 @@ const currentStep = ref<1 | 2>(1)
 const groupByFields = ref<GroupByField[]>([])
 const statistics = ref<StatisticConfig[]>([])
 
+// 数据类型映射（与 model-mock-service 中的定义一致）
+const DATA_TYPE_NAMES: Record<number, string> = {
+  1: 'STRING',
+  2: 'INT',
+  3: 'BIGINT',
+  4: 'FLOAT',
+  5: 'DOUBLE',
+  6: 'BOOLEAN',
+  7: 'DATETIME'
+}
+
 // 可用字段列表（输入字段 + 模型输出字段）
 const availableFields = computed(() => {
   const fields: Array<{
@@ -74,7 +85,21 @@ const availableFields = computed(() => {
           modelId: model.id
         })
       }
-      // 对于其他模型，可以添加更多字段
+      // 对于 CodeBin 模型（从 returnParameters 获取输出字段）
+      else if (model.returnParameters && model.returnParameters.length > 0) {
+        model.returnParameters.forEach((param: any) => {
+          fields.push({
+            id: `model.${model.id}.${param.name}`,
+            name: param.name,
+            type: DATA_TYPE_NAMES[param.dataType] || 'STRING',
+            source: model.name,
+            sourceType: 'model',
+            participant: model.participantId,
+            dataset: '',
+            modelId: model.id
+          })
+        })
+      }
     }
   })
 

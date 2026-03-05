@@ -268,7 +268,7 @@ import { assetCache } from '@/services/assetCache'
 import { buildJoinConditions } from '@/utils/join-builder'
 import { sortEnterprisesByPriority } from '@/utils/enterprise-sorter'
 import { useGraphState } from '@/composables/useGraphState'
-import { EXPRESSION_MODEL_OUTPUT, getDataTypeName, getModelInputSignatures } from '@/services/model-mock-service'
+import { EXPRESSION_MODEL_OUTPUT, getDataTypeName, getModelInputSignatures, getModelDetail } from '@/services/model-mock-service'
 import { getEnterpriseList } from '@/services/enterpriseService'
 import { algorithmService } from '@/services/algorithmService'
 import { getAlgorithmTypeByTask } from '@/types/algorithm'
@@ -4422,7 +4422,7 @@ function handleGroupByConfigCancel() {
 /**
  * 创建模型节点
  */
-function createModelNode(
+async function createModelNode(
   data: DroppedNodeData,
   model: any,
   participantId: string,
@@ -4479,6 +4479,21 @@ function createModelNode(
     taskData.models = []
   }
 
+  // 获取模型的输出参数
+  let returnParameters: any[] = []
+  try {
+    const modelDetail = await getModelDetail(model.id)
+    if (modelDetail.code === 200 && modelDetail.data.returnParameters) {
+      returnParameters = modelDetail.data.returnParameters
+      logger.info('[FlowCanvas] Model return parameters loaded', {
+        modelId: model.id,
+        returnParamCount: returnParameters.length
+      })
+    }
+  } catch (error) {
+    logger.warn('[FlowCanvas] Failed to load model return parameters', { modelId: model.id, error })
+  }
+
   taskData.models.push({
     type: data.modelType || model.type,
     id: model.id,
@@ -4486,7 +4501,8 @@ function createModelNode(
     participantId: participantId,
     expression: expression,
     parameters: [],
-    modelNodeId: modelNodeId
+    modelNodeId: modelNodeId,
+    returnParameters: returnParameters
   })
 
   logger.info('[FlowCanvas] Model node created and linked', {

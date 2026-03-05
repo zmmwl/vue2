@@ -335,6 +335,15 @@ export interface JoinCondition {
   operands: JoinOperand[]   // Union/NoAssoc 下可为空数组
 }
 
+/** 模型输出参数（从模型详情接口获取） */
+export interface ModelReturnParameter {
+  fid: string               // 参数唯一ID
+  name: string              // 参数名称
+  dataType: number          // 数据类型（对应 ModelDataType 枚举）
+  isRequired: number        // 是否必填（0/1）
+  description: string       // 参数描述
+}
+
 /** 计算模型配置 */
 export interface ComputeModelConfig {
   id: string                // 模型唯一ID
@@ -345,6 +354,7 @@ export interface ComputeModelConfig {
   parameters?: ModelParameter[]
   modelNodeId?: string      // 关联的模型节点ID
   groupByConfig?: GroupByConfig  // 分组统计配置（仅GROUP_STAT类型）
+  returnParameters?: ModelReturnParameter[]  // 模型输出参数（CodeBin等模型）
 }
 
 /** 模型参数 */
