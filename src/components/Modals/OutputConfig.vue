@@ -129,6 +129,13 @@
                   <span>输出字段</span>
                   <span class="field-count">({{ selectedFieldIds.size }})</span>
                 </div>
+                <!-- 字段所有方不匹配错误提示 -->
+                <div v-if="fieldOwnerMismatch" class="field-owner-error">
+                  <span class="error-icon">⚠️</span>
+                  <span>以下字段不属于选定的输出参与方企业：</span>
+                  <span class="error-fields">{{ fieldOwnerMismatch.join('、') }}</span>
+                  <span class="error-hint">请只选择属于"{{ selectedEnterpriseName }}"的字段</span>
+                </div>
                 <div v-if="availableFields.length === 0" class="empty-fields">
                   <span class="empty-icon">📄</span>
                   <p>暂无可选字段</p>
@@ -624,11 +631,28 @@ const selectedEnterpriseName = computed(() => {
   return enterprise?.name || ''
 })
 
-// 是否有效（必须选择企业和至少一个字段）
+// 检查选中字段的所有方是否与输出企业一致（用于 PSI 任务）
+const fieldOwnerMismatch = computed(() => {
+  if (!selectedEnterpriseId.value) return null
+
+  const mismatchedFields: string[] = []
+
+  selectedFieldIds.value.forEach(fieldId => {
+    const field = availableFields.value.find(f => f.id === fieldId)
+    if (field && field.participantId && field.participantId !== selectedEnterpriseId.value) {
+      mismatchedFields.push(field.name)
+    }
+  })
+
+  return mismatchedFields.length > 0 ? mismatchedFields : null
+})
+
+// 是否有效（必须选择企业和至少一个字段，且字段所有方必须一致）
 const isValid = computed(() => {
   return selectedEnterpriseId.value.length > 0 &&
          datasetName.value.trim().length > 0 &&
-         selectedFieldIds.value.size > 0
+         selectedFieldIds.value.size > 0 &&
+         !fieldOwnerMismatch.value  // 字段所有方必须一致
 })
 
 // 监听 modelValue 变化
@@ -1230,6 +1254,37 @@ function handleClose() {
     .empty-hint {
       font-size: 12px;
       color: #c0c4cc;
+    }
+  }
+
+  // 字段所有方不匹配错误提示样式
+  .field-owner-error {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    padding: 12px 16px;
+    background: #fef0f0;
+    border: 1px solid #fbc4c4;
+    border-radius: 8px;
+    margin-bottom: 12px;
+    font-size: 13px;
+    color: #f56c6c;
+
+    .error-icon {
+      font-size: 16px;
+    }
+
+    .error-fields {
+      font-weight: 600;
+      color: #c45656;
+    }
+
+    .error-hint {
+      width: 100%;
+      margin-top: 4px;
+      font-size: 12px;
+      color: #e89191;
     }
   }
 
