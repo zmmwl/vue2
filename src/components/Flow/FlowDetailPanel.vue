@@ -2016,6 +2016,7 @@ function handleConfigPIRInputProvider(provider: any, index: number) {
   logger.info('[FlowDetailPanel] PIR input provider config clicked', {
     providerIndex: index,
     sourceNodeId: provider.sourceNodeId,
+    sourceType: provider.sourceType,
     taskId: props.selectedNode.id
   })
 
@@ -2024,18 +2025,45 @@ function handleConfigPIRInputProvider(provider: any, index: number) {
   let availableFields: FieldInfo[] = []
 
   if (sourceNode) {
-    // 从数据源节点获取字段列表
-    if (sourceNode.data?.assetInfo?.dataInfo?.fieldList) {
+    // 根据源节点类型获取字段列表
+    if (provider.sourceType === 'outputData' || sourceNode.data?.category === NodeCategory.OUTPUT_DATA) {
+      // 输出数据节点 - 从 fields 属性获取字段
+      const outputFields = (sourceNode.data as any).fields || []
+      availableFields = outputFields.map((field: any) => ({
+        name: field.columnName,
+        dataType: field.columnType,
+        description: field.columnAlias
+      }))
+      logger.info('[FlowDetailPanel] PIR: Got fields from output node', {
+        fieldCount: availableFields.length
+      })
+    } else if (sourceNode.data?.assetInfo?.dataInfo?.fieldList) {
+      // 数据源节点 - 从 assetInfo 获取字段
       availableFields = sourceNode.data.assetInfo.dataInfo.fieldList
-    }
-    // 实时数据源的字段
-    if ((sourceNode.data as any)?.realtimeConfig?.fields) {
+      logger.info('[FlowDetailPanel] PIR: Got fields from data source node', {
+        fieldCount: availableFields.length
+      })
+    } else if ((sourceNode.data as any)?.realtimeConfig?.fields) {
+      // 实时数据源节点
       availableFields = (sourceNode.data as any).realtimeConfig.fields.map((f: any) => ({
         name: f.name,
         dataType: f.dataType || 'STRING',
         description: f.description || ''
       }))
+      logger.info('[FlowDetailPanel] PIR: Got fields from realtime datasource node', {
+        fieldCount: availableFields.length
+      })
+    } else {
+      logger.warn('[FlowDetailPanel] PIR: Could not find fields for source node', {
+        sourceNodeId: provider.sourceNodeId,
+        sourceNodeType: sourceNode.type,
+        sourceNodeCategory: sourceNode.data?.category
+      })
     }
+  } else {
+    logger.warn('[FlowDetailPanel] PIR: Source node not found', {
+      sourceNodeId: provider.sourceNodeId
+    })
   }
 
   // 设置弹窗数据（和 MPC 任务一样打开配置对话框）
@@ -2155,6 +2183,7 @@ function handleConfigProvider(provider: InputProvider) {
 
   logger.info('[FlowDetailPanel] Config provider clicked', {
     sourceNodeId: provider.sourceNodeId,
+    sourceType: provider.sourceType,
     taskId: props.selectedNode.id
   })
 
@@ -2163,10 +2192,45 @@ function handleConfigProvider(provider: InputProvider) {
   let availableFields: FieldInfo[] = []
 
   if (sourceNode) {
-    // 从数据源节点获取字段列表
-    if (sourceNode.data?.assetInfo?.dataInfo?.fieldList) {
+    // 根据源节点类型获取字段列表
+    if (provider.sourceType === 'outputData' || sourceNode.data?.category === NodeCategory.OUTPUT_DATA) {
+      // 输出数据节点 - 从 fields 属性获取字段
+      const outputFields = (sourceNode.data as any).fields || []
+      availableFields = outputFields.map((field: any) => ({
+        name: field.columnName,
+        dataType: field.columnType,
+        description: field.columnAlias
+      }))
+      logger.info('[FlowDetailPanel] Got fields from output node', {
+        fieldCount: availableFields.length
+      })
+    } else if (sourceNode.data?.assetInfo?.dataInfo?.fieldList) {
+      // 数据源节点 - 从 assetInfo 获取字段
       availableFields = sourceNode.data.assetInfo.dataInfo.fieldList
+      logger.info('[FlowDetailPanel] Got fields from data source node', {
+        fieldCount: availableFields.length
+      })
+    } else if ((sourceNode.data as any).realtimeConfig?.fields) {
+      // 实时数据源节点
+      availableFields = (sourceNode.data as any).realtimeConfig.fields.map((f: any) => ({
+        name: f.name,
+        dataType: f.dataType || 'STRING',
+        description: f.description || ''
+      }))
+      logger.info('[FlowDetailPanel] Got fields from realtime datasource node', {
+        fieldCount: availableFields.length
+      })
+    } else {
+      logger.warn('[FlowDetailPanel] Could not find fields for source node', {
+        sourceNodeId: provider.sourceNodeId,
+        sourceNodeType: sourceNode.type,
+        sourceNodeCategory: sourceNode.data?.category
+      })
     }
+  } else {
+    logger.warn('[FlowDetailPanel] Source node not found', {
+      sourceNodeId: provider.sourceNodeId
+    })
   }
 
   // 设置弹窗数据
