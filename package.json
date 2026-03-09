@@ -21,7 +21,9 @@
     "test:ui": "LC_ALL=zh_CN.UTF-8 LANG=zh_CN.UTF-8 playwright test --ui",
     "test:headed": "LC_ALL=zh_CN.UTF-8 LANG=zh_CN.UTF-8 playwright test --headed",
     "test:debug": "LC_ALL=zh_CN.UTF-8 LANG=zh_CN.UTF-8 playwright test --debug",
-    "test:report": "playwright show-report"
+    "test:report": "playwright show-report",
+    "build:linux": "bash scripts/build-linux-portable.sh",
+    "build:linux:pkg": "bash scripts/build-linux.sh"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.0",
