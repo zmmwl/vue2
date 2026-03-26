@@ -631,8 +631,15 @@ const selectedEnterpriseName = computed(() => {
   return enterprise?.name || ''
 })
 
-// 检查选中字段的所有方是否与输出企业一致（用于 PSI 任务）
+// 判断当前任务是否是 PSI 任务
+const isPsiTask = computed(() => {
+  return props.taskData?.taskType === 'PSI'
+})
+
+// 检查选中字段的所有方是否与输出企业一致（仅用于 PSI 任务）
 const fieldOwnerMismatch = computed(() => {
+  // 只对 PSI 任务进行检查
+  if (!isPsiTask.value) return null
   if (!selectedEnterpriseId.value) return null
 
   const mismatchedFields: string[] = []
@@ -647,12 +654,12 @@ const fieldOwnerMismatch = computed(() => {
   return mismatchedFields.length > 0 ? mismatchedFields : null
 })
 
-// 是否有效（必须选择企业和至少一个字段，且字段所有方必须一致）
+// 是否有效（必须选择企业和至少一个字段；PSI 任务还需字段所有方与输出企业一致）
 const isValid = computed(() => {
   return selectedEnterpriseId.value.length > 0 &&
          datasetName.value.trim().length > 0 &&
          selectedFieldIds.value.size > 0 &&
-         !fieldOwnerMismatch.value  // 字段所有方必须一致
+         !fieldOwnerMismatch.value  // 仅 PSI 任务检查字段所有方
 })
 
 // 监听 modelValue 变化

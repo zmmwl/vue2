@@ -1600,8 +1600,13 @@ const onEdgesChange = (changes: EdgeChange[]) => {
             }
           }
 
-          // 情况2: 从数据源节点到计算任务的连接
-          if (sourceData.category === NodeCategory.DATA_SOURCE &&
+          // 情况2: 从数据源节点、输出节点或FL任务到计算任务的连接
+          // FL预处理任务可以作为数据源连接到其他计算任务
+          const isFLTaskAsDataSource = sourceData.category === NodeCategory.COMPUTE_TASK &&
+            (sourceData as ComputeTaskNodeData).taskType === ComputeTaskType.FL
+          if ((sourceData.category === NodeCategory.DATA_SOURCE ||
+               sourceData.category === NodeCategory.OUTPUT_DATA ||
+               isFLTaskAsDataSource) &&
               targetData.category === NodeCategory.COMPUTE_TASK) {
             const taskData = targetData as ComputeTaskNodeData
             // 从计算任务的 inputProviders 中移除对应的输入配置
@@ -5869,8 +5874,13 @@ function handleTestDeleteEdge(event: Event) {
     const sourceData = sourceNode.data as NodeData
     const targetData = targetNode.data as NodeData
 
-    // 情况1: 从数据源到计算任务的连接 - 清除输入配置
-    if (sourceData.category === NodeCategory.DATA_SOURCE &&
+    // 情况1: 从数据源、输出节点或FL任务到计算任务的连接 - 清除输入配置
+    // FL预处理任务可以作为数据源连接到其他计算任务
+    const isFLTaskAsDataSource = sourceData.category === NodeCategory.COMPUTE_TASK &&
+      (sourceData as ComputeTaskNodeData).taskType === ComputeTaskType.FL
+    if ((sourceData.category === NodeCategory.DATA_SOURCE ||
+         sourceData.category === NodeCategory.OUTPUT_DATA ||
+         isFLTaskAsDataSource) &&
         targetData.category === NodeCategory.COMPUTE_TASK) {
       const taskData = targetData as ComputeTaskNodeData
       if (taskData.inputProviders) {
