@@ -194,6 +194,7 @@
       :task-name="pendingFLTaskData?.taskName"
       :fl-mode="pendingFLTaskData?.flMode"
       :fl-category="pendingFLTaskData?.flCategory"
+      :input-providers="pendingFLTaskInputProviders"
       @confirm="handleFLTaskConfigConfirm"
     />
 
@@ -449,6 +450,7 @@ const importedRealtimeFields = ref<import('@/types/nodes').RealtimeFieldInfo[]>(
 const showFLTaskConfigDialog = ref(false)
 const pendingFLTaskNodeId = ref<string>('')
 const pendingFLTaskData = ref<import('@/types/nodes').FLTaskNodeData | undefined>(undefined)
+const pendingFLTaskInputProviders = ref<import('@/types/nodes').InputProvider[]>([])
 
 // 实时数据源节点配置弹窗状态
 const showRealtimeDataSourceNodeDialog = ref(false)
@@ -2926,6 +2928,8 @@ function openFLTaskConfig(nodeId: string) {
 
   pendingFLTaskNodeId.value = nodeId
   pendingFLTaskData.value = nodeData
+  // 传递 inputProviders 用于动态填充列选择参数
+  pendingFLTaskInputProviders.value = nodeData.inputProviders || []
 
   showFLTaskConfigDialog.value = true
   logger.info('[FlowCanvas] Opening FL task config', {

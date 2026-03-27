@@ -19,7 +19,11 @@
     <!-- 节点内容 -->
     <div class="node-content">
       <div class="task-name">{{ taskDisplayName }}</div>
-      <div v-if="configSummary" class="config-summary">
+      <!-- 配置警告：有连接但列参数未配置 -->
+      <div v-if="hasMissingColumnParams" class="config-warning">
+        ⚠️ 请配置列选择
+      </div>
+      <div v-else-if="configSummary" class="config-summary">
         {{ configSummary }}
       </div>
       <div v-else class="config-hint">
@@ -76,7 +80,7 @@ import type { NodeProps } from '@vue-flow/core'
 import type { FLTaskNodeData, NodeData } from '@/types/nodes'
 import { FLTaskCategory, FLMode, FLTaskExecutionType } from '@/types/fl-tasks'
 import { getFLCategoryColor, getFLModeLabel } from '@/utils/fl-task-templates'
-import { getExecutionTypeForTask } from '@/utils/mock-fl-data'
+import { getExecutionTypeForTask, getParametersForTask } from '@/utils/mock-fl-data'
 import { useHandleVisibility } from '@/composables/useHandleVisibility'
 import { useNodeEvents } from '@/composables/useNodeEvents'
 
@@ -128,11 +132,53 @@ const modeClass = computed(() => {
   return flData.value.flMode === FLMode.TRAINING ? 'training' : 'inference'
 })
 
+// 列选择参数名称列表
+const COLUMN_PARAM_NAMES = ['columns', 'column', 'subset', 'stratifyColumn', 'labelColumn', 'targetColumn']
+
+// 获取当前任务的参数模板中的列选择参数名称
+const taskColumnParamNames = computed(() => {
+  const taskName = flData.value.taskName
+  const subType = flData.value.subType
+  if (!taskName) return []
+
+  const paramDefs = getParametersForTask(taskName, subType || undefined)
+  return paramDefs
+    .filter(p => COLUMN_PARAM_NAMES.includes(p.name))
+    .map(p => p.name)
+})
+
+// 检查是否有缺失的必选列参数
+const hasMissingColumnParams = computed(() => {
+  // 没有连接数据源时不显示警告
+  if (!flData.value.inputProviders || flData.value.inputProviders.length === 0) {
+    return false
+  }
+
+  // 没有需要配置的列参数时不显示警告
+  if (taskColumnParamNames.value.length === 0) {
+    return false
+  }
+
+  const params = flData.value.parameters || {}
+  // 只检查当前任务实际拥有的列选择参数
+  return taskColumnParamNames.value.some(name =>
+    params[name] === undefined ||
+    (Array.isArray(params[name]) && (params[name] as any[]).length === 0)
+  )
+})
+
 // 是否已配置
 const isConfigured = computed(() => {
   // 有子类型时必须选择子类型
   const hasSubTypeConfig = flData.value.subType ? true : !hasSubTypes.value
-  return hasSubTypeConfig && !!(flData.value.parameters && Object.keys(flData.value.parameters).length > 0)
+  const hasParams = !!(flData.value.parameters && Object.keys(flData.value.parameters).length > 0)
+
+  // 如果有连接但有必选列参数未配置，标记为未完全配置
+  if (flData.value.inputProviders && flData.value.inputProviders.length > 0) {
+    return hasSubTypeConfig && hasParams && !hasMissingColumnParams.value
+  }
+
+  return hasSubTypeConfig && hasParams
 })
 
 // 配置摘要
@@ -354,6 +400,15 @@ function onAddModelOutput() {
   font-size: 11px;
   color: var(--text-disabled);
   font-style: italic;
+}
+
+.config-warning {
+  font-size: 11px;
+  color: #d48806;
+  background: rgba(250, 173, 20, 0.1);
+  padding: 4px 8px;
+  border-radius: 4px;
+  margin-top: 4px;
 }
 
 // Handle 样式 - 与计算任务节点保持一致

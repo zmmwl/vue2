@@ -56,6 +56,11 @@
           <!-- 参数配置 - 只有在没有子类型或已选择子类型时才显示 -->
           <div v-if="(!hasSubTypes || selectedSubType) && parameters.length > 0" class="parameters-section">
             <label class="section-label">参数配置</label>
+            <!-- 无数据源警告 -->
+            <div v-if="hasColumnSelectionParams && availableColumnOptions.length === 0" class="no-datasource-warning">
+              <span class="warning-icon">⚠️</span>
+              <span>请先连接数据源后再配置列选择参数</span>
+            </div>
             <div class="parameter-list">
               <ParameterInput
                 v-for="param in parameters"
@@ -100,9 +105,9 @@
 import { ref, computed, watch } from 'vue'
 import ParameterInput from './ParameterInput.vue'
 import DeployedModelSelector from './DeployedModelSelector.vue'
-import type { FLTaskNodeData, DeployedModel } from '@/types/nodes'
-import type { FLTaskParameterDef, FLTaskSubType } from '@/types/fl-tasks'
-import { FLMode, FLTaskCategory } from '@/types/fl-tasks'
+import type { FLTaskNodeData, DeployedModel, InputProvider } from '@/types/nodes'
+import type { FLTaskParameterDef, FLTaskSubType, FLParameterOption } from '@/types/fl-tasks'
+import { FLMode, FLTaskCategory, FLParameterDataType } from '@/types/fl-tasks'
 import { getFLTaskInfo } from '@/utils/fl-task-templates'
 import { getParametersForTask, getSubTypesForTask, DEPLOYED_MODELS } from '@/utils/mock-fl-data'
 
@@ -112,6 +117,7 @@ const props = defineProps<{
   taskName?: string
   flMode?: FLMode
   flCategory?: FLTaskCategory
+  inputProviders?: InputProvider[]
 }>()
 
 const emit = defineEmits<{
@@ -162,6 +168,47 @@ const isLoadingParams = ref(false)
 
 // 参数值
 const paramValues = ref<Record<string, any>>({})
+
+// 列选择参数名称列表
+const COLUMN_PARAM_NAMES = ['columns', 'column', 'subset', 'stratifyColumn', 'labelColumn', 'targetColumn']
+
+// 计算可用列选项（从 inputProviders 提取）
+const availableColumnOptions = computed<FLParameterOption[]>(() => {
+  if (!props.inputProviders || props.inputProviders.length === 0) {
+    return []
+  }
+
+  const options: FLParameterOption[] = []
+  const addedFields = new Set<string>()
+
+  props.inputProviders.forEach(provider => {
+    provider.fields.forEach(field => {
+      if (!addedFields.has(field.columnName)) {
+        options.push({
+          value: field.columnName,
+          label: field.columnAlias || field.columnName,
+          description: field.columnType
+        })
+        addedFields.add(field.columnName)
+      }
+    })
+  })
+
+  return options
+})
+
+// 判断参数是否为列选择类型
+function isColumnSelectionParam(param: FLTaskParameterDef): boolean {
+  return (param.dataType === FLParameterDataType.SELECT ||
+          param.dataType === FLParameterDataType.MULTISELECT) &&
+         (!param.options || param.options.length === 0) &&
+         COLUMN_PARAM_NAMES.includes(param.name)
+}
+
+// 检查当前参数列表中是否有列选择参数
+const hasColumnSelectionParams = computed(() => {
+  return parameters.value.some(param => isColumnSelectionParam(param))
+})
 
 // 已部署模型选择
 const showModelSelector = ref(false)
@@ -271,11 +318,21 @@ function loadParametersForSubType(subType: string) {
 
   // 从 mock 数据获取参数模板
   const params = getParametersForTask(taskName, subType || undefined)
-  parameters.value = params
+
+  // 动态填充列选择参数的 options
+  parameters.value = params.map(param => {
+    if (isColumnSelectionParam(param)) {
+      return {
+        ...param,
+        options: availableColumnOptions.value
+      }
+    }
+    return param
+  })
 
   // 初始化参数值
   const initialValues: Record<string, any> = {}
-  for (const param of params) {
+  for (const param of parameters.value) {
     if (props.initialData?.parameters?.[param.name] !== undefined) {
       initialValues[param.name] = props.initialData.parameters[param.name]
     } else if (param.defaultValue !== undefined) {
@@ -482,6 +539,27 @@ watch(() => props.modelValue, (isOpen) => {
   font-size: 13px;
   background: rgba(0, 0, 0, 0.02);
   border-radius: var(--radius-sm);
+}
+
+.no-datasource-warning {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: rgba(250, 173, 20, 0.1);
+  border: 1px solid rgba(250, 173, 20, 0.3);
+  border-radius: var(--radius-sm);
+  margin-bottom: 12px;
+
+  .warning-icon {
+    font-size: 16px;
+  }
+
+  span:last-child {
+    font-size: 12px;
+    color: #d48806;
+    font-weight: 500;
+  }
 }
 
 .model-selector-section {
