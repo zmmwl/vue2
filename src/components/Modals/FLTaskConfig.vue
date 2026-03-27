@@ -227,6 +227,10 @@ const canConfirm = computed(() => {
   // 检查必填参数
   for (const param of parameters.value) {
     if (param.required && (paramValues.value[param.name] === undefined || paramValues.value[param.name] === '')) {
+      // 如果是列选择参数且没有可用选项（没有数据源），跳过必填验证
+      if (isColumnSelectionParam(param) && availableColumnOptions.value.length === 0) {
+        continue
+      }
       return false
     }
   }
