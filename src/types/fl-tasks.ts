@@ -9,6 +9,18 @@ import { FLTaskCategory, FLMode } from './nodes'
 // 重新导出 FLTaskCategory 和 FLMode
 export { FLTaskCategory, FLMode }
 
+// ========== 任务执行类型枚举 ==========
+
+/** 任务执行类型 */
+export enum FLTaskExecutionType {
+  /** 单方本地任务 - 只能连接1个数据源，不显示"添加输出"按钮 */
+  LOCAL = 'local',
+  /** 动态任务 - 根据连接数量自动判定类型 */
+  DYNAMIC = 'dynamic',
+  /** 多方隐私任务 - 必须连接2+数据源，显示"添加输出"按钮 */
+  MULTI_PARTY = 'multi_party'
+}
+
 // ========== 参数定义相关类型 ==========
 
 /** 参数数据类型 */
@@ -47,6 +59,19 @@ export interface FLTaskParameterDef {
     max?: number                  // 最大值
     message?: string              // 验证失败提示
   }
+  /** 条件显示：当指定参数等于某值时才显示 */
+  showWhen?: {
+    param: string                 // 依赖的参数名
+    value: any                    // 依赖参数的值
+  }
+}
+
+/** 任务子类型定义 */
+export interface FLTaskSubType {
+  value: string                    // 子类型标识
+  label: string                    // 显示名称
+  description?: string             // 子类型描述
+  parameters: FLTaskParameterDef[] // 该子类型的参数列表
 }
 
 /** 联邦学习任务参数模板 */
@@ -57,8 +82,22 @@ export interface FLTaskParameterTemplate {
   mode: FLMode                    // 训练/推断模式
   icon: string                    // 图标
   description?: string            // 任务描述
-  parameters: FLTaskParameterDef[]  // 参数定义列表
+
+  // === 新增字段 ===
+  /** 任务执行类型 */
+  executionType: FLTaskExecutionType
+  /** 子类型列表（可选，有子类型的任务使用此字段） */
+  subTypes?: FLTaskSubType[]
+  /** 允许的连接类型（仅动态任务使用） */
+  joinTypesAllowed?: JoinType[]
+
+  // === 兼容现有字段 ===
+  /** 参数定义列表（无子类型时使用，有子类型时为空数组） */
+  parameters: FLTaskParameterDef[]
 }
+
+/** 连接类型 */
+export type JoinType = 'INNER' | 'CROSS' | 'Union' | 'NoAssoc'
 
 // ========== 菜单结构相关类型 ==========
 
@@ -132,9 +171,37 @@ export interface FLTaskConnectionConstraint {
   minParticipants: number         // 最小参与方数量
   maxParticipants: number         // 最大参与方数量
   allowOutputNode: boolean        // 是否生成输出节点
+  /** 允许的连接类型（仅动态任务） */
+  joinTypesAllowed?: JoinType[]
 }
 
-/** 各类别任务的连接约束 */
+/** 各执行类型的连接约束 */
+export const FL_EXECUTION_TYPE_CONSTRAINTS: Record<FLTaskExecutionType, FLTaskConnectionConstraint> = {
+  [FLTaskExecutionType.LOCAL]: {
+    minDataSources: 1,
+    maxDataSources: 1,
+    minParticipants: 1,
+    maxParticipants: 1,
+    allowOutputNode: false
+  },
+  [FLTaskExecutionType.DYNAMIC]: {
+    minDataSources: 1,
+    maxDataSources: 10,
+    minParticipants: 1,
+    maxParticipants: 10,
+    allowOutputNode: true,  // 多方时允许
+    joinTypesAllowed: ['INNER']
+  },
+  [FLTaskExecutionType.MULTI_PARTY]: {
+    minDataSources: 2,
+    maxDataSources: 10,
+    minParticipants: 2,
+    maxParticipants: 10,
+    allowOutputNode: true
+  }
+}
+
+/** 各类别任务的连接约束（基于执行类型） */
 export const FL_TASK_CONSTRAINTS: Record<FLTaskCategory, FLTaskConnectionConstraint> = {
   [FLTaskCategory.PREPROCESS]: {
     minDataSources: 1,

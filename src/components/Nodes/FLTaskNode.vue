@@ -45,9 +45,9 @@
       :class="['output-handle', { 'is-visible': isOutputVisible }]"
     />
 
-    <!-- 特征工程任务：添加输出按钮 -->
+    <!-- 特征工程任务：添加输出按钮 - 基于执行类型控制显示 -->
     <button
-      v-if="isFeatureEngineering"
+      v-if="showFeatureEngineeringBtn"
       class="add-output-btn"
       @click="onAddOutput"
       @mousedown.stop
@@ -56,9 +56,9 @@
       <span>+</span>
     </button>
 
-    <!-- 横向/纵向模型任务：添加模型输出按钮 -->
+    <!-- 横向/纵向模型任务：添加模型输出按钮 - 基于执行类型控制显示 -->
     <button
-      v-if="isModelTask"
+      v-if="showModelBtn"
       class="add-model-output-btn"
       @click="onAddModelOutput"
       @mousedown.stop
@@ -74,15 +74,16 @@ import { computed } from 'vue'
 import { Handle, Position } from '@vue-flow/core'
 import type { NodeProps } from '@vue-flow/core'
 import type { FLTaskNodeData, NodeData } from '@/types/nodes'
-import { FLTaskCategory, FLMode } from '@/types/fl-tasks'
+import { FLTaskCategory, FLMode, FLTaskExecutionType } from '@/types/fl-tasks'
 import { getFLCategoryColor, getFLModeLabel } from '@/utils/fl-task-templates'
+import { getExecutionTypeForTask } from '@/utils/mock-fl-data'
 import { useHandleVisibility } from '@/composables/useHandleVisibility'
 import { useNodeEvents } from '@/composables/useNodeEvents'
 
 const props = defineProps<NodeProps<NodeData>>()
 
 // 使用 composables
-const { hasDataInputConnection, hasOutputConnection } = useHandleVisibility(props.id)
+const { hasDataInputConnection, hasOutputConnection, getInputConnectionCount } = useHandleVisibility(props.id)
 const { handleAddFLOutput, handleAddModelOutput } = useNodeEvents()
 
 // 获取 FL 任务数据
@@ -110,8 +111,14 @@ const label = computed(() => props.data.label || '联邦学习任务')
 // 节点图标
 const icon = computed(() => props.data.icon || '⚙️')
 
-// 任务显示名称
-const taskDisplayName = computed(() => flData.value.taskDisplayName || flData.value.taskName || '未知任务')
+// 任务显示名称（包含子类型）
+const taskDisplayName = computed(() => {
+  const baseName = flData.value.taskDisplayName || flData.value.taskName || '未知任务'
+  if (flData.value.subTypeLabel) {
+    return `${baseName} - ${flData.value.subTypeLabel}`
+  }
+  return baseName
+})
 
 // 模式标签
 const modeLabel = computed(() => getFLModeLabel(flData.value.flMode))
@@ -123,7 +130,9 @@ const modeClass = computed(() => {
 
 // 是否已配置
 const isConfigured = computed(() => {
-  return !!(flData.value.parameters && Object.keys(flData.value.parameters).length > 0)
+  // 有子类型时必须选择子类型
+  const hasSubTypeConfig = flData.value.subType ? true : !hasSubTypes.value
+  return hasSubTypeConfig && !!(flData.value.parameters && Object.keys(flData.value.parameters).length > 0)
 })
 
 // 配置摘要
@@ -134,6 +143,18 @@ const configSummary = computed(() => {
   // 显示前2个参数
   const summary = keys.slice(0, 2).map(k => `${k}: ${flData.value.parameters![k]}`).join(', ')
   return keys.length > 2 ? `${summary}...` : summary
+})
+
+// 获取任务的执行类型
+const executionType = computed(() => {
+  const taskName = flData.value.taskName
+  return getExecutionTypeForTask(taskName)
+})
+
+// 检查任务是否有子类型
+const hasSubTypes = computed(() => {
+  // 通过 executionType 来判断，有子类型的任务需要选择后才能确认
+  return flData.value.subType !== undefined || !executionType.value
 })
 
 // 是否有输出（所有 FL 任务都有输出，预处理任务的输出结构和输入一致）
@@ -149,6 +170,33 @@ const hasOutput = computed(() => {
 const isDataInputVisible = hasDataInputConnection
 const isOutputVisible = hasOutputConnection
 
+// 输入连接数量
+const inputConnectionCount = computed(() => getInputConnectionCount())
+
+// 是否显示"添加输出"按钮 - 基于执行类型判断
+const shouldShowAddOutputBtn = computed(() => {
+  const execType = executionType.value
+
+  // LOCAL: 不显示添加输出按钮
+  if (execType === FLTaskExecutionType.LOCAL) {
+    return false
+  }
+
+  // MULTI_PARTY: 显示添加输出按钮
+  if (execType === FLTaskExecutionType.MULTI_PARTY) {
+    return true
+  }
+
+  // DYNAMIC: 根据连接数量动态判断
+  // 1个连接 = LOCAL 模式（不显示）
+  // 2+连接 = MULTI_PARTY 模式（显示）
+  if (execType === FLTaskExecutionType.DYNAMIC) {
+    return inputConnectionCount.value >= 2
+  }
+
+  return false
+})
+
 // 是否是特征工程任务
 const isFeatureEngineering = computed(() => {
   return flData.value.flCategory === FLTaskCategory.FEATURE_ENGINEERING
@@ -158,6 +206,16 @@ const isFeatureEngineering = computed(() => {
 const isModelTask = computed(() => {
   return flData.value.flCategory === FLTaskCategory.HORIZONTAL_MODEL ||
          flData.value.flCategory === FLTaskCategory.VERTICAL_MODEL
+})
+
+// 是否显示特征工程输出按钮
+const showFeatureEngineeringBtn = computed(() => {
+  return isFeatureEngineering.value && shouldShowAddOutputBtn.value
+})
+
+// 是否显示模型输出按钮
+const showModelBtn = computed(() => {
+  return isModelTask.value && shouldShowAddOutputBtn.value
 })
 
 /**

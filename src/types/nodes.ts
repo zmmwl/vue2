@@ -655,6 +655,10 @@ export interface FLTaskNodeData extends NodeData {
   // 任务显示名称
   taskDisplayName: string
 
+  // 子类型（如缺失值处理、异常值处理等）
+  subType?: string
+  subTypeLabel?: string
+
   // 输入数据源配置
   inputProviders?: InputProvider[]
 

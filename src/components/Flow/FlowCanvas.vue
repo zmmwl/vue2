@@ -274,6 +274,8 @@ import { getEnterpriseList } from '@/services/enterpriseService'
 import { algorithmService } from '@/services/algorithmService'
 import { getAlgorithmTypeByTask } from '@/types/algorithm'
 import type { TaskAlgorithmConfig } from '@/types/algorithm'
+import { getExecutionTypeForTask } from '@/utils/mock-fl-data'
+import { validateConnectionConstraint } from '@/utils/fl-task-utils'
 
 interface Emits {
   (e: 'node-selected', node: Node<NodeData> | null): void
@@ -1271,6 +1273,45 @@ const onConnect = (connection: Connection) => {
   const correctedConnection: Connection = {
     ...connection,
     targetHandle: correctedTargetHandle
+  }
+
+  // ========== FL 任务连接约束验证 ==========
+  // 如果目标是 FL 任务节点，验证连接约束
+  if (targetData.category === NodeCategory.COMPUTE_TASK &&
+      (targetData as ComputeTaskNodeData).taskType === ComputeTaskType.FL) {
+    const flTaskData = targetData as any
+    const taskName = flTaskData.taskName
+
+    if (taskName) {
+      // 计算当前已有的输入连接数量（不包括正在创建的连接）
+      const existingConnectionCount = edges.value.filter(
+        e => e.target === targetNode.id && e.targetHandle === 'data-input'
+      ).length
+
+      // 加上新连接后的总数
+      const totalConnectionCount = existingConnectionCount + 1
+
+      // 验证连接约束
+      const validation = validateConnectionConstraint(taskName, totalConnectionCount)
+
+      if (!validation.valid) {
+        showError(validation.message || '连接约束验证失败')
+        logger.warn('[FlowCanvas] FL task connection constraint violation', {
+          taskName,
+          executionType: getExecutionTypeForTask(taskName),
+          existingConnections: existingConnectionCount,
+          totalConnections: totalConnectionCount,
+          message: validation.message
+        })
+        return
+      }
+
+      logger.info('[FlowCanvas] FL task connection constraint passed', {
+        taskName,
+        executionType: getExecutionTypeForTask(taskName),
+        totalConnections: totalConnectionCount
+      })
+    }
   }
 
   // PIR 任务现在走和 MPC 一样的字段选择流程，不再单独处理

@@ -106,6 +106,7 @@ src/
 - TypeScript 5.9.3 + Vue 3.5.24, @vue-flow/core 1.48.1, Vite 7.2.4, SCSS 1.97.2, Playwright 1.57.0 (004-algorithm-selection)
 - TypeScript 5.9.3 + Vue 3.5.24 + @vue-flow/core 1.48.1, SCSS 1.97.2, Vite 7.2.4 (005-join-types-extension)
 - N/A（前端内存状态） (005-join-types-extension)
+- 内存存储（Map 缓存）+ JSON 文件导入导出 (006-fl-task-restructure)
 
 ## Recent Changes
 - 001-data-asset-select: Added TypeScript 5.9.3, Vue 3.5.24 + @vue-flow/core 1.48.1, Vite 7.2.4, Sass 1.97.2, Playwright 1.57.0

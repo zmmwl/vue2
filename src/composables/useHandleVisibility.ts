@@ -28,10 +28,16 @@ function createConnectionChecker(
 export function useHandleVisibility(nodeId: string) {
   const { edges } = useVueFlow()
 
+  // 计算输入连接数量（所有指向该节点的连接）
+  const getInputConnectionCount = () => {
+    return edges.value.filter(edge => edge.target === nodeId).length
+  }
+
   return {
     hasDataInputConnection: createConnectionChecker(edges, nodeId, 'target', 'data-input'),
     hasOutputConnection: createConnectionChecker(edges, nodeId, 'source', 'output'),
     hasModelInputConnection: createConnectionChecker(edges, nodeId, 'target', 'input'),
-    hasComputeInputConnection: createConnectionChecker(edges, nodeId, 'target', 'compute-input')
+    hasComputeInputConnection: createConnectionChecker(edges, nodeId, 'target', 'compute-input'),
+    getInputConnectionCount
   }
 }

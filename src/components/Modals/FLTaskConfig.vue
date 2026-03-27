@@ -17,6 +17,23 @@
             </div>
           </div>
 
+          <!-- 子类型选择器 -->
+          <div v-if="hasSubTypes" class="subtype-selector-section">
+            <label class="section-label">任务子类型 <span class="required">*</span></label>
+            <div class="subtype-options">
+              <div
+                v-for="subType in subTypes"
+                :key="subType.value"
+                class="subtype-option"
+                :class="{ 'is-selected': selectedSubType === subType.value }"
+                @click="handleSubTypeChange(subType.value)"
+              >
+                <div class="subtype-label">{{ subType.label }}</div>
+                <div v-if="subType.description" class="subtype-desc">{{ subType.description }}</div>
+              </div>
+            </div>
+          </div>
+
           <!-- 推断任务：已部署模型选择 -->
           <div v-if="isInference" class="model-selector-section">
             <label class="section-label">已部署模型</label>
@@ -36,8 +53,8 @@
             </div>
           </div>
 
-          <!-- 参数配置 -->
-          <div v-if="parameters.length > 0" class="parameters-section">
+          <!-- 参数配置 - 只有在没有子类型或已选择子类型时才显示 -->
+          <div v-if="(!hasSubTypes || selectedSubType) && parameters.length > 0" class="parameters-section">
             <label class="section-label">参数配置</label>
             <div class="parameter-list">
               <ParameterInput
@@ -50,8 +67,13 @@
             </div>
           </div>
 
+          <!-- 有子类型但未选择时的提示 -->
+          <div v-else-if="hasSubTypes && !selectedSubType && !isLoadingParams" class="select-subtype-hint">
+            <span>请先选择任务子类型</span>
+          </div>
+
           <!-- 无参数提示 -->
-          <div v-else-if="!isLoadingParams" class="no-params-hint">
+          <div v-else-if="!hasSubTypes && parameters.length === 0 && !isLoadingParams" class="no-params-hint">
             <span>该任务无需配置额外参数</span>
           </div>
         </div>
@@ -79,10 +101,10 @@ import { ref, computed, watch } from 'vue'
 import ParameterInput from './ParameterInput.vue'
 import DeployedModelSelector from './DeployedModelSelector.vue'
 import type { FLTaskNodeData, DeployedModel } from '@/types/nodes'
-import type { FLTaskParameterDef } from '@/types/fl-tasks'
+import type { FLTaskParameterDef, FLTaskSubType } from '@/types/fl-tasks'
 import { FLMode, FLTaskCategory } from '@/types/fl-tasks'
 import { getFLTaskInfo } from '@/utils/fl-task-templates'
-import { getParametersForTask, DEPLOYED_MODELS } from '@/utils/mock-fl-data'
+import { getParametersForTask, getSubTypesForTask, DEPLOYED_MODELS } from '@/utils/mock-fl-data'
 
 const props = defineProps<{
   modelValue: boolean
@@ -125,6 +147,15 @@ const modelTypeFilter = computed(() => {
   return undefined
 })
 
+// 子类型相关
+const subTypes = ref<FLTaskSubType[]>([])
+const selectedSubType = ref<string>('')
+const hasSubTypes = computed(() => subTypes.value.length > 0)
+const selectedSubTypeInfo = computed(() => {
+  if (!selectedSubType.value) return null
+  return subTypes.value.find(s => s.value === selectedSubType.value)
+})
+
 // 参数列表
 const parameters = ref<FLTaskParameterDef[]>([])
 const isLoadingParams = ref(false)
@@ -139,6 +170,10 @@ const modelDeleted = ref(false)  // 标记原先选择的模型是否已被删�
 
 // 是否可以确认
 const canConfirm = computed(() => {
+  // 有子类型时必须选择子类型
+  if (hasSubTypes.value && !selectedSubType.value) {
+    return false
+  }
   if (isInference.value && !selectedModel.value) {
     return false
   }
@@ -181,6 +216,12 @@ function handleConfirm() {
     parameters: { ...paramValues.value }
   }
 
+  // 保存子类型
+  if (selectedSubType.value) {
+    data.subType = selectedSubType.value
+    data.subTypeLabel = selectedSubTypeInfo.value?.label
+  }
+
   if (isInference.value && selectedModel.value) {
     data.deployedModelId = selectedModel.value.modelId
     data.deployedModelName = selectedModel.value.modelName
@@ -196,37 +237,73 @@ function handleClose() {
   emit('update:modelValue', false)
 }
 
-// 加载参数模板
+// 加载子类型和参数模板
 async function loadParameters() {
   const taskName = props.taskName || props.initialData?.taskName
   if (!taskName) return
 
   isLoadingParams.value = true
   try {
-    // 从 mock 数据获取参数模板
-    const params = getParametersForTask(taskName)
-    parameters.value = params
+    // 获取子类型列表
+    const taskSubTypes = getSubTypesForTask(taskName)
+    subTypes.value = taskSubTypes
 
-    // 初始化参数值
-    const initialValues: Record<string, any> = {}
-    for (const param of params) {
-      if (props.initialData?.parameters?.[param.name] !== undefined) {
-        initialValues[param.name] = props.initialData.parameters[param.name]
-      } else if (param.defaultValue !== undefined) {
-        initialValues[param.name] = param.defaultValue
-      }
+    // 恢复已选择的子类型
+    const initialSubType = props.initialData?.subType || ''
+    if (initialSubType && taskSubTypes.some(s => s.value === initialSubType)) {
+      selectedSubType.value = initialSubType
+    } else if (taskSubTypes.length > 0) {
+      // 默认不选择，让用户主动选择
+      selectedSubType.value = ''
     }
-    paramValues.value = initialValues
+
+    // 加载参数（如果有子类型且已选择子类型，则加载子类型参数）
+    loadParametersForSubType(selectedSubType.value)
   } finally {
     isLoadingParams.value = false
   }
 }
 
+// 根据子类型加载参数
+function loadParametersForSubType(subType: string) {
+  const taskName = props.taskName || props.initialData?.taskName
+  if (!taskName) return
+
+  // 从 mock 数据获取参数模板
+  const params = getParametersForTask(taskName, subType || undefined)
+  parameters.value = params
+
+  // 初始化参数值
+  const initialValues: Record<string, any> = {}
+  for (const param of params) {
+    if (props.initialData?.parameters?.[param.name] !== undefined) {
+      initialValues[param.name] = props.initialData.parameters[param.name]
+    } else if (param.defaultValue !== undefined) {
+      initialValues[param.name] = param.defaultValue
+    }
+  }
+  paramValues.value = initialValues
+}
+
+// 处理子类型变更
+function handleSubTypeChange(subType: string) {
+  selectedSubType.value = subType
+  // 子类型变更时重新加载参数
+  loadParametersForSubType(subType)
+}
+
 // 初始化
 watch(() => props.modelValue, (isOpen) => {
   if (isOpen) {
+    // 重置状态
+    subTypes.value = []
+    selectedSubType.value = ''
+    parameters.value = []
+    paramValues.value = {}
+    modelDeleted.value = false
+
     loadParameters()
-    modelDeleted.value = false  // 重置删除标记
+
     // 从已有数据恢复选择的模型
     if (props.initialData?.deployedModelId && props.initialData?.deployedModelName) {
       // 检查模型是否仍然存在
@@ -346,6 +423,65 @@ watch(() => props.modelValue, (isOpen) => {
   font-weight: 500;
   color: var(--text-secondary);
   margin-bottom: 8px;
+
+  .required {
+    color: #ff4d4f;
+  }
+}
+
+.subtype-selector-section {
+  margin-bottom: 20px;
+}
+
+.subtype-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.subtype-option {
+  padding: 12px 16px;
+  background: rgba(0, 0, 0, 0.02);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: var(--transition-fast);
+
+  &:hover {
+    background: rgba(0, 0, 0, 0.04);
+    border-color: var(--color-primary);
+  }
+
+  &.is-selected {
+    background: rgba(24, 144, 255, 0.08);
+    border-color: var(--color-primary);
+
+    .subtype-label {
+      color: var(--color-primary);
+      font-weight: 600;
+    }
+  }
+
+  .subtype-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-primary);
+  }
+
+  .subtype-desc {
+    font-size: 11px;
+    color: var(--text-secondary);
+    margin-top: 4px;
+  }
+}
+
+.select-subtype-hint {
+  text-align: center;
+  padding: 24px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  background: rgba(0, 0, 0, 0.02);
+  border-radius: var(--radius-sm);
 }
 
 .model-selector-section {
