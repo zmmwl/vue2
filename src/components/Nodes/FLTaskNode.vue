@@ -49,6 +49,17 @@
       :class="['output-handle', { 'is-visible': isOutputVisible }]"
     />
 
+    <!-- 预处理任务：添加输出按钮 - 基于执行类型控制显示 -->
+    <button
+      v-if="showPreprocessBtn"
+      class="add-output-btn preprocess-output-btn"
+      @click="onAddOutput"
+      @mousedown.stop
+      title="添加输出"
+    >
+      <span>+</span>
+    </button>
+
     <!-- 特征工程任务：添加输出按钮 - 基于执行类型控制显示 -->
     <button
       v-if="showFeatureEngineeringBtn"
@@ -203,12 +214,27 @@ const hasSubTypes = computed(() => {
   return flData.value.subType !== undefined || !executionType.value
 })
 
-// 是否有输出（所有 FL 任务都有输出，预处理任务的输出结构和输入一致）
+// 是否有输出（根据执行类型和连接数量判断）
 const hasOutput = computed(() => {
-  // 预处理任务需要配置后才有输出
-  if (flData.value.flCategory === FLTaskCategory.PREPROCESS) {
-    return !!(flData.value.inputProviders && flData.value.inputProviders.length > 0)
+  const execType = executionType.value
+
+  // LOCAL: 有输出 handle
+  if (execType === FLTaskExecutionType.LOCAL) {
+    return true
   }
+
+  // MULTI_PARTY: 不显示默认输出 handle（需要点击"添加输出"按钮）
+  if (execType === FLTaskExecutionType.MULTI_PARTY) {
+    return false
+  }
+
+  // DYNAMIC: 根据连接数量判断
+  // 1个连接 = LOCAL 模式（显示输出 handle）
+  // 2+连接 = MULTI_PARTY 模式（不显示默认输出 handle，需要点击按钮）
+  if (execType === FLTaskExecutionType.DYNAMIC) {
+    return inputConnectionCount.value < 2
+  }
+
   return true
 })
 
@@ -243,6 +269,11 @@ const shouldShowAddOutputBtn = computed(() => {
   return false
 })
 
+// 是否是预处理任务
+const isPreprocess = computed(() => {
+  return flData.value.flCategory === FLTaskCategory.PREPROCESS
+})
+
 // 是否是特征工程任务
 const isFeatureEngineering = computed(() => {
   return flData.value.flCategory === FLTaskCategory.FEATURE_ENGINEERING
@@ -252,6 +283,11 @@ const isFeatureEngineering = computed(() => {
 const isModelTask = computed(() => {
   return flData.value.flCategory === FLTaskCategory.HORIZONTAL_MODEL ||
          flData.value.flCategory === FLTaskCategory.VERTICAL_MODEL
+})
+
+// 是否显示预处理输出按钮
+const showPreprocessBtn = computed(() => {
+  return isPreprocess.value && shouldShowAddOutputBtn.value
 })
 
 // 是否显示特征工程输出按钮
