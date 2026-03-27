@@ -2960,79 +2960,10 @@ function handleFLTaskConfigConfirm(data: Partial<import('@/types/nodes').FLTaskN
     hasParameters: !!data.parameters
   })
 
-  // 对于特征工程和模型任务，自动生成输出节点
-  if (nodeData.flCategory !== 'preprocess' && nodeData.inputProviders && nodeData.inputProviders.length > 0) {
-    // 先清理旧的输出节点
-    if (nodeData.outputNodeId) {
-      const oldOutputNode = nodes.value.find(n => n.id === nodeData.outputNodeId)
-      if (oldOutputNode) {
-        setNodes(nodes.value.filter(n => n.id !== nodeData.outputNodeId))
-        // 删除相关连线
-        setEdges(edges.value.filter(e => e.source !== nodeData.outputNodeId && e.target !== nodeData.outputNodeId))
-      }
-    }
-
-    // 创建新的输出节点（所有参与方共享一个输出）
-    const participantIds = [...new Set(nodeData.inputProviders.map(p => p.participantId))]
-    const outputNodeId = `fl_output_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-
-    // 收集所有字段
-    const allFields: import('@/types/nodes').OutputField[] = []
-    nodeData.inputProviders.forEach(provider => {
-      provider.fields.forEach(field => {
-        allFields.push({
-          source: 'input',
-          columnName: field.columnName,
-          columnAlias: field.columnAlias,
-          columnType: field.columnType
-        })
-      })
-    })
-
-    // 输出节点位置
-    const outputPosition = {
-      x: node.position.x,
-      y: node.position.y + 150
-    }
-
-    const outputNode: Node = {
-      id: outputNodeId,
-      type: 'outputData',
-      position: outputPosition,
-      data: {
-        label: `${nodeData.taskDisplayName || 'FL任务'}输出`,
-        category: NodeCategory.OUTPUT_DATA,
-        color: '#722ed1',
-        icon: '📤',
-        description: `联邦学习任务输出`,
-        parentTaskId: pendingFLTaskNodeId.value,
-        participantId: participantIds[0] || '',
-        entityName: participantIds.length > 1 ? `${participantIds.length}个参与方` : '',
-        dataset: `${nodeData.taskDisplayName || 'fl'}_output`,
-        fields: allFields
-      } as any
-    }
-
-    addNode(outputNode)
-
-    // 创建连线
-    const outputEdge = createUniqueEdge({
-      source: pendingFLTaskNodeId.value,
-      target: outputNodeId,
-      sourceHandle: 'output',
-      targetHandle: 'input'
-    }, edges.value, NodeCategory.COMPUTE_TASK)
-    edges.value.push(outputEdge)
-
-    // 更新节点的输出节点ID
-    nodeData.outputNodeId = outputNodeId
-
-    logger.info('[FlowCanvas] FL task output node created', {
-      taskId: pendingFLTaskNodeId.value,
-      outputNodeId,
-      participantCount: participantIds.length
-    })
-  }
+  // FL 任务不再自动创建输出节点
+  // DYNAMIC 类型任务：1个连接时显示输出 handle，2+连接时需要点击"添加输出"按钮
+  // MULTI_PARTY 类型任务：需要点击"添加输出"按钮
+  // LOCAL 类型任务：直接显示输出 handle
 
   // 关闭弹窗
   showFLTaskConfigDialog.value = false
