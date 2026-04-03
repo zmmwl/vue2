@@ -390,61 +390,6 @@ export const PREPROCESS_TEMPLATES: FLTaskParameterTemplate[] = [
       }
     ],
     parameters: []
-  },
-  // ========== 格式转换 - 单方本地任务 ==========
-  {
-    taskName: 'format_conversion',
-    displayName: '格式转换',
-    category: FLTaskCategory.PREPROCESS,
-    mode: FLMode.TRAINING,
-    icon: '🔄',
-    description: '日期格式转换和类别编码',
-    executionType: FLTaskExecutionType.LOCAL,
-    parameters: [
-      {
-        name: 'dateFormat',
-        displayName: '日期目标格式',
-        dataType: FLParameterDataType.TEXT,
-        required: false,
-        defaultValue: 'YYYY-MM-DD',
-        placeholder: '如 YYYY-MM-DD'
-      },
-      {
-        name: 'encodingMethod',
-        displayName: '类别编码方式',
-        dataType: FLParameterDataType.SELECT,
-        required: false,
-        defaultValue: 'label',
-        options: [
-          { value: 'label', label: 'LabelEncoding' },
-          { value: 'onehot', label: 'OneHot' }
-        ]
-      }
-    ]
-  },
-  // ========== ID标准化 - 单方本地任务 ==========
-  {
-    taskName: 'id_normalization',
-    displayName: 'ID标准化',
-    category: FLTaskCategory.PREPROCESS,
-    mode: FLMode.TRAINING,
-    icon: '🔢',
-    description: 'ID格式标准化处理',
-    executionType: FLTaskExecutionType.LOCAL,
-    parameters: [
-      {
-        name: 'idFormat',
-        displayName: 'ID格式',
-        dataType: FLParameterDataType.SELECT,
-        required: true,
-        defaultValue: 'phone',
-        options: [
-          { value: 'phone', label: '手机号11位' },
-          { value: 'idcard', label: '身份证18位' },
-          { value: 'custom', label: '自定义' }
-        ]
-      }
-    ]
   }
 ]
 

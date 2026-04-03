@@ -58,11 +58,11 @@ export function validateConnectionConstraint(
       return { valid: true }
 
     case FLTaskExecutionType.MULTI_PARTY:
-      // 多方隐私任务必须连接2+数据源
-      if (connectionCount < 2) {
+      // 多方隐私任务：允许连接1-10个数据源（执行时检查至少2个）
+      if (connectionCount > 10) {
         return {
           valid: false,
-          message: '该任务必须连接至少2个数据源'
+          message: '该任务最多连接10个数据源'
         }
       }
       return { valid: true }

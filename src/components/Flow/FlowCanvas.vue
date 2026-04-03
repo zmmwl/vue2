@@ -50,6 +50,7 @@
       :dataset="pendingDataset || ''"
       :available-fields="pendingAvailableFields || []"
       :target-task-type="pendingTargetTaskType || ''"
+      :fl-task-category="pendingFLTaskCategory"
       @confirm="handleFieldSelected"
       @cancel="handleFieldSelectorCancel"
     />
@@ -225,7 +226,7 @@ import { Controls } from '@vue-flow/controls'
 import { MiniMap } from '@vue-flow/minimap'
 import type { Node, Connection, EdgeChange, NodeChange, GraphNode } from '@vue-flow/core'
 import type { DroppedNodeData } from '@/types/graph'
-import { NodeCategory, ComputeTaskType, TechPath, ResourceTypePriority, ModelType, DataSourceType } from '@/types/nodes'
+import { NodeCategory, ComputeTaskType, TechPath, ResourceTypePriority, ModelType, DataSourceType, FLTaskCategory } from '@/types/nodes'
 import type { NodeData, AssetInfo, FieldInfo, FieldMapping, ComputeTaskNodeData, OutputDataNodeData, OutputField, ComputeModelConfig, ModelParameter, AvailableFieldOption, LocalQueryNodeData, ExpressionConfig, GroupByConfig as GroupByConfigType, JoinType, UnionFieldMapping, InputProvider } from '@/types/nodes'
 import { LocalTaskType } from '@/types/nodes'
 import DataSourceNode from '@/components/Nodes/DataSourceNode.vue'
@@ -338,6 +339,7 @@ const pendingUnionTargetNodeId = ref<string>('')
 
 // 字段选择时的目标任务类型
 const pendingTargetTaskType = ref<string>('')
+const pendingFLTaskCategory = ref<FLTaskCategory | undefined>(undefined)
 
 // 错误提示状态
 const showErrorToast = ref(false)
@@ -1329,6 +1331,8 @@ const onConnect = (connection: Connection) => {
     // 获取目标任务类型（用于限制连接类型选择）
     const targetTaskData = targetData as any
     pendingTargetTaskType.value = targetTaskData.taskType || ''
+    // 获取 FL 任务类别（用于限制连接类型）
+    pendingFLTaskCategory.value = targetTaskData.flCategory || undefined
 
     // 获取源节点的字段信息
     if (sourceData.category === NodeCategory.DATA_SOURCE && sourceData.assetInfo) {
@@ -2459,6 +2463,7 @@ function clearFieldSelectorState() {
   pendingDataset.value = ''
   pendingAvailableFields.value = []
   pendingTargetTaskType.value = ''
+  pendingFLTaskCategory.value = undefined
   showFieldSelectorDialog.value = false
 }
 
@@ -5128,6 +5133,7 @@ function handleCreateTestConnection(event: Event) {
   // 获取目标任务类型（用于限制连接类型选择）
   const targetTaskData = targetData as any
   pendingTargetTaskType.value = targetTaskData.taskType || ''
+  pendingFLTaskCategory.value = targetTaskData.flCategory || undefined
 
   // 获取源节点的字段信息
   if (sourceData.category === NodeCategory.DATA_SOURCE && sourceData.assetInfo) {

@@ -25,15 +25,19 @@
               <!-- Join类型选择 -->
               <div class="config-row join-type-selector">
                 <span class="config-label">连接类型</span>
-                <select v-model="globalJoinType" class="join-type-select" :disabled="isJoinTypeRestricted">
-                  <option value="INNER">INNER（内连接）</option>
-                  <option value="CROSS" :disabled="isJoinTypeRestricted">CROSS（交叉连接）</option>
-                  <option value="Union" :disabled="isJoinTypeRestricted">UNION（横向拼接）</option>
-                  <option value="NoAssoc" :disabled="isJoinTypeRestricted">NOASSOC（无关联）</option>
+                <select v-model="globalJoinType" class="join-type-select" :class="{ 'select-disabled': isJoinTypeRestricted }" :disabled="isJoinTypeRestricted">
+                  <option value="INNER" :disabled="isJoinTypeDisabled('INNER')">INNER（内连接）</option>
+                  <option value="CROSS" :disabled="isJoinTypeDisabled('CROSS')">CROSS（交叉连接）</option>
+                  <option value="Union" :disabled="isJoinTypeDisabled('Union')">UNION（横向拼接）</option>
+                  <option value="NoAssoc" :disabled="isJoinTypeDisabled('NoAssoc')">NOASSOC（无关联）</option>
                 </select>
                 <span class="join-type-hint">
                   {{ joinTypeHint }}
-                  <template v-if="isJoinTypeRestricted">（PSI任务仅支持内连接）</template>
+                  <template v-if="isJoinTypeRestricted">
+                    <template v-if="props.targetTaskType === 'PSI'">（PSI任务仅支持内连接）</template>
+                    <template v-else-if="props.flTaskCategory === FLTaskCategory.VERTICAL_MODEL">（纵向模型仅支持内连接）</template>
+                    <template v-else-if="props.flTaskCategory === FLTaskCategory.HORIZONTAL_MODEL">（横向模型仅支持横向拼接）</template>
+                  </template>
                 </span>
               </div>
             </div>
@@ -138,6 +142,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, reactive } from 'vue'
 import type { FieldInfo, FieldMapping, JoinType } from '@/types/nodes'
+import { FLTaskCategory } from '@/types/fl-tasks'
 
 interface FieldMappingWithSelection extends FieldMapping {
   selected: boolean
@@ -154,6 +159,7 @@ interface Props {
   initialSelection?: FieldMapping[]
   closeOnOverlay?: boolean
   targetTaskType?: string  // 目标任务类型，用于限制连接类型选择
+  flTaskCategory?: FLTaskCategory  // FL 任务类别，用于限制连接类型
 }
 
 interface Emits {
@@ -173,7 +179,8 @@ const props = withDefaults(defineProps<Props>(), {
   availableFields: () => [],
   initialSelection: () => [],
   closeOnOverlay: true,
-  targetTaskType: ''
+  targetTaskType: '',
+  flTaskCategory: undefined
 })
 
 const emit = defineEmits<Emits>()
@@ -202,10 +209,30 @@ const needsJoinFields = computed(() => {
   return globalJoinType.value === 'INNER'
 })
 
-// 是否限制只能选择INNER（PSI任务）
+// 是否限制连接类型选择（PSI任务或FL横向/纵向模型）
 const isJoinTypeRestricted = computed(() => {
-  return props.targetTaskType === 'PSI'
+  return props.targetTaskType === 'PSI' ||
+    props.flTaskCategory === FLTaskCategory.HORIZONTAL_MODEL ||
+    props.flTaskCategory === FLTaskCategory.VERTICAL_MODEL
 })
+
+// 获取限制的连接类型（如果有）
+const restrictedJoinType = computed<JoinType | null>(() => {
+  if (props.targetTaskType === 'PSI' || props.flTaskCategory === FLTaskCategory.VERTICAL_MODEL) {
+    return 'INNER'
+  }
+  if (props.flTaskCategory === FLTaskCategory.HORIZONTAL_MODEL) {
+    return 'Union'
+  }
+  return null
+})
+
+// 判断某个连接类型是否被禁用
+const isJoinTypeDisabled = (joinType: JoinType): boolean => {
+  if (!isJoinTypeRestricted.value) return false
+  const restricted = restrictedJoinType.value
+  return restricted !== null && joinType !== restricted
+}
 
 // 字段列表（带选择状态）
 const fields = ref<FieldMappingWithSelection[]>([])
@@ -245,6 +272,11 @@ watch(() => props.modelValue, (newVal) => {
  * 初始化字段列表
  */
 function initializeFields() {
+  // 根据任务类别自动设置连接类型
+  if (isJoinTypeRestricted.value && restrictedJoinType.value) {
+    globalJoinType.value = restrictedJoinType.value
+  }
+
   // 从可用字段初始化
   const initialFields: FieldMappingWithSelection[] = props.availableFields.map(field => ({
     columnName: field.name,
