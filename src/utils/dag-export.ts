@@ -239,11 +239,12 @@ export function extractParticipants(nodes: Node[]): Participant[] {
 
 /**
  * 构建任务依赖 ID 列表
+ * 注意：当连接同一任务的多个输出时，taskSrcIdList 会包含重复的父任务 ID
  *
  * @param taskId - 任务 ID
  * @param edges - 连线列表
  * @param nodes - 节点列表
- * @returns 依赖任务 ID 列表
+ * @returns 依赖任务 ID 列表（可能包含重复项）
  */
 export function getDependencyIds(taskId: string, edges: Edge[], nodes: Node[]): string[] {
   const dependencies: string[] = []
@@ -258,6 +259,7 @@ export function getDependencyIds(taskId: string, edges: Edge[], nodes: Node[]): 
         // 源节点可能是输出节点，找到父任务
         const sourceData = sourceNode?.data as OutputDataNodeData
         if (sourceData?.parentTaskId) {
+          // 每个连接都添加父任务 ID（允许重复）
           dependencies.push(sourceData.parentTaskId)
         }
       }
@@ -277,10 +279,17 @@ export function buildDataProviderList(inputProviders: any[]): DataProvider[] {
   return inputProviders.map(provider => ({
     participantId: provider.participantId,
     assetId: provider.dataset, // 简化处理，使用 dataset 作为 assetId
-    fieldList: provider.fields.map((field: any) => ({
-      fieldName: field.columnAlias || field.columnName,
-      alias: field.columnAlias !== field.columnName ? field.columnAlias : undefined
-    }))
+    fieldList: provider.fields.map((field: any) => {
+      const fieldItem: { fieldName: string; alias?: string } = {
+        fieldName: field.columnAlias || field.columnName
+      }
+      // 只有当 alias 与 fieldName 不同且不为空时才添加 alias 字段
+      const alias = field.columnAlias !== field.columnName ? field.columnAlias : undefined
+      if (alias && alias !== fieldItem.fieldName) {
+        fieldItem.alias = alias
+      }
+      return fieldItem
+    })
   }))
 }
 
@@ -313,11 +322,22 @@ export function buildModelProviderList(models: any[]): ModelProvider[] {
     .map(model => ({
       participantId: model.participantId,
       modelId: model.id,
-      paramList: model.parameters?.map((param: any) => ({
-        name: param.name,
-        value: param.bindingType === 'field' ? (param.fieldRef || '') : (param.fixedValue || ''),
-        type: param.bindingType
-      })) || []
+      paramList: model.parameters?.map((param: any) => {
+        // 构建参数值
+        let value = ''
+        if (param.bindingType === 'field') {
+          // 字段引用格式: participantId.sourceId.fieldName
+          value = param.fieldRef || ''
+        } else {
+          // 固定值
+          value = param.fixedValue || ''
+        }
+        return {
+          name: param.name,
+          value,
+          type: param.bindingType || 'field'
+        }
+      }) || []
     }))
 }
 
@@ -365,10 +385,17 @@ export function buildResultConsumerList(outputs: any[]): ResultConsumer[] {
 
   return outputs.map(output => ({
     participantId: output.participantId,
-    fieldList: output.outputFields.map((field: any) => ({
-      fieldName: field.columnAlias || field.columnName,
-      alias: field.columnAlias !== field.columnName ? field.columnAlias : undefined
-    }))
+    fieldList: output.outputFields.map((field: any) => {
+      const fieldItem: { fieldName: string; alias?: string } = {
+        fieldName: field.columnAlias || field.columnName
+      }
+      // 只有当 alias 与 fieldName 不同且不为空时才添加 alias 字段
+      const alias = field.columnAlias !== field.columnName ? field.columnAlias : undefined
+      if (alias && alias !== fieldItem.fieldName) {
+        fieldItem.alias = alias
+      }
+      return fieldItem
+    })
   }))
 }
 
