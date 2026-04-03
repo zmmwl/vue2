@@ -643,14 +643,14 @@ async function handleExportJSON(page: Page, outputDir: string): Promise<string> 
   await createDataSourceNode(page, '用户行为数据', 100, 100)
   console.log('步骤2: 拖拽企业B的"信贷客户数据"数据源')
   await createDataSourceNode(page, '信贷客户数据', 300, 100)
-  const nodeCount = await getNodeCount(page)
+  let nodeCount = await getNodeCount(page)
   console.log(`当前节点数量: ${nodeCount}`)
   expect(nodeCount).toBe(2)
 
   // 步骤3: 创建 PSI 计算任务节点(选择 TEE 方案)
   console.log('步骤3: 拖拽"PSI计算"任务，选择"硬件TEE"方案')
   await createComputeTaskNode(page, 'PSI', 200, 200, 'TEE')
-  const nodeCount = await getNodeCount(page)
+  nodeCount = await getNodeCount(page)
   console.log(`当前节点数量: ${nodeCount}`)
   expect(nodeCount).toBe(3)
 
@@ -658,7 +658,7 @@ async function handleExportJSON(page: Page, outputDir: string): Promise<string> 
   console.log('步骤4: 连接"用户行为数据"到 PSI 任务')
   await connectNodes(page, 0, 2)
   await handleFieldSelection(page, 8, true, 'user_id')
-  const nodeCount = await getNodeCount(page)
+  nodeCount = await getNodeCount(page)
   console.log(`当前节点数量: ${nodeCount}`)
 
   // 步骤5: 连接"信贷客户数据"到 PSI 任务
@@ -667,7 +667,7 @@ async function handleExportJSON(page: Page, outputDir: string): Promise<string> 
   await handleFieldSelection(page, 12, true, 'customer_id')
   // 选中 PSI 任务节点
   await selectNode(page, 2)
-  const detailPanel = page.locator('.detail-panel')
+  let detailPanel = page.locator('.detail-panel')
   await expect(detailPanel).toBeVisible()
   await page.waitForTimeout(500)
 
@@ -685,7 +685,7 @@ async function handleExportJSON(page: Page, outputDir: string): Promise<string> 
   console.log('步骤8: 为 PSI 任务添加输出数据(企业B - ent_002) 选择"信贷客户数据"的全部字段')
   await handleAddOutputData(page, 'ent_002', [
     'customer_id', 'name', 'id_card', 'credit_score', 'risk_level'
-  )
+  ])
 
   // 获取 PSI 输出节点
   const nodes = page.locator('.vue-flow__node')
@@ -696,14 +696,14 @@ async function handleExportJSON(page: Page, outputDir: string): Promise<string> 
   // 步骤9: 创建 MPC 计算任务节点(选择 TEE 方案)
   console.log('步骤9: 拖拽"MPC计算"任务, 选择"硬件TEE"方案')
   await createComputeTaskNode(page, 'MPC', 200, 400, 'TEE')
-  const nodeCount = await getNodeCount(page)
+  nodeCount = await getNodeCount(page)
   console.log(`当前节点数量: ${nodeCount}`)
   // MPC 节点创建在索引 6， PSI 在节点在索引 2
   expect(nodeCount).toBe(6)
 
   // 选中 MPC 任务节点
   await selectNode(page, 5)
-  const detailPanel = page.locator('.detail-panel')
+  detailPanel = page.locator('.detail-panel')
   await expect(detailPanel).toBeVisible()
   await page.waitForTimeout(500)
 
@@ -723,7 +723,7 @@ async function handleExportJSON(page: Page, outputDir: string): Promise<string> 
 
   // 选中 MPC 任务节点
   await selectNode(page, 5)
-  const detailPanel = page.locator('.detail-panel')
+  detailPanel = page.locator('.detail-panel')
   await expect(detailPanel).toBeVisible()
   await page.waitForTimeout(500)
 
@@ -750,4 +750,3 @@ async function handleExportJSON(page: Page, outputDir: string): Promise<string> 
   console.log(`========================================\n`)
   expect(filename).toBeTruthy()
 })
-)
